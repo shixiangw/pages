@@ -5,227 +5,79 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Fleets vs AWS IoT Core & AWS IoT Device Management — 功能对比清单</title>
 <style>
-:root {
-  --primary: #1a73e8; --primary-dark: #1557b0; --primary-light: #e8f0fe;
-  --bg: #f5f6f7; --card-bg: #fff;
-  --text: #202124; --text-secondary: #5f6368;
-  --border: #dadce0;
-  --green: #1e8e3e; --green-bg: #e6f4ea;
-  --yellow: #f9ab00; --yellow-bg: #fef7e0;
-  --red: #d93025; --red-bg: #fce8e6;
-  --blue: #1a73e8; --blue-bg: #e8f0fe;
-  --code-bg: #f1f3f4;
-  --shadow: 0 1px 2px rgba(0,0,0,.06), 0 1px 8px rgba(0,0,0,.04);
-  --radius: 10px;
-  --sidebar-w: 260px;
-  --header-h: 48px;
-}
+:root{--primary:#1a73e8;--primary-dark:#1557b0;--primary-light:#e8f0fe;--bg:#f5f6f7;--card-bg:#fff;--text:#202124;--text-secondary:#5f6368;--border:#dadce0;--green:#1e8e3e;--green-bg:#e6f4ea;--yellow:#f9ab00;--yellow-bg:#fef7e0;--red:#d93025;--red-bg:#fce8e6;--blue:#1a73e8;--blue-bg:#e8f0fe;--code-bg:#f1f3f4;--shadow:0 1px 2px rgba(0,0,0,.06),0 1px 8px rgba(0,0,0,.04);--radius:10px;--sidebar-w:260px;--header-h:48px}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth;scroll-padding-top:calc(var(--header-h) + 16px)}
-body{
-  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans SC",sans-serif;
-  font-size:14px;line-height:1.6;color:var(--text);background:var(--bg)
-}
-
-/* Header bar */
-.header-bar{
-  position:fixed;top:0;left:0;right:0;height:var(--header-h);
-  background:var(--card-bg);border-bottom:1px solid var(--border);
-  display:none;align-items:center;padding:0 16px;z-index:100;
-  box-shadow:0 1px 2px rgba(0,0,0,.04);
-}
-.header-bar .menu-btn{
-  background:none;border:none;font-size:22px;cursor:pointer;
-  padding:4px 8px;border-radius:4px;color:var(--text-secondary);
-  margin-right:12px;
-}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans SC",sans-serif;font-size:14px;line-height:1.6;color:var(--text);background:var(--bg)}
+.header-bar{position:fixed;top:0;left:0;right:0;height:var(--header-h);background:var(--card-bg);border-bottom:1px solid var(--border);display:none;align-items:center;padding:0 16px;z-index:100;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.header-bar .menu-btn{background:none;border:none;font-size:22px;cursor:pointer;padding:4px 8px;border-radius:4px;color:var(--text-secondary);margin-right:12px}
 .header-bar .menu-btn:hover{background:var(--primary-light);color:var(--primary)}
 .header-bar .header-title{font-size:14px;font-weight:600;color:var(--primary)}
-
-/* Sidebar overlay */
-.sidebar-overlay{
-  display:none;position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:98;
-}
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:98}
 .sidebar-overlay.open{display:block}
-
-/* Sidebar */
-.sidebar{
-  width:var(--sidebar-w);flex-shrink:0;
-  background:var(--card-bg);border-right:1px solid var(--border);
-  position:fixed;top:0;left:0;height:100vh;overflow-y:auto;z-index:99;
-  transition:transform .25s ease;
-}
-.sidebar-title{
-  font-size:13px;font-weight:700;color:var(--primary);
-  padding:14px 20px;border-bottom:1px solid var(--border);
-  display:flex;align-items:center;gap:6px;
-}
-.sidebar-title .close-btn{
-  display:none;margin-left:auto;background:none;border:none;
-  font-size:20px;cursor:pointer;color:var(--text-secondary);
-}
+.sidebar{width:var(--sidebar-w);flex-shrink:0;background:var(--card-bg);border-right:1px solid var(--border);position:fixed;top:0;left:0;height:100vh;overflow-y:auto;z-index:99;transition:transform .25s ease}
+.sidebar-title{font-size:13px;font-weight:700;color:var(--primary);padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:6px}
+.sidebar-title .close-btn{display:none;margin-left:auto;background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-secondary)}
 .sidebar-group{margin:4px 0}
-.sidebar-group-header{
-  padding:10px 20px 4px;font-size:10px;font-weight:700;
-  text-transform:uppercase;letter-spacing:.8px;color:#9aa0a6;
-}
-.sidebar a{
-  display:block;padding:5px 20px 5px 24px;color:var(--text-secondary);
-  text-decoration:none;font-size:12px;transition:all .12s;
-  border-left:3px solid transparent;
-}
+.sidebar-group-header{padding:10px 20px 4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#9aa0a6}
+.sidebar a{display:block;padding:5px 20px 5px 24px;color:var(--text-secondary);text-decoration:none;font-size:12px;transition:all .12s;border-left:3px solid transparent}
 .sidebar a:hover{background:var(--primary-light);color:var(--primary)}
-.sidebar a.active{
-  background:var(--primary-light);color:var(--primary);
-  border-left-color:var(--primary);font-weight:600;
-}
-
-/* Main */
+.sidebar a.active{background:var(--primary-light);color:var(--primary);border-left-color:var(--primary);font-weight:600}
 .main{flex:1;max-width:1100px;margin-left:var(--sidebar-w);padding:28px 40px 100px}
-
-@media(max-width:960px){
-  .sidebar{transform:translateX(-100%)}
-  .sidebar.open{transform:translateX(0)}
-  .sidebar .close-btn{display:block}
-  .main{margin-left:0;padding:60px 16px 80px}
-  .header-bar{display:flex}
-  .sidebar-overlay.open{display:block}
-}
-
+@media(max-width:960px){.sidebar{transform:translateX(-100%)}.sidebar.open{transform:translateX(0)}.sidebar .close-btn{display:block}.main{margin-left:0;padding:60px 16px 80px}.header-bar{display:flex}.sidebar-overlay.open{display:block}}
 h1{font-size:24px;font-weight:700;margin-bottom:4px;line-height:1.3}
-h2{
-  font-size:18px;font-weight:700;margin:32px 0 14px;
-  padding-bottom:8px;border-bottom:2px solid var(--primary);
-  color:var(--primary);cursor:pointer;user-select:none;
-  display:flex;align-items:center;gap:8px;
-}
+h2{font-size:18px;font-weight:700;margin:32px 0 14px;padding-bottom:8px;border-bottom:2px solid var(--primary);color:var(--primary);cursor:pointer;user-select:none;display:flex;align-items:center;gap:8px}
 h2 .collapse-icon{font-size:14px;color:var(--text-secondary);transition:transform .2s}
 h2.collapsed .collapse-icon{transform:rotate(-90deg)}
 h3{font-size:15px;font-weight:600;margin:24px 0 10px}
 h4{font-size:14px;font-weight:600;margin:18px 0 8px}
 p{margin:0 0 10px;font-size:14px}
-
-.meta-box{
-  font-size:13px;color:var(--text-secondary);
-  background:var(--card-bg);padding:14px 18px;
-  border-radius:var(--radius);border:1px solid var(--border);
-  margin-bottom:18px;line-height:1.7;
-}
-.meta-box a{color:var(--primary)}
-.meta-box code{font-size:11px}
-
+.meta-box{font-size:13px;color:var(--text-secondary);background:var(--card-bg);padding:14px 18px;border-radius:var(--radius);border:1px solid var(--border);margin-bottom:18px;line-height:1.7}
+.meta-box a{color:var(--primary)}.meta-box code{font-size:11px}
 hr{border:none;border-top:1px solid var(--border);margin:24px 0}
-
-/* Tables */
-.table-wrap{
-  overflow-x:auto;margin-bottom:18px;border-radius:var(--radius);
-  border:1px solid var(--border);background:var(--card-bg);
-}
+.table-wrap{overflow-x:auto;margin-bottom:18px;border-radius:var(--radius);border:1px solid var(--border);background:var(--card-bg)}
 table{width:100%;border-collapse:collapse;font-size:13px}
 thead{background:#f1f3f4}
-th{
-  padding:9px 12px;text-align:left;font-weight:600;font-size:11px;
-  text-transform:uppercase;letter-spacing:.4px;color:var(--text-secondary);
-  border-bottom:2px solid var(--border);white-space:nowrap;
-}
+th{padding:9px 12px;text-align:left;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--text-secondary);border-bottom:2px solid var(--border);white-space:nowrap;vertical-align:top}
 td{padding:7px 12px;border-bottom:1px solid var(--border);vertical-align:top;font-size:13px}
 tr:last-child td{border-bottom:none}
 tbody tr:hover{background:var(--primary-light)}
-
 .tag{font-size:11px;padding:1px 5px;border-radius:3px;white-space:nowrap;font-weight:600}
 .tag-ok{background:var(--green-bg);color:var(--green)}
 .tag-warn{background:var(--yellow-bg);color:#e37400}
 .tag-no{background:var(--red-bg);color:var(--red)}
 .tag-info{background:var(--blue-bg);color:var(--blue)}
-
-pre{
-  background:#1e1e1e;color:#d4d4d4;padding:12px 14px;
-  border-radius:var(--radius);overflow-x:auto;font-size:12px;
-  line-height:1.5;margin:0 0 14px;
-  font-family:"SF Mono","Fira Code","Fira Mono",Menlo,Consolas,monospace;
-}
-code{
-  font-family:"SF Mono","Fira Code","Fira Mono",Menlo,Consolas,monospace;
-  font-size:12px;background:var(--code-bg);padding:2px 5px;
-  border-radius:3px;color:#d63384;
-}
+.tag-p0{background:#fce8e6;color:#d93025}
+.tag-p1{background:#fef7e0;color:#e37400}
+.tag-p2{background:#e8f0fe;color:#1a73e8}
+.tag-p3{background:#f1f3f4;color:#5f6368}
+pre{background:#1e1e1e;color:#d4d4d4;padding:12px 14px;border-radius:var(--radius);overflow-x:auto;font-size:12px;line-height:1.5;margin:0 0 14px;font-family:"SF Mono","Fira Code","Fira Mono",Menlo,Consolas,monospace}
+code{font-family:"SF Mono","Fira Code","Fira Mono",Menlo,Consolas,monospace;font-size:12px;background:var(--code-bg);padding:2px 5px;border-radius:3px;color:#d63384}
 pre code{background:none;padding:0;color:inherit}
-blockquote{
-  margin:0 0 12px;padding:0 0 0 14px;border-left:3px solid var(--primary);
-  color:var(--text-secondary);font-size:13px;
-}
+blockquote{margin:0 0 12px;padding:0 0 0 14px;border-left:3px solid var(--primary);color:var(--text-secondary);font-size:13px}
 ul,ol{margin:0 0 10px;padding-left:20px}
 li{margin-bottom:3px;font-size:14px}
 ul li{list-style:disc}
-
 .section-content{transition:max-height .25s ease,opacity .2s ease;overflow:hidden}
 .section-content.collapsed{max-height:0!important;opacity:0;padding:0!important;margin:0!important}
-
-/* Back to top */
-.back-top{
-  position:fixed;bottom:24px;right:24px;z-index:50;
-  width:40px;height:40px;border-radius:50%;
-  background:var(--primary);color:#fff;border:none;
-  font-size:20px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.2);
-  display:none;align-items:center;justify-content:center;
-  transition:transform .15s,opacity .15s;
-}
-.back-top:hover{transform:scale(1.08)}
-.back-top.show{display:flex}
-
-/* Filter/search bar */
-.filter-bar{
-  position:sticky;top:0;z-index:20;
-  background:var(--card-bg);padding:8px 12px;
-  border-bottom:1px solid var(--border);display:flex;gap:8px;
-  flex-wrap:wrap;align-items:center;
-  margin-bottom:16px;border-radius:var(--radius);
-}
-.filter-bar input{
-  flex:1;min-width:120px;padding:6px 10px;border:1px solid var(--border);
-  border-radius:6px;font-size:12px;outline:none;
-}
+.back-top{position:fixed;bottom:24px;right:24px;z-index:50;width:40px;height:40px;border-radius:50%;background:var(--primary);color:#fff;border:none;font-size:20px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.2);display:none;align-items:center;justify-content:center;transition:transform .15s,opacity .15s}
+.back-top:hover{transform:scale(1.08)}.back-top.show{display:flex}
+.filter-bar{position:sticky;top:0;z-index:20;background:var(--card-bg);padding:8px 12px;border-bottom:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:16px;border-radius:var(--radius)}
+.filter-bar input{flex:1;min-width:120px;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;outline:none}
 .filter-bar input:focus{border-color:var(--primary)}
-.filter-bar .badge{
-  font-size:11px;color:var(--text-secondary);background:var(--bg);
-  padding:3px 8px;border-radius:12px;
-}
+.filter-bar .badge{font-size:11px;color:var(--text-secondary);background:var(--bg);padding:3px 8px;border-radius:12px}
 .filter-bar .tag-group{display:flex;gap:4px;flex-wrap:wrap}
-.filter-bar .tag-filter{
-  font-size:11px;padding:2px 8px;border-radius:12px;
-  border:1px solid var(--border);background:var(--card-bg);
-  cursor:pointer;transition:all .12s;user-select:none;
-}
+.filter-bar .tag-filter{font-size:11px;padding:2px 8px;border-radius:12px;border:1px solid var(--border);background:var(--card-bg);cursor:pointer;transition:all .12s;user-select:none}
 .filter-bar .tag-filter.active{background:var(--primary-light);border-color:var(--primary);color:var(--primary)}
 .filter-bar .tag-filter:hover{border-color:var(--primary)}
-
-.summary-strip{
-  display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;font-size:12px;
-}
-.summary-strip .stat{
-  background:var(--card-bg);padding:6px 12px;border-radius:8px;
-  border:1px solid var(--border);
-}
-
-@media print{
-  .sidebar,.header-bar,.back-top,.filter-bar{display:none!important}
-  .main{margin-left:0;padding:20px}
-  .section-content{max-height:none!important;opacity:1!important;overflow:visible!important}
-}
+@media print{.sidebar,.header-bar,.back-top,.filter-bar{display:none!important}.main{margin-left:0;padding:20px}.section-content{max-height:none!important;opacity:1!important;overflow:visible!important}}
 </style>
 </head>
 <body>
-
-<div class="header-bar">
-<button class="menu-btn" onclick="toggleSidebar()">☰</button>
-<span class="header-title">Fleets vs AWS IoT</span>
-</div>
+<div class="header-bar"><button class="menu-btn" onclick="toggleSidebar()">☰</button><span class="header-title">Fleets vs AWS IoT</span></div>
 <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
 <nav class="sidebar" id="sidebar">
-<div class="sidebar-title">
-<span>📋 Fleets vs AWS IoT</span>
-<button class="close-btn" onclick="toggleSidebar()">✕</button>
-</div>
+<div class="sidebar-title"><span>📋 Fleets vs AWS IoT</span><button class="close-btn" onclick="toggleSidebar()">✕</button></div>
 <div class="sidebar-group">
 <div class="sidebar-group-header">功能对比</div>
 <a href="#s1">1. 设备连接与通信协议</a>
@@ -276,7 +128,6 @@ ul li{list-style:disc}
 <a href="#conclusion-strategy">战略定位建议</a>
 </div>
 </nav>
-
 <div class="layout">
 <main class="main" id="mainContent">
 <h1>Fleets vs AWS IoT Core &amp; AWS IoT Device Management — 功能对比清单</h1>
@@ -321,7 +172,12 @@ ul li{list-style:disc}
 <tr><td>MQTT v3.1.1</td><td><span class="tag tag-ok">✅</span> 通过 EMQX Broker</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-no">❌</span> 依赖 IoT Core</td></tr>
 <tr><td>MQTT v5.0</td><td><span class="tag tag-ok">✅</span> 通过 EMQX Broker</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-no">❌</span></td></tr>
 <tr><td>MQTT over WebSocket Secure</td><td><span class="tag tag-ok">✅</span> 通过 EMQX</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-no">❌</span></td></tr>
-<tr><td>HTTPS 发布</td><td><span class="tag tag-ok">✅</span> ThingDatas API</td><td><span class="tag tag-ok">✅</span> <code>POST /topics/{topic}?qos=N</code></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>HTTPS 发布（单向）</td><td><span class="tag tag-ok">✅</span> ThingDatas API <code>POST /api/v1/thing-datas/*</code></td><td><span class="tag tag-ok">✅</span> <code>POST /topics/{topic}?qos=N</code></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>HTTPS 订阅/接收</td><td><span class="tag tag-ok">✅</span> ThingDatas API <code>GET /api/v1/thing-datas/{name}/shadow</code></td><td><span class="tag tag-no">❌</span> 不支持（HTTPS 无法订阅）</td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>HTTPS 双向交互</td><td><span class="tag tag-ok">✅</span> 9 个端点覆盖事件/影子/命令/jobs/生命周期</td><td><span class="tag tag-no">❌</span> 仅发布，无影子/命令/jobs 协议</td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>HTTPS 携带设备身份</td><td><span class="tag tag-ok">✅</span> <code>thingName</code> 在请求 body 中</td><td><span class="tag tag-no">❌</span> 无 <code>clientId</code>，需在 payload 自行携带</td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>HTTPS 离线消息投递</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span> HTTPS 无持久连接</td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>HTTPS 断网检测</td><td><span class="tag tag-ok">✅</span> 通过 EMQX MQTT 生命周期事件间接实现</td><td><span class="tag tag-no">❌</span> 无</td><td><span class="tag tag-no">❌</span></td></tr>
 <tr><td>LoRaWAN</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span> AWS IoT Core for LoRaWAN</td><td><span class="tag tag-no">❌</span></td></tr>
 <tr><td>CoAP/UDP (NB-IoT)</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span> 通过合作伙伴</td><td><span class="tag tag-no">❌</span></td></tr>
 <tr><td>Amazon Sidewalk</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span> AWS IoT Core for Sidewalk</td><td><span class="tag tag-no">❌</span></td></tr>
@@ -530,10 +386,12 @@ ul li{list-style:disc}
 </tbody>
 </table>
 </div>
-<h2 id="s11"><span class="collapse-icon">▼</span> 11. 设备数据注入</h2>
+<h2 id="s11"><span class="collapse-icon">▼</span> 11. 设备数据注入（HTTPS 设备侧协议）</h2>
 <div class="table-wrap"><table>
-<thead><tr><th>功能</th><th>Fleets</th><th>AWS IoT Core</th><th>AWS IoT Device Mgmt</th></tr></thead>
+<thead><tr><th>功能</th><th>Fleets ThingDatas API</th><th>AWS IoT Core HTTPS</th><th>AWS IoT Device Mgmt</th></tr></thead>
 <tbody>
+<tr><td>HTTPS 发布原始消息</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span> <code>POST /topics/{topic}?qos=N</code></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>HTTPS 携带 <code>clientId</code></td><td><span class="tag tag-ok">✅</span> <code>thingName</code> 在 body 中</td><td><span class="tag tag-no">❌</span> 无 <code>clientId</code> 字段</td><td><span class="tag tag-no">❌</span></td></tr>
 <tr><td>事件写入</td><td><span class="tag tag-ok">✅</span> <code>POST /api/v1/thing-datas/events</code> → EMQX Tables</td><td><span class="tag tag-no">❌</span> 无专用端点</td><td><span class="tag tag-no">❌</span></td></tr>
 <tr><td>影子 reported 写入</td><td><span class="tag tag-ok">✅</span> <code>POST /api/v1/thing-datas/shadow/reported</code> → EMQX Tables + PG</td><td><span class="tag tag-ok">✅</span> <code>POST /things/{name}/shadow</code></td><td><span class="tag tag-no">❌</span></td></tr>
 <tr><td>影子读取</td><td><span class="tag tag-ok">✅</span> <code>GET /api/v1/thing-datas/{name}/shadow</code></td><td><span class="tag tag-ok">✅</span> <code>GET /things/{name}/shadow</code></td><td><span class="tag tag-no">❌</span></td></tr>
@@ -543,8 +401,13 @@ ul li{list-style:disc}
 <tr><td>Jobs start-next (设备侧)</td><td><span class="tag tag-ok">✅</span> <code>POST /api/v1/thing-datas/jobs/start-next</code></td><td><span class="tag tag-no">❌</span> MQTT only</td><td><span class="tag tag-no">❌</span></td></tr>
 <tr><td>Jobs execution get (设备侧)</td><td><span class="tag tag-ok">✅</span> <code>POST /api/v1/thing-datas/jobs/{id}/get</code></td><td><span class="tag tag-no">❌</span> MQTT only</td><td><span class="tag tag-no">❌</span></td></tr>
 <tr><td>Jobs update (设备侧)</td><td><span class="tag tag-ok">✅</span> <code>POST /api/v1/thing-datas/jobs/{id}/update</code></td><td><span class="tag tag-no">❌</span> MQTT only</td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>认证方式</td><td>Basic Auth + SignKey JWT</td><td>X.509 证书 / SigV4 / Custom Auth</td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>HTTPS 端口</td><td>8080 (HTTP) + 8443 (HTTPS, 可配置)</td><td>8443 (X.509) / 443 (X.509+ALPN/SigV4)</td><td><span class="tag tag-no">❌</span></td></tr>
 </tbody>
 </table>
+</div>
+<div class="section-content" id="content-s11">
+<blockquote><strong>关键差异</strong>: AWS IoT Core HTTPS 仅支持 <code>POST /topics/{topic}</code> 的原始消息发布—设备无法通过 HTTPS 读取影子、查询 Jobs 或执行命令响应。Fleets ThingDatas API 提供了 9 个 HTTPS 端点覆盖事件、影子双向、命令响应、Jobs 协议（get/start-next/update）和生命周期，设备侧无需 MQTT 即可完成全部云端交互。</blockquote>
 </div>
 <h2 id="s12"><span class="collapse-icon">▼</span> 12. 时序遥测 / 时间序列</h2>
 <div class="table-wrap"><table>
@@ -674,21 +537,24 @@ ul li{list-style:disc}
 </div>
 <h2 id="s21"><span class="collapse-icon">▼</span> 21. AWS 专属功能（未实现）</h2>
 <div class="table-wrap"><table>
-<thead><tr><th>功能</th><th>Fleets</th><th>AWS IoT Core</th><th>AWS IoT Device Mgmt</th></tr></thead>
+<thead><tr><th>优先级</th><th>功能</th><th>Fleets</th><th>AWS IoT Core</th><th>AWS IoT Device Mgmt</th><th>说明</th></tr></thead>
 <tbody>
-<tr><td>Device Defender (安全审计+异常检测)</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span> Fleet Indexing 集成</td></tr>
-<tr><td>Secure Tunneling (远程隧道)</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span> 多并发连接</td></tr>
-<tr><td>Device Advisor (设备认证测试)</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-no">❌</span></td></tr>
-<tr><td>Device Location (非GPS定位)</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-no">❌</span></td></tr>
-<tr><td>Streams (MQTT 文件传输)</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span> <code>$aws/.../streams/*</code></td><td><span class="tag tag-no">❌</span></td></tr>
-<tr><td>OTA Update Manager (固件升级)</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span></td></tr>
-<tr><td>Software Package Catalog</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span> 版本分布+追踪</td></tr>
-<tr><td>Fleet Hub (Web 仪表盘)</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-warn">⚠️</span> 2025-10-18 停用</td></tr>
-<tr><td>CoAP/UDP (NB-IoT)</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span> 通过合作伙伴</td><td><span class="tag tag-no">❌</span></td></tr>
-<tr><td>LoRaWAN Network Server</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span> AWS IoT Core for LoRaWAN</td><td><span class="tag tag-no">❌</span></td></tr>
-<tr><td>Amazon Sidewalk</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-no">❌</span></td></tr>
-<tr><td>MQTT5 User Property 自动注入</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span> MQTT5 Propagating</td><td><span class="tag tag-no">❌</span></td></tr>
-<tr><td>Greengrass Core 更新 Job</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span></td></tr>
+<tr><td><strong>P0</strong></td><td><strong>Fleet Provisioning (设备预置)</strong></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span></td><td>MQTT 证书自动注册 + Provisioning Template，设备出厂即用，IoT 平台最基础缺口</td></tr>
+<tr><td><strong>P0</strong></td><td><strong>OTA Update Manager (固件升级)</strong></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span></td><td>固件分发 + 数字签名 + 版本管理 + 定向更新，生产环境核心需求</td></tr>
+<tr><td><strong>P1</strong></td><td><strong>Device Defender (安全审计)</strong></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span></td><td>自动化安全审计 + 异常行为检测 + ML 模型，安全合规必备</td></tr>
+<tr><td><strong>P1</strong></td><td><strong>Secure Tunneling (远程隧道)</strong></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span></td><td>多并发安全隧道用于远程调试，生产运维高频需求</td></tr>
+<tr><td><strong>P1</strong></td><td><strong>聚合查询 (Aggregation)</strong></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span></td><td><code>count/avg/min/max/sum/percentile/cardinality</code>，数据分析基础</td></tr>
+<tr><td><strong>P1</strong></td><td><strong>Named Shadows (多命名影子)</strong></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-no">❌</span></td><td>每个设备多影子，复杂设备场景（如车载多传感器）</td></tr>
+<tr><td><strong>P2</strong></td><td><strong>Software Package Catalog</strong></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span></td><td>软件包版本分布 + 版本追踪 + 定向更新</td></tr>
+<tr><td><strong>P2</strong></td><td><strong>MQTT5 User Property 自动注入</strong></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span> MQTT5 Propagating</td><td><span class="tag tag-no">❌</span></td><td>Thing 属性自动注入 MQTT5 User Property</td></tr>
+<tr><td><strong>P2</strong></td><td><strong>Streams (MQTT 文件传输)</strong></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span> <code>$aws/.../streams/*</code></td><td><span class="tag tag-no">❌</span></td><td>MQTT 通道大文件分段传输</td></tr>
+<tr><td><strong>P3</strong></td><td><strong>Device Advisor (认证测试)</strong></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-no">❌</span></td><td>云端测试工具，可自建测试方案替代</td></tr>
+<tr><td><strong>P3</strong></td><td><strong>Device Location (非GPS定位)</strong></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-no">❌</span></td><td>云增强定位（非 GPS 芯片），场景特定</td></tr>
+<tr><td><strong>P3</strong></td><td><strong>LoRaWAN Network Server</strong></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span> AWS IoT Core for LoRaWAN</td><td><span class="tag tag-no">❌</span></td><td>特定 LPWAN 网络协议，需 LoRa 网关硬件</td></tr>
+<tr><td><strong>P3</strong></td><td><strong>Amazon Sidewalk</strong></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-no">❌</span></td><td>Amazon 专属共享网络生态</td></tr>
+<tr><td><strong>P3</strong></td><td><strong>CoAP/UDP (NB-IoT)</strong></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span> 通过合作伙伴</td><td><span class="tag tag-no">❌</span></td><td>蜂窝 NB-IoT 场景，需合作伙伴中间件</td></tr>
+<tr><td><strong>P3</strong></td><td><strong>Greengrass Core 更新 Job</strong></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span></td><td>AWS Greengrass 专属，强生态绑定</td></tr>
+<tr><td><strong>—</strong></td><td><strong>Fleet Hub (Web 仪表盘)</strong></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-warn">⚠️</span> 2025-10-18 停用</td><td>AWS 已弃用，无需投入</td></tr>
 </tbody>
 </table>
 </div>
@@ -711,7 +577,7 @@ ul li{list-style:disc}
 </tbody>
 </table>
 </div>
-<h1>MQTT Topic 映射参考</h1>
+<h1 id="mqtt-overview">MQTT Topic 映射参考</h1>
 <div class="section-content" id="content-s22">
 <hr>
 </div>
@@ -1115,7 +981,7 @@ ul li{list-style:disc}
 <tbody>
 <tr><td><strong>设备模型</strong></td><td>ThingType 支持丰富 JSON Schema（properties 含类型/单位/范围、events、commands、connectivity、security、lifecycle、edge、relations）。AWS IoT Core 仅支持 <code>searchableAttributes</code>（字符串数组）。Fleets 还支持 Schema 继承（Thing ← ThingType）和 JSONB 任意结构属性。</td></tr>
 <tr><td><strong>时序数据库内置</strong></td><td>EMQX Tables（原 GreptimeDB）作为内置时序数据库，通过 PG 协议（端口 4003）读写。设备数据（事件 <code>fleets_events</code>、影子历史 <code>fleets_shadow_reported</code>、自定义遥测 <code>fleets_telemetry</code>）天然时序化。AWS 无内置时序能力，需外接 Timestream/S3。</td></tr>
-<tr><td><strong>设备侧 HTTPS 协议</strong></td><td>ThingDatas API 提供 9 个设备端 HTTPS 端点（events、shadow reported/read、command response、lifecycle、jobs get/start-next/update），覆盖设备与云端的所有交互场景。AWS IoT Core 设备侧仅支持 MQTT 或单向 HTTPS publish。</td></tr>
+<tr><td><strong>设备侧 HTTPS 协议</strong></td><td>ThingDatas API 提供 9 个设备端 HTTPS 端点（events、shadow reported/read、command response、lifecycle、jobs get/start-next/update），覆盖设备与云端的所有交互场景（双向：设备→云发布、云→设备读取+响应）。AWS IoT Core 设备侧 HTTPS <strong>仅支持单向 publish</strong>（<code>POST /topics/{topic}</code>），<strong>不支持</strong> 影子读取、Jobs 查询、命令响应等需要订阅/响应的操作；设备若要通过 HTTPS 完成完整交互，必须自建轮询或额外部署应用层协议。</td></tr>
 <tr><td><strong>标签系统</strong></td><td>独立的双类型标签实体（Thing 标签 type=0、ThingType 标签 type=1），支持 CRUD、批量创建、自动创建、孤儿清理。标签驱动动态 Group 成员（<code>tagFilter</code> AND 匹配）、搜索筛选。AWS 无独立标签系统，仅以 Attribute 字符串替代。</td></tr>
 <tr><td><strong>EMQX Broker 深度集成</strong></td><td>通过 EMQX V5 REST API 实现下行发布（影子、jobs、commands、事件）；规则引擎 Connector/Action/Rule 可动态配置；回调 API key 自动轮换；<code>no_matching_subscribers</code> 降噪检测；双重发布验证（status + 探针）。</td></tr>
 <tr><td><strong>运维管理</strong></td><td>Teleport SSH 集群注册/续期/停止/重置/状态查询；TLS 证书通过 API 热重载；结构化日志（slog）；请求 ID 追踪（X-Request-ID）；CORS 支持；自动 OpenAPI 3.1 文档。</td></tr>
@@ -1131,7 +997,7 @@ ul li{list-style:disc}
 <tbody>
 <tr><td><strong>设备预置（Fleet Provisioning）</strong></td><td>AWS 提供完整的 JITP（Just-in-Time Provisioning）、JITR（Just-in-Time Registration）、Claim-based、Trusted User 四种预置方案。Fleets 仅支持 API 单设备注册和 JSON 批量导入。</td></tr>
 <tr><td><strong>设备安全（Device Defender）</strong></td><td>AWS IoT Device Defender 提供自动化安全审计（Audit）、行为规则检测（Rules Detect）、ML 异常检测（ML Detect）以及 SNS/CloudWatch 告警。Fleets 无此功能。</td></tr>
-<tr><td><strong>设备 SDK</strong></td><td>AWS 提供全平台官方 SDK（C/JS/Python/Java/嵌入式 C）。Fleets 仅提供标准 MQTT/HTTPS 协议，设备端需自行实现协议适配。</td></tr>
+<tr><td><strong>设备 SDK</strong></td><td>AWS 提供全平台官方 SDK（C/JS/Python/Java/嵌入式 C），但 SDK 主要基于 MQTT，HTTPS 场景无 SDK 支持。Fleets 仅提供标准 MQTT/HTTPS 协议，设备端需自行实现协议适配。</td></tr>
 <tr><td><strong>OTA 固件升级</strong></td><td>AWS IoT Device Management OTA Update Job + Software Package Catalog 支持固件分发、数字签名、版本追踪、定向更新。Fleets 无此功能。</td></tr>
 <tr><td><strong>Secure Tunneling</strong></td><td>AWS 支持通过 <code>$aws/things/{name}/tunnels/notify</code> 建立安全远程隧道，支持多并发连接，用于远程调试。Fleets 无此功能。</td></tr>
 <tr><td><strong>Fleet Indexing 聚合</strong></td><td>AWS <code>SearchIndex</code> 支持 <code>count/avg/min/max/sum/percentile/cardinality</code> 聚合查询 + Fleet Metrics 自动推送 CloudWatch。Fleets Device Query 不支持聚合和排序。</td></tr>
@@ -1159,6 +1025,22 @@ ul li{list-style:disc}
 </table>
 </div>
 <h2 id="conclusion-strategy"><span class="collapse-icon">▼</span> 战略定位建议</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>优先级</th><th>功能</th><th>预估工作量</th><th>依赖条件</th></tr></thead>
+<tbody>
+<tr><td><strong>P0</strong></td><td>Fleet Provisioning (设备预置)</td><td>中</td><td>MQTT 客户端 + 证书管理 + Provisioning Template</td></tr>
+<tr><td><strong>P0</strong></td><td>OTA Update Manager (固件升级)</td><td>大</td><td>文件存储 + 签名服务 + 分发管线</td></tr>
+<tr><td><strong>P1</strong></td><td>Device Defender (安全审计)</td><td>大</td><td>审计规则引擎 + ML 模型 + 告警系统</td></tr>
+<tr><td><strong>P1</strong></td><td>Secure Tunneling (远程隧道)</td><td>中</td><td>WebSocket 代理 + 会话管理</td></tr>
+<tr><td><strong>P1</strong></td><td>聚合查询 (Aggregation)</td><td>中</td><td>Device Query 扩展聚合算子 + 时序聚合</td></tr>
+<tr><td><strong>P1</strong></td><td>Named Shadows (多命名影子)</td><td>小</td><td>影子模型扩展 + 新增 topic 前缀</td></tr>
+<tr><td><strong>P2</strong></td><td>Software Package Catalog</td><td>中</td><td>软件包元数据管理 + Fleet Indexing 集成</td></tr>
+<tr><td><strong>P2</strong></td><td>MQTT5 User Property 注入</td><td>小</td><td>EMQX 规则增强</td></tr>
+<tr><td><strong>P2</strong></td><td>Streams (MQTT 文件传输)</td><td>中</td><td>分片传输协议 + 文件存储</td></tr>
+<tr><td><strong>P3</strong></td><td>Device Advisor / Location / LoRaWAN / Sidewalk / CoAP / Greengrass</td><td>视需求</td><td>特定硬件/网络/生态依赖，按需投入</td></tr>
+</tbody>
+</table>
+</div>
 <div class="section-content" id="content-conclusion-strategy">
 <p>Fleets 在当前版本中更适合以下场景：</p>
 <ul>
@@ -1169,140 +1051,32 @@ ul li{list-style:disc}
 <li><strong>需要 HTTPS-only 设备接入</strong>（设备侧不支持 MQTT 订阅）</li>
 <li><strong>需要标签驱动动态组</strong>的灵活设备分组方案</li>
 </ul>
-<p>如需对标 AWS 全功能，建议优先补齐：</p>
-<ol>
-<li><strong>设备预置（Fleet Provisioning）</strong> — MQTT 证书自动注册 + Provisioning Template</li>
-<li><strong>Device Defender</strong> — 设备安全审计 + 行为异常检测</li>
-<li><strong>Secure Tunneling</strong> — 远程调试隧道</li>
-<li><strong>OTA 固件升级</strong> — 固件分发 + 数字签名 + 版本管理</li>
-<li><strong>聚合查询</strong> — Device Query 支持 count/avg/min/max/sum/percentile</li>
-<li><strong>Named Shadows</strong> — 多命名影子支持</li>
-</ol>
-</div>
-
-</main>
+<p>如需对标 AWS 全功能，建议按以下优先级补齐（对应 §21 优先级排序）：</p>
 </div>
 
 <button class="back-top" id="backTop" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
-
 <script>
-// Toggle sidebar
-function toggleSidebar(){
-  document.getElementById('sidebar').classList.toggle('open');
-  document.getElementById('sidebarOverlay').classList.toggle('open');
-}
-
-// Collapsible sections
-document.querySelectorAll('h2').forEach(h2 => {
-  const next = h2.nextElementSibling;
-  if(next && next.classList.contains('section-content')){
-    h2.addEventListener('click', (e) => {
-      if(e.target.closest('a')) return;
-      h2.classList.toggle('collapsed');
-      next.classList.toggle('collapsed');
-    });
-    // Start with section 2+ collapsed
-    const id = h2.id;
-    if(id && id.startsWith('s') && id !== 's1'){
-      h2.classList.add('collapsed');
-      next.classList.add('collapsed');
-    }
-  }
+function toggleSidebar(){document.getElementById('sidebar').classList.toggle('open');document.getElementById('sidebarOverlay').classList.toggle('open')}
+document.querySelectorAll('h2').forEach(h2=>{const n=h2.nextElementSibling;if(n&&n.classList.contains('section-content')){h2.addEventListener('click',e=>{if(e.target.closest('a'))return;h2.classList.toggle('collapsed');n.classList.toggle('collapsed')});const id=h2.id;if(id&&id.startsWith('s')&&id!=='s1'&&id!=='s21'){h2.classList.add('collapsed');n.classList.add('collapsed')}}
 });
-
-// Scroll spy for sidebar
-const sections = [];
-document.querySelectorAll('h2[id]').forEach(h2 => {
-  sections.push({id: h2.id, el: h2});
-});
-const sidebarLinks = document.querySelectorAll('.sidebar a[href^="#"]');
-
-function updateActive(){
-  const scrollY = window.scrollY + 80;
-  let activeId = sections[0]?.id || '';
-  for(const s of sections){
-    if(s.el.offsetTop <= scrollY) activeId = s.id;
-  }
-  sidebarLinks.forEach(a => {
-    a.classList.toggle('active', a.getAttribute('href') === '#' + activeId);
-  });
-}
-window.addEventListener('scroll', updateActive);
-window.addEventListener('load', updateActive);
-
-// Back to top
-const backTop = document.getElementById('backTop');
-window.addEventListener('scroll', () => {
-  backTop.classList.toggle('show', window.scrollY > 600);
-});
-
-// Filter functionality
-(function(){
-  const main = document.getElementById('mainContent');
-  const filterDiv = document.createElement('div');
-  filterDiv.className = 'filter-bar';
-  filterDiv.innerHTML = `
-    <input type="text" id="filterInput" placeholder="搜索功能关键词..." />
-    <div class="tag-group">
-      <span class="tag-filter active" data-filter="all">全部</span>
-      <span class="tag-filter" data-filter="ok">✅ 已实现</span>
-      <span class="tag-filter" data-filter="no">❌ 未实现</span>
-      <span class="tag-filter" data-filter="warn">⚠️ 部分</span>
-    </div>
-    <span class="badge" id="filterCount">0</span>
-  `;
-  main.parentNode.insertBefore(filterDiv, main);
-
-  const input = document.getElementById('filterInput');
-  const tagFilters = document.querySelectorAll('.tag-filter');
-  let activeTag = 'all';
-
-  tagFilters.forEach(el => {
-    el.addEventListener('click', () => {
-      tagFilters.forEach(e => e.classList.remove('active'));
-      el.classList.add('active');
-      activeTag = el.dataset.filter;
-      applyFilter();
-    });
-  });
-
-  input.addEventListener('input', applyFilter);
-
-  function applyFilter(){
-    const q = input.value.trim().toLowerCase();
-    const rows = document.querySelectorAll('tbody tr');
-    let visible = 0;
-    rows.forEach(tr => {
-      const text = tr.textContent.toLowerCase();
-      const hasOk = text.includes('✅');
-      const hasNo = text.includes('❌');
-      const hasWarn = text.includes('⚠️');
-
-      let tagMatch = true;
-      if(activeTag === 'ok') tagMatch = hasOk;
-      else if(activeTag === 'no') tagMatch = hasNo;
-      else if(activeTag === 'warn') tagMatch = hasWarn;
-
-      const textMatch = !q || text.includes(q);
-      const show = tagMatch && textMatch;
-      tr.style.display = show ? '' : 'none';
-      if(show) visible++;
-    });
-    document.getElementById('filterCount').textContent = visible + ' / ' + rows.length + ' 行';
-  }
-  applyFilter();
-
-  // Close sidebar on mobile when clicking a link
-  const isMobile = window.innerWidth <= 960;
-  if(isMobile){
-    sidebarLinks.forEach(a => {
-      a.addEventListener('click', () => {
-        document.getElementById('sidebar').classList.remove('open');
-        document.getElementById('sidebarOverlay').classList.remove('open');
-      });
-    });
-  }
-})();
+const sections=[];document.querySelectorAll('h2[id]').forEach(h2=>sections.push({id:h2.id,el:h2}));
+const sidebarLinks=document.querySelectorAll('.sidebar a[href^="#"]');
+function updateActive(){const sy=window.scrollY+80;let aid=sections[0]?.id||'';for(const s of sections){if(s.el.offsetTop<=sy)aid=s.id}
+sidebarLinks.forEach(a=>a.classList.toggle('active',a.getAttribute('href')==='#'+aid))}
+window.addEventListener('scroll',updateActive);window.addEventListener('load',updateActive);
+const bt=document.getElementById('backTop');window.addEventListener('scroll',()=>bt.classList.toggle('show',window.scrollY>600));
+(function(){const main=document.getElementById('mainContent');const fd=document.createElement('div');fd.className='filter-bar';
+fd.innerHTML='<input type="text" id="filterInput" placeholder="搜索功能关键词..."/><div class="tag-group"><span class="tag-filter active" data-filter="all">全部</span><span class="tag-filter" data-filter="ok">✅ 已实现</span><span class="tag-filter" data-filter="no">❌ 未实现</span><span class="tag-filter" data-filter="warn">⚠️ 部分</span></div><span class="badge" id="filterCount">0</span>';
+main.parentNode.insertBefore(fd,main);const inp=document.getElementById('filterInput');
+const tfs=document.querySelectorAll('.tag-filter');let at='all';
+tfs.forEach(el=>{el.addEventListener('click',()=>{tfs.forEach(e=>e.classList.remove('active'));el.classList.add('active');at=el.dataset.filter;af()})});
+inp.addEventListener('input',af);
+function af(){const q=inp.value.trim().toLowerCase();const rows=document.querySelectorAll('tbody tr');let v=0;
+rows.forEach(tr=>{const t=tr.textContent.toLowerCase();const ok=t.includes('✅');const no=t.includes('❌');const wa=t.includes('⚠️');
+let tm=true;if(at==='ok')tm=ok;else if(at==='no')tm=no;else if(at==='warn')tm=wa;
+const txm=!q||t.includes(q);const s=tm&&txm;tr.style.display=s?'':'none';if(s)v++});
+document.getElementById('filterCount').textContent=v+' / '+rows.length+' 行'}af()})();
+window.addEventListener('resize',()=>{if(window.innerWidth<=960&&!document.querySelector('.sidebar.open')){sidebarLinks.forEach(a=>a.addEventListener('click',()=>{document.getElementById('sidebar').classList.remove('open');document.getElementById('sidebarOverlay').classList.remove('open')}))}});
 </script>
 </body>
 </html>
