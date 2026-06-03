@@ -1,0 +1,1308 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fleets vs AWS IoT Core & AWS IoT Device Management — 功能对比清单</title>
+<style>
+:root {
+  --primary: #1a73e8; --primary-dark: #1557b0; --primary-light: #e8f0fe;
+  --bg: #f5f6f7; --card-bg: #fff;
+  --text: #202124; --text-secondary: #5f6368;
+  --border: #dadce0;
+  --green: #1e8e3e; --green-bg: #e6f4ea;
+  --yellow: #f9ab00; --yellow-bg: #fef7e0;
+  --red: #d93025; --red-bg: #fce8e6;
+  --blue: #1a73e8; --blue-bg: #e8f0fe;
+  --code-bg: #f1f3f4;
+  --shadow: 0 1px 2px rgba(0,0,0,.06), 0 1px 8px rgba(0,0,0,.04);
+  --radius: 10px;
+  --sidebar-w: 260px;
+  --header-h: 48px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;scroll-padding-top:calc(var(--header-h) + 16px)}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans SC",sans-serif;
+  font-size:14px;line-height:1.6;color:var(--text);background:var(--bg)
+}
+
+/* Header bar */
+.header-bar{
+  position:fixed;top:0;left:0;right:0;height:var(--header-h);
+  background:var(--card-bg);border-bottom:1px solid var(--border);
+  display:none;align-items:center;padding:0 16px;z-index:100;
+  box-shadow:0 1px 2px rgba(0,0,0,.04);
+}
+.header-bar .menu-btn{
+  background:none;border:none;font-size:22px;cursor:pointer;
+  padding:4px 8px;border-radius:4px;color:var(--text-secondary);
+  margin-right:12px;
+}
+.header-bar .menu-btn:hover{background:var(--primary-light);color:var(--primary)}
+.header-bar .header-title{font-size:14px;font-weight:600;color:var(--primary)}
+
+/* Sidebar overlay */
+.sidebar-overlay{
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:98;
+}
+.sidebar-overlay.open{display:block}
+
+/* Sidebar */
+.sidebar{
+  width:var(--sidebar-w);flex-shrink:0;
+  background:var(--card-bg);border-right:1px solid var(--border);
+  position:fixed;top:0;left:0;height:100vh;overflow-y:auto;z-index:99;
+  transition:transform .25s ease;
+}
+.sidebar-title{
+  font-size:13px;font-weight:700;color:var(--primary);
+  padding:14px 20px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:6px;
+}
+.sidebar-title .close-btn{
+  display:none;margin-left:auto;background:none;border:none;
+  font-size:20px;cursor:pointer;color:var(--text-secondary);
+}
+.sidebar-group{margin:4px 0}
+.sidebar-group-header{
+  padding:10px 20px 4px;font-size:10px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.8px;color:#9aa0a6;
+}
+.sidebar a{
+  display:block;padding:5px 20px 5px 24px;color:var(--text-secondary);
+  text-decoration:none;font-size:12px;transition:all .12s;
+  border-left:3px solid transparent;
+}
+.sidebar a:hover{background:var(--primary-light);color:var(--primary)}
+.sidebar a.active{
+  background:var(--primary-light);color:var(--primary);
+  border-left-color:var(--primary);font-weight:600;
+}
+
+/* Main */
+.main{flex:1;max-width:1100px;margin-left:var(--sidebar-w);padding:28px 40px 100px}
+
+@media(max-width:960px){
+  .sidebar{transform:translateX(-100%)}
+  .sidebar.open{transform:translateX(0)}
+  .sidebar .close-btn{display:block}
+  .main{margin-left:0;padding:60px 16px 80px}
+  .header-bar{display:flex}
+  .sidebar-overlay.open{display:block}
+}
+
+h1{font-size:24px;font-weight:700;margin-bottom:4px;line-height:1.3}
+h2{
+  font-size:18px;font-weight:700;margin:32px 0 14px;
+  padding-bottom:8px;border-bottom:2px solid var(--primary);
+  color:var(--primary);cursor:pointer;user-select:none;
+  display:flex;align-items:center;gap:8px;
+}
+h2 .collapse-icon{font-size:14px;color:var(--text-secondary);transition:transform .2s}
+h2.collapsed .collapse-icon{transform:rotate(-90deg)}
+h3{font-size:15px;font-weight:600;margin:24px 0 10px}
+h4{font-size:14px;font-weight:600;margin:18px 0 8px}
+p{margin:0 0 10px;font-size:14px}
+
+.meta-box{
+  font-size:13px;color:var(--text-secondary);
+  background:var(--card-bg);padding:14px 18px;
+  border-radius:var(--radius);border:1px solid var(--border);
+  margin-bottom:18px;line-height:1.7;
+}
+.meta-box a{color:var(--primary)}
+.meta-box code{font-size:11px}
+
+hr{border:none;border-top:1px solid var(--border);margin:24px 0}
+
+/* Tables */
+.table-wrap{
+  overflow-x:auto;margin-bottom:18px;border-radius:var(--radius);
+  border:1px solid var(--border);background:var(--card-bg);
+}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead{background:#f1f3f4}
+th{
+  padding:9px 12px;text-align:left;font-weight:600;font-size:11px;
+  text-transform:uppercase;letter-spacing:.4px;color:var(--text-secondary);
+  border-bottom:2px solid var(--border);white-space:nowrap;
+}
+td{padding:7px 12px;border-bottom:1px solid var(--border);vertical-align:top;font-size:13px}
+tr:last-child td{border-bottom:none}
+tbody tr:hover{background:var(--primary-light)}
+
+.tag{font-size:11px;padding:1px 5px;border-radius:3px;white-space:nowrap;font-weight:600}
+.tag-ok{background:var(--green-bg);color:var(--green)}
+.tag-warn{background:var(--yellow-bg);color:#e37400}
+.tag-no{background:var(--red-bg);color:var(--red)}
+.tag-info{background:var(--blue-bg);color:var(--blue)}
+
+pre{
+  background:#1e1e1e;color:#d4d4d4;padding:12px 14px;
+  border-radius:var(--radius);overflow-x:auto;font-size:12px;
+  line-height:1.5;margin:0 0 14px;
+  font-family:"SF Mono","Fira Code","Fira Mono",Menlo,Consolas,monospace;
+}
+code{
+  font-family:"SF Mono","Fira Code","Fira Mono",Menlo,Consolas,monospace;
+  font-size:12px;background:var(--code-bg);padding:2px 5px;
+  border-radius:3px;color:#d63384;
+}
+pre code{background:none;padding:0;color:inherit}
+blockquote{
+  margin:0 0 12px;padding:0 0 0 14px;border-left:3px solid var(--primary);
+  color:var(--text-secondary);font-size:13px;
+}
+ul,ol{margin:0 0 10px;padding-left:20px}
+li{margin-bottom:3px;font-size:14px}
+ul li{list-style:disc}
+
+.section-content{transition:max-height .25s ease,opacity .2s ease;overflow:hidden}
+.section-content.collapsed{max-height:0!important;opacity:0;padding:0!important;margin:0!important}
+
+/* Back to top */
+.back-top{
+  position:fixed;bottom:24px;right:24px;z-index:50;
+  width:40px;height:40px;border-radius:50%;
+  background:var(--primary);color:#fff;border:none;
+  font-size:20px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.2);
+  display:none;align-items:center;justify-content:center;
+  transition:transform .15s,opacity .15s;
+}
+.back-top:hover{transform:scale(1.08)}
+.back-top.show{display:flex}
+
+/* Filter/search bar */
+.filter-bar{
+  position:sticky;top:0;z-index:20;
+  background:var(--card-bg);padding:8px 12px;
+  border-bottom:1px solid var(--border);display:flex;gap:8px;
+  flex-wrap:wrap;align-items:center;
+  margin-bottom:16px;border-radius:var(--radius);
+}
+.filter-bar input{
+  flex:1;min-width:120px;padding:6px 10px;border:1px solid var(--border);
+  border-radius:6px;font-size:12px;outline:none;
+}
+.filter-bar input:focus{border-color:var(--primary)}
+.filter-bar .badge{
+  font-size:11px;color:var(--text-secondary);background:var(--bg);
+  padding:3px 8px;border-radius:12px;
+}
+.filter-bar .tag-group{display:flex;gap:4px;flex-wrap:wrap}
+.filter-bar .tag-filter{
+  font-size:11px;padding:2px 8px;border-radius:12px;
+  border:1px solid var(--border);background:var(--card-bg);
+  cursor:pointer;transition:all .12s;user-select:none;
+}
+.filter-bar .tag-filter.active{background:var(--primary-light);border-color:var(--primary);color:var(--primary)}
+.filter-bar .tag-filter:hover{border-color:var(--primary)}
+
+.summary-strip{
+  display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;font-size:12px;
+}
+.summary-strip .stat{
+  background:var(--card-bg);padding:6px 12px;border-radius:8px;
+  border:1px solid var(--border);
+}
+
+@media print{
+  .sidebar,.header-bar,.back-top,.filter-bar{display:none!important}
+  .main{margin-left:0;padding:20px}
+  .section-content{max-height:none!important;opacity:1!important;overflow:visible!important}
+}
+</style>
+</head>
+<body>
+
+<div class="header-bar">
+<button class="menu-btn" onclick="toggleSidebar()">☰</button>
+<span class="header-title">Fleets vs AWS IoT</span>
+</div>
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+<nav class="sidebar" id="sidebar">
+<div class="sidebar-title">
+<span>📋 Fleets vs AWS IoT</span>
+<button class="close-btn" onclick="toggleSidebar()">✕</button>
+</div>
+<div class="sidebar-group">
+<div class="sidebar-group-header">功能对比</div>
+<a href="#s1">1. 设备连接与通信协议</a>
+<a href="#s2">2. 设备注册表</a>
+<a href="#s3">3. 设备组</a>
+<a href="#s4">4. 标签系统</a>
+<a href="#s5">5. 设备影子</a>
+<a href="#s6">6. Jobs</a>
+<a href="#s7">7. Commands</a>
+<a href="#s8">8. 设备搜索</a>
+<a href="#s9">9. 事件 &amp; 生命周期</a>
+<a href="#s10">10. 规则引擎</a>
+<a href="#s11">11. 设备数据注入</a>
+<a href="#s12">12. 时序遥测</a>
+<a href="#s13">13. 设备预置</a>
+<a href="#s14">14. 认证与授权</a>
+<a href="#s15">15. EMQX 集成</a>
+<a href="#s16">16. 证书与 HTTPS</a>
+<a href="#s17">17. Teleport 运维</a>
+<a href="#s18">18. 高可用性</a>
+<a href="#s19">19. 监控指标</a>
+<a href="#s20">20. OpenAPI 文档</a>
+<a href="#s21">21. AWS 未实现功能</a>
+<a href="#s22">22. 架构差异</a>
+</div>
+<div class="sidebar-group">
+<div class="sidebar-group-header">Topic 映射</div>
+<a href="#mqtt-overview">MQTT Topic 总览</a>
+<a href="#shadow-topics">Device Shadow</a>
+<a href="#jobs-topics">Jobs Topics</a>
+<a href="#commands-topics">Commands Topics</a>
+<a href="#telemetry-events">Telemetry &amp; Events</a>
+<a href="#lifecycle">Lifecycle</a>
+<a href="#registry-events">Registry Events</a>
+<a href="#job-events">Job Events</a>
+</div>
+<div class="sidebar-group">
+<div class="sidebar-group-header">参考</div>
+<a href="#https-api">HTTPS API 映射</a>
+<a href="#protocol-cheatsheet">协议速查</a>
+</div>
+<div class="sidebar-group">
+<div class="sidebar-group-header">结论</div>
+<a href="#conclusion">对比结论（总览）</a>
+<a href="#conclusion-fleets">Fleets 优势领域</a>
+<a href="#conclusion-aws">AWS 优势领域</a>
+<a href="#conclusion-arch">核心架构差异</a>
+<a href="#conclusion-strategy">战略定位建议</a>
+</div>
+</nav>
+
+<div class="layout">
+<main class="main" id="mainContent">
+<h1>Fleets vs AWS IoT Core &amp; AWS IoT Device Management — 功能对比清单</h1>
+<blockquote><strong>版本</strong>: 2.0 | <strong>生成日期</strong>: 2026-06-02&lt;br&gt;&lt;br&gt;<strong>数据来源</strong>:&lt;br&gt;- Fleets: <code>internal/handler/</code> (32 handlers), <code>internal/service/</code> (18 services), <code>internal/repository/</code> (11 repos), <code>internal/model/</code> (50+ 模型类型), <code>internal/devicequery/</code> (完整 DSL), <code>internal/router/router.go</code>, <code>migrations/</code>, <code>docs/</code>, <code>README.md</code>, <code>AGENTS.md</code>&lt;br&gt;- AWS: <a href="https://docs.aws.amazon.com/iot/latest/developerguide/" target="_blank">docs.aws.amazon.com/iot/latest/developerguide</a> + <a href="https://aws.amazon.com/iot-core/features/" target="_blank">aws.amazon.com/iot-core/features</a> + <a href="https://aws.amazon.com/iot-device-management/features/" target="_blank">aws.amazon.com/iot-device-management/features</a></blockquote>
+<p>Fleets 复用了 AWS IoT Core MQTT 系统主题的命名惯例（<code>$aws/</code> → <code>$emqx/</code>），但 <strong>不是</strong> API 兼容实现。本文档提供两者在协议、API、数据模型和功能域上的完整对比。</p>
+<hr>
+<h2 id=""><span class="collapse-icon">▼</span> 目录</h2>
+<div class="section-content" id="content-">
+<ul>
+<li><a href="#s1" target="_blank">1. 设备连接与通信协议</a></li>
+<li><a href="#s2" target="_blank">2. 设备注册表</a></li>
+<li><a href="#s3" target="_blank">3. 设备组</a></li>
+<li><a href="#s4" target="_blank">4. 标签系统</a></li>
+<li><a href="#s5" target="_blank">5. 设备影子</a></li>
+<li><a href="#s6" target="_blank">6. Jobs</a></li>
+<li><a href="#s7" target="_blank">7. Commands</a></li>
+<li><a href="#s8" target="_blank">8. 设备搜索 / Fleet Indexing</a></li>
+<li><a href="#s9" target="_blank">9. 事件 &amp; 生命周期</a></li>
+<li><a href="#s10" target="_blank">10. 规则引擎 &amp; 数据路由</a></li>
+<li><a href="#s11" target="_blank">11. 设备数据注入</a></li>
+<li><a href="#s12" target="_blank">12. 时序遥测 / 时间序列</a></li>
+<li><a href="#s13" target="_blank">13. 设备预置</a></li>
+<li><a href="#s14" target="_blank">14. 认证与授权</a></li>
+<li><a href="#s15" target="_blank">15. EMQX Broker 集成</a></li>
+<li><a href="#s16" target="_blank">16. 证书与 HTTPS 配置</a></li>
+<li><a href="#s17" target="_blank">17. Teleport SSH 运维</a></li>
+<li><a href="#s18" target="_blank">18. 高可用性</a></li>
+<li><a href="#s19" target="_blank">19. 监控、指标与运维</a></li>
+<li><a href="#s20" target="_blank">20. OpenAPI / API 文档</a></li>
+<li><a href="#s21" target="_blank">21. AWS 专属功能（未实现）</a></li>
+<li><a href="#s22" target="_blank">22. 架构差异总结</a></li>
+<li><a href="#mqtt-overview" target="_blank">MQTT Topic 映射参考</a></li>
+<li><a href="#https-api" target="_blank">HTTPS API 映射</a></li>
+<li><a href="#protocol-cheatsheet" target="_blank">设备侧协议速查</a></li>
+</ul>
+<hr>
+</div>
+<h2 id="s1"><span class="collapse-icon">▼</span> 1. 设备连接与通信协议</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>功能</th><th>Fleets</th><th>AWS IoT Core</th><th>AWS IoT Device Mgmt</th></tr></thead>
+<tbody>
+<tr><td>MQTT v3.1.1</td><td><span class="tag tag-ok">✅</span> 通过 EMQX Broker</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-no">❌</span> 依赖 IoT Core</td></tr>
+<tr><td>MQTT v5.0</td><td><span class="tag tag-ok">✅</span> 通过 EMQX Broker</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>MQTT over WebSocket Secure</td><td><span class="tag tag-ok">✅</span> 通过 EMQX</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>HTTPS 发布</td><td><span class="tag tag-ok">✅</span> ThingDatas API</td><td><span class="tag tag-ok">✅</span> <code>POST /topics/{topic}?qos=N</code></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>LoRaWAN</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span> AWS IoT Core for LoRaWAN</td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>CoAP/UDP (NB-IoT)</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span> 通过合作伙伴</td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>Amazon Sidewalk</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span> AWS IoT Core for Sidewalk</td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>QoS 0 / QoS 1</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span> (QoS 2 不支持)</td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>持久会话</td><td><span class="tag tag-ok">✅</span> 通过 EMQX</td><td><span class="tag tag-ok">✅</span> (1h 默认, 可配置)</td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>Last Will (LWT)</td><td><span class="tag tag-ok">✅</span> 通过 EMQX</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>保留消息 (Retain)</td><td><span class="tag tag-ok">✅</span> 通过 EMQX</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>共享订阅</td><td><span class="tag tag-ok">✅</span> 通过 EMQX</td><td><span class="tag tag-ok">✅</span> <code>$share/{name}/{filter}</code></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>TLS 1.2/1.3</td><td><span class="tag tag-ok">✅</span> 通过 EMQX</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>Topic 别名 (MQTT5)</td><td><span class="tag tag-ok">✅</span> 通过 EMQX</td><td><span class="tag tag-ok">✅</span> (默认 8 个)</td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>消息过期 (MQTT5)</td><td><span class="tag tag-ok">✅</span> 通过 EMQX</td><td><span class="tag tag-ok">✅</span> (1s–604800s)</td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>最大消息大小</td><td>取决于 EMQX 配置</td><td>128 KB payload</td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>Topic 最大长度</td><td>取决于 EMQX 配置</td><td>256 bytes UTF-8</td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>Topic 最大分段数</td><td>取决于 EMQX 配置</td><td>7 (8 segments)</td><td><span class="tag tag-no">❌</span></td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="s2"><span class="collapse-icon">▼</span> 2. 设备注册表</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>功能</th><th>Fleets</th><th>AWS IoT Core</th><th>AWS IoT Device Mgmt</th></tr></thead>
+<tbody>
+<tr><td>Thing CRUD</td><td><span class="tag tag-ok">✅</span> <code>things</code></td><td><span class="tag tag-ok">✅</span> <code>RegisterThing</code> / <code>CreateThing</code></td><td><span class="tag tag-ok">✅</span> 同左</td></tr>
+<tr><td>ThingType</td><td><span class="tag tag-ok">✅</span> 丰富 JSON Schema</td><td><span class="tag tag-warn">⚠️</span> <code>searchableAttributes</code> (字符串数组)</td><td><span class="tag tag-warn">⚠️</span> 同左</td></tr>
+<tr><td>ThingType schema: properties (类型/单位/范围)</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>ThingType schema: events 定义</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>ThingType schema: commands 定义</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>ThingType schema: connectivity/security/lifecycle/edge/relations</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>Schema 继承 (Thing ← ThingType)</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>ThingType 导出/导入 (JSON)</td><td><span class="tag tag-ok">✅</span> <code>export</code> / <code>import</code></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>Thing 批量导入 (JSON, 部分成功)</td><td><span class="tag tag-ok">✅</span> <code>import</code></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span> Bulk Register</td></tr>
+<tr><td>Thing 批量导出 (JSON)</td><td><span class="tag tag-ok">✅</span> <code>export</code></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>Thing 属性</td><td><span class="tag tag-ok">✅</span> JSONB 任意结构, 继承自 ThingType</td><td><span class="tag tag-warn">⚠️</span> 最多 3 个 (无 Type) 或 50 个 (有 Type), 均为字符串</td><td><span class="tag tag-warn">⚠️</span> 同左</td></tr>
+<tr><td>按名称/ClientID 查询 Thing</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span> <code>SearchIndex</code></td><td><span class="tag tag-ok">✅</span> 同左</td></tr>
+<tr><td>Thing 状态 (online/offline)</td><td><span class="tag tag-ok">✅</span> <code>things.status</code> + Lifecycle</td><td><span class="tag tag-ok">✅</span> connectivity indexing</td><td><span class="tag tag-ok">✅</span> 同左</td></tr>
+<tr><td>保留系统 ThingType</td><td><span class="tag tag-ok">✅</span> <code>unassigned-device-type</code></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="s3"><span class="collapse-icon">▼</span> 3. 设备组</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>功能</th><th>Fleets</th><th>AWS IoT Core</th><th>AWS IoT Device Mgmt</th></tr></thead>
+<tbody>
+<tr><td>静态 Group</td><td><span class="tag tag-no">❌</span> (纯动态)</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span> 静态层级 (parent/child)</td></tr>
+<tr><td>动态 Group</td><td><span class="tag tag-ok">✅</span> 标签驱动 (<code>tagFilter</code> 必填, 全局唯一)</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span> Dynamic Thing Groups</td></tr>
+<tr><td>动态成员条件</td><td><span class="tag tag-ok">✅</span> <code>tagFilter</code> = Tag IDs AND 匹配</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span> 查询语句 (属性/影子/连接)</td></tr>
+<tr><td>Group 层级结构</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span> parent/child</td></tr>
+<tr><td>成员自动同步</td><td><span class="tag tag-ok">✅</span> 标签/Thing 变更时自动重算</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span> 自动添加/移除</td></tr>
+<tr><td>Group CRUD</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span></td></tr>
+<tr><td>列出组成员</td><td><span class="tag tag-ok">✅</span> 分页</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span></td></tr>
+<tr><td>Group 标签筛选</td><td><span class="tag tag-ok">✅</span> <code>GET /api/v1/thing-groups?tagId=N</code></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="s4"><span class="collapse-icon">▼</span> 4. 标签系统</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>功能</th><th>Fleets</th><th>AWS IoT Core</th><th>AWS IoT Device Mgmt</th></tr></thead>
+<tbody>
+<tr><td>独立标签实体</td><td><span class="tag tag-ok">✅</span> <code>tags</code> 表, ID/名称/描述/类型</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>标签类型: 0=Thing 标签, 1=ThingType 标签</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>标签 CRUD</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>批量创建标签</td><td><span class="tag tag-ok">✅</span> <code>POST /api/v1/tags/batch</code></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>标签自动创建 (EnsureByNames)</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>孤儿标签清理</td><td><span class="tag tag-ok">✅</span> <code>DeleteOrphanedTags</code></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>Thing ↔ 标签关联</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-no">❌</span> (Attribute 替代)</td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>ThingType ↔ 标签关联</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>标签驱动 Group 成员</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>标签驱动搜索</td><td><span class="tag tag-ok">✅</span> <code>things?tagId=X&amp;tagName=Y</code></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="s5"><span class="collapse-icon">▼</span> 5. 设备影子</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>功能</th><th>Fleets</th><th>AWS IoT Core</th><th>AWS IoT Device Mgmt</th></tr></thead>
+<tbody>
+<tr><td>三态模型 (reported/desired/delta)</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-no">❌</span> 依赖 IoT Core</td></tr>
+<tr><td>影子版本号 (monotonic)</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>MQTT <code>{prefix}/update</code></td><td><span class="tag tag-ok">✅</span> <code>$emqx/things/{name}/shadow/update</code></td><td><span class="tag tag-ok">✅</span> <code>$aws/things/{name}/shadow/update</code></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>MQTT <code>{prefix}/update/delta</code></td><td><span class="tag tag-ok">✅</span> <code>$emqx/.../shadow/update/delta</code></td><td><span class="tag tag-ok">✅</span> <code>$aws/.../shadow/update/delta</code></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>HTTPS 读取影子</td><td><span class="tag tag-ok">✅</span> <code>GET /api/v1/thing-datas/{name}/shadow</code></td><td><span class="tag tag-ok">✅</span> <code>GET /things/{name}/shadow</code></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>HTTPS 更新 desired</td><td><span class="tag tag-ok">✅</span> <code>PATCH /api/v1/things/{id}/shadow</code></td><td><span class="tag tag-ok">✅</span> <code>UpdateThingShadow</code> API</td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>HTTPS 删除 desired</td><td><span class="tag tag-ok">✅</span> <code>DELETE /api/v1/things/{id}/shadow</code></td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>Named Shadows</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span> <code>$aws/.../shadow/name/{shadowName}</code></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>MQTT <code>{prefix}/get</code> + `/get/accepted\</td><td>rejected`</td><td><span class="tag tag-no">❌</span> (用 HTTPS 替代)</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>MQTT <code>{prefix}/delete</code> + `/delete/accepted\</td><td>rejected`</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>MQTT <code>{prefix}/update/documents</code></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td><code>clientToken</code> 支持</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span> (最大 64 bytes)</td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td><code>expectedVersion</code> 乐观锁</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span> (返回 409 Conflict)</td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>影子历史存储 (时序)</td><td><span class="tag tag-ok">✅</span> EMQX Tables <code>fleets_shadow_reported</code></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>影子收敛自动标记 Job 完成</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="s6"><span class="collapse-icon">▼</span> 6. Jobs</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>功能</th><th>Fleets</th><th>AWS IoT Core</th><th>AWS IoT Device Mgmt</th></tr></thead>
+<tbody>
+<tr><td>创建 Job</td><td><span class="tag tag-ok">✅</span> <code>POST /api/v1/jobs</code></td><td><span class="tag tag-ok">✅</span> <code>CreateJob</code> API</td><td><span class="tag tag-ok">✅</span> 同左</td></tr>
+<tr><td>Job 类型: SNAPSHOT / CONTINUOUS</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span></td></tr>
+<tr><td>列出 Jobs</td><td><span class="tag tag-ok">✅</span> <code>GET /api/v1/jobs</code> (按 status/jobType 筛选)</td><td><span class="tag tag-ok">✅</span> <code>ListJobs</code></td><td><span class="tag tag-ok">✅</span></td></tr>
+<tr><td>获取 Job 详情</td><td><span class="tag tag-ok">✅</span> <code>GET /api/v1/jobs/{id}</code></td><td><span class="tag tag-ok">✅</span> <code>DescribeJob</code></td><td><span class="tag tag-ok">✅</span></td></tr>
+<tr><td>Job 文档</td><td><span class="tag tag-ok">✅</span> <code>GET /api/v1/jobs/{id}/document</code></td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span></td></tr>
+<tr><td>更新 Job</td><td><span class="tag tag-ok">✅</span> <code>PATCH /api/v1/jobs/{id}</code></td><td><span class="tag tag-ok">✅</span> <code>UpdateJob</code></td><td><span class="tag tag-ok">✅</span></td></tr>
+<tr><td>取消 Job</td><td><span class="tag tag-ok">✅</span> <code>POST /api/v1/jobs/{id}/cancel</code> (force 可选)</td><td><span class="tag tag-ok">✅</span> <code>CancelJob</code></td><td><span class="tag tag-ok">✅</span></td></tr>
+<tr><td>删除 Job</td><td><span class="tag tag-ok">✅</span> <code>DELETE /api/v1/jobs/{id}</code> (软删除, force 可选)</td><td><span class="tag tag-ok">✅</span> <code>DeleteJob</code></td><td><span class="tag tag-ok">✅</span></td></tr>
+<tr><td>Job 执行追踪</td><td><span class="tag tag-ok">✅</span> 完整状态机</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span></td></tr>
+<tr><td>Job 执行列表</td><td><span class="tag tag-ok">✅</span> <code>GET /api/v1/jobs/{id}/executions</code></td><td><span class="tag tag-ok">✅</span> <code>ListJobExecutions</code></td><td><span class="tag tag-ok">✅</span></td></tr>
+<tr><td>全部 Job 执行列表</td><td><span class="tag tag-ok">✅</span> <code>GET /api/v1/job-executions</code></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>按设备列出执行</td><td><span class="tag tag-ok">✅</span> <code>GET /api/v1/job-executions/things/{name}</code></td><td><span class="tag tag-ok">✅</span> <code>ListJobExecutionsForThing</code></td><td><span class="tag tag-ok">✅</span></td></tr>
+<tr><td>单设备执行详情</td><td><span class="tag tag-ok">✅</span> <code>GET /api/v1/jobs/{id}/executions/{name}</code></td><td><span class="tag tag-ok">✅</span> <code>DescribeJobExecution</code></td><td><span class="tag tag-ok">✅</span></td></tr>
+<tr><td>单设备执行取消</td><td><span class="tag tag-ok">✅</span> <code>POST /api/v1/jobs/{id}/executions/{name}/cancel</code></td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span></td></tr>
+<tr><td>单设备执行删除</td><td><span class="tag tag-ok">✅</span> <code>DELETE /api/v1/jobs/{id}/executions/{name}/{num}</code></td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span></td></tr>
+<tr><td>按 executionNumber 查询</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span></td></tr>
+<tr><td>Rollout 策略 (常量/指数)</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span></td></tr>
+<tr><td>调度窗口 (cron)</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span></td></tr>
+<tr><td>中止配置 (Abort Config)</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span></td></tr>
+<tr><td>超时配置 (Timeout Config)</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span></td></tr>
+<tr><td>重试配置 (Retry Config)</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span></td></tr>
+<tr><td><code>statusDetails</code></td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span></td></tr>
+<tr><td><code>expectedVersion</code> 乐观锁</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span> VersionMismatch</td><td><span class="tag tag-ok">✅</span></td></tr>
+<tr><td><code>stepTimeoutInMinutes</code></td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span></td></tr>
+<tr><td>MQTT <code>notify</code> / <code>notify-next</code></td><td><span class="tag tag-ok">✅</span> <code>$emqx/...</code></td><td><span class="tag tag-ok">✅</span> <code>$aws/...</code></td><td><span class="tag tag-no">❌</span> 依赖 IoT Core</td></tr>
+<tr><td>MQTT <code>get</code> / <code>start-next</code> / <code>update</code></td><td><span class="tag tag-ok">✅</span> <code>$emqx/...</code></td><td><span class="tag tag-ok">✅</span> <code>$aws/...</code></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>设备侧 HTTPS Jobs 协议</td><td><span class="tag tag-ok">✅</span> ThingDatas API (get/start-next/get/update)</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>后台通知出站 Worker</td><td><span class="tag tag-ok">✅</span> <code>runJobOutboxWorker</code> (每秒)</td><td><span class="tag tag-ok">✅</span> 托管</td><td><span class="tag tag-ok">✅</span></td></tr>
+<tr><td>后台 Rollout 推进 Worker</td><td><span class="tag tag-ok">✅</span> <code>runJobRolloutWorker</code> (每 10s)</td><td><span class="tag tag-ok">✅</span> 托管</td><td><span class="tag tag-ok">✅</span></td></tr>
+<tr><td>后台超时处理 Worker</td><td><span class="tag tag-ok">✅</span> <code>runJobTimeoutWorker</code> (每 15s)</td><td><span class="tag tag-ok">✅</span> 托管</td><td><span class="tag tag-ok">✅</span></td></tr>
+<tr><td>后台 Continuous 编排 Worker</td><td><span class="tag tag-ok">✅</span> <code>runContinuousJobReconciler</code> (每 30s)</td><td><span class="tag tag-ok">✅</span> 托管</td><td><span class="tag tag-ok">✅</span></td></tr>
+<tr><td>通知出站队列 (outbox)</td><td><span class="tag tag-ok">✅</span> <code>thing_job_notification_outbox</code> 表 + worker</td><td><span class="tag tag-ok">✅</span> 托管</td><td><span class="tag tag-ok">✅</span></td></tr>
+<tr><td>事件通知 (MQTT)</td><td><span class="tag tag-ok">✅</span> <code>$emqx/events/job/*</code>, <code>jobExecution/*</code></td><td><span class="tag tag-ok">✅</span> <code>$aws/events/job/*</code></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>OTA Update (固件升级)</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span> OTA Update Job</td></tr>
+<tr><td>Software Package Catalog</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span> 软件包版本追踪</td></tr>
+<tr><td>Job Template</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span></td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="s7"><span class="collapse-icon">▼</span> 7. Commands</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>功能</th><th>Fleets</th><th>AWS IoT Core</th><th>AWS IoT Device Mgmt</th></tr></thead>
+<tbody>
+<tr><td>发送命令</td><td><span class="tag tag-ok">✅</span> <code>POST /api/v1/commands</code></td><td><span class="tag tag-ok">✅</span> <code>StartCommandExecution</code></td><td><span class="tag tag-ok">✅</span> Commands 功能</td></tr>
+<tr><td>命令模板 (可复用)</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span> <code>CreateCommand</code></td></tr>
+<tr><td>命令列表</td><td><span class="tag tag-ok">✅</span> <code>GET /api/v1/commands</code> (按 Thing/Status/Action 筛选)</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span></td></tr>
+<tr><td>命令状态查询</td><td><span class="tag tag-ok">✅</span> <code>GET /api/v1/commands/{id}</code></td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span></td></tr>
+<tr><td>MQTT <code>request</code> / <code>response</code></td><td><span class="tag tag-ok">✅</span> `$emqx/commands/.../{id}/request\</td><td>response`</td><td><span class="tag tag-ok">✅</span> <code>$aws/commands/...</code></td><td><span class="tag tag-no">❌</span> 依赖 IoT Core</td></tr>
+<tr><td>命令超时/TTL</td><td><span class="tag tag-ok">✅</span> <code>ttl_seconds</code> + <code>ExpireTimedOutCommands</code> worker</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span></td></tr>
+<tr><td>`response/accepted\</td><td>rejected`</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span> `$aws/.../response/accepted\</td><td>rejected`</td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>目标类型: Thing / MQTT Client</td><td><span class="tag tag-ok">✅</span> Thing</td><td><span class="tag tag-ok">✅</span> devices={things,clients}</td><td><span class="tag tag-ok">✅</span></td></tr>
+<tr><td>并发命令</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span> 同一设备多命令并发</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="s8"><span class="collapse-icon">▼</span> 8. 设备搜索 / Fleet Indexing</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>功能</th><th>Fleets</th><th>AWS IoT Core</th><th>AWS IoT Device Mgmt</th></tr></thead>
+<tbody>
+<tr><td>SQL-like 设备搜索</td><td><span class="tag tag-ok">✅</span> <code>POST /api/v1/device-query/search</code></td><td><span class="tag tag-ok">✅</span> <code>SearchIndex</code> API</td><td><span class="tag tag-ok">✅</span> 同左</td></tr>
+<tr><td>查询 Thing 元数据</td><td><span class="tag tag-ok">✅</span> 托管字段: thingName, thingTypeName, status, connected...</td><td><span class="tag tag-ok">✅</span> Managed fields</td><td><span class="tag tag-ok">✅</span></td></tr>
+<tr><td>查询 Thing 属性</td><td><span class="tag tag-ok">✅</span> JSONB shadow reported/desired 任意字段</td><td><span class="tag tag-warn">⚠️</span> 仅 <code>searchableAttributes</code></td><td><span class="tag tag-warn">⚠️</span> 同左</td></tr>
+<tr><td>查询最新影子状态</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span></td></tr>
+<tr><td>查询时间序列窗口</td><td><span class="tag tag-ok">✅</span> EMQX Tables + PG 回退</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>聚合函数 (count/avg/min/max/sum)</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span> <code>SearchIndex</code> aggregation API</td><td><span class="tag tag-ok">✅</span></td></tr>
+<tr><td>分位数/基数</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span> percentile, cardinality</td><td><span class="tag tag-ok">✅</span></td></tr>
+<tr><td>排序 (ORDER BY)</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>分组 (GROUP BY)</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>操作符: =, !=, &gt;, &gt;=, &lt;, &lt;=</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span></td></tr>
+<tr><td>操作符: IN (多值)</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span></td></tr>
+<tr><td>操作符: 存在性 (*)</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span></td></tr>
+<tr><td>布尔逻辑: AND, OR, NOT</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span></td></tr>
+<tr><td>括号分组</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span></td></tr>
+<tr><td>词法分析器/解析器/构建器</td><td><span class="tag tag-ok">✅</span> <code>internal/devicequery/</code> 完整 DSL</td><td><span class="tag tag-ok">✅</span> 托管</td><td><span class="tag tag-ok">✅</span></td></tr>
+<tr><td>连接状态低延迟查询</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span> <code>DescribeThing</code> 含 connectivity</td><td><span class="tag tag-ok">✅</span></td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="s9"><span class="collapse-icon">▼</span> 9. 事件 &amp; 生命周期</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>功能</th><th>Fleets</th><th>AWS IoT Core</th><th>AWS IoT Device Mgmt</th></tr></thead>
+<tbody>
+<tr><td>设备事件上报 MQTT</td><td><span class="tag tag-ok">✅</span> <code>$emqx/things/{name}/events/{type}</code> (QoS 1, 系统主题)</td><td><span class="tag tag-ok">✅</span> <code>event/{app}/{name}/{type}</code> (自定义)</td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>设备事件上报 HTTPS</td><td><span class="tag tag-ok">✅</span> <code>POST /api/v1/thing-datas/events</code> → EMQX Tables</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>生命周期 (连接/断开)</td><td><span class="tag tag-ok">✅</span> <code>$events/client_*</code> → ThingDatas API → PG <code>things.status</code></td><td><span class="tag tag-ok">✅</span> `$aws/events/presence/connected\</td><td>disconnected/{clientId}`</td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>订阅/取消订阅事件</td><td><span class="tag tag-no">❌</span> (EMQX 有但不路由)</td><td><span class="tag tag-ok">✅</span> <code>$aws/events/subscriptions/*</code></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>注册表事件 (Thing)</td><td><span class="tag tag-ok">✅</span> `$emqx/events/thing/{name}/created\</td><td>updated\</td><td>deleted`</td><td><span class="tag tag-ok">✅</span> <code>$aws/events/thing/*</code></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>注册表事件 (ThingType)</td><td><span class="tag tag-ok">✅</span> <code>$emqx/events/thingType/{name}/*</code></td><td><span class="tag tag-ok">✅</span> <code>$aws/events/thingType/*</code></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>注册表事件 (ThingGroup)</td><td><span class="tag tag-ok">✅</span> <code>$emqx/events/thingGroup/{name}/*</code></td><td><span class="tag tag-ok">✅</span> <code>$aws/events/thingGroup/*</code></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>Group 成员变更事件</td><td><span class="tag tag-ok">✅</span> `$emqx/events/thingGroupMembership/.../added\</td><td>removed`</td><td><span class="tag tag-ok">✅</span> <code>$aws/events/thingGroupMembership/*</code></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>Group 层级变更事件</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span> <code>$aws/events/thingGroupHierarchy/*</code></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>Job 终端事件</td><td><span class="tag tag-ok">✅</span> <code>$emqx/events/job/{id}/*</code> (completed/canceled/deleted)</td><td><span class="tag tag-ok">✅</span> <code>$aws/events/job/*</code></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>Job 执行终端事件</td><td><span class="tag tag-ok">✅</span> <code>$emqx/events/jobExecution/{id}/*</code> (succeeded/failed/timed_out/removed)</td><td><span class="tag tag-ok">✅</span> <code>$aws/events/jobExecution/*</code> (含 deleted)</td><td><span class="tag tag-no">❌</span></td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="s10"><span class="collapse-icon">▼</span> 10. 规则引擎 &amp; 数据路由</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>功能</th><th>Fleets</th><th>AWS IoT Core</th><th>AWS IoT Device Mgmt</th></tr></thead>
+<tbody>
+<tr><td>规则引擎</td><td><span class="tag tag-ok">✅</span> 通过 EMQX Rule Engine (SQL + actions)</td><td><span class="tag tag-ok">✅</span> IoT Rules (SQL + 多 actions)</td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>EMQX 规则动态设置</td><td><span class="tag tag-ok">✅</span> <code>POST /api/v1/settings/emqx/setup</code> (6 rules + 9 actions + 2 connectors)</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>Basic Ingest (直写规则)</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span> <code>$aws/rules/{ruleName}</code></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>时序数据库写入</td><td><span class="tag tag-ok">✅</span> EMQX Tables (Rule Bridge / ThingDatas API)</td><td><span class="tag tag-ok">✅</span> Timestream / S3 / Lambda</td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>PostgreSQL 写入</td><td><span class="tag tag-ok">✅</span> ThingDatas API (Rule HTTP POST)</td><td><span class="tag tag-no">❌</span> 需 Lambda</td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>降噪 (no_matching_subscribers)</td><td><span class="tag tag-ok">✅</span> 检测</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>规则 SQL 变换</td><td><span class="tag tag-ok">✅</span> EMQX Rule SQL</td><td><span class="tag tag-ok">✅</span> IoT Rules SQL</td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>多 action 并行</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>回调 API key 自动轮换</td><td><span class="tag tag-ok">✅</span> setup 自动创建/轮换 <code>ak-emqx-callback</code></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="s11"><span class="collapse-icon">▼</span> 11. 设备数据注入</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>功能</th><th>Fleets</th><th>AWS IoT Core</th><th>AWS IoT Device Mgmt</th></tr></thead>
+<tbody>
+<tr><td>事件写入</td><td><span class="tag tag-ok">✅</span> <code>POST /api/v1/thing-datas/events</code> → EMQX Tables</td><td><span class="tag tag-no">❌</span> 无专用端点</td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>影子 reported 写入</td><td><span class="tag tag-ok">✅</span> <code>POST /api/v1/thing-datas/shadow/reported</code> → EMQX Tables + PG</td><td><span class="tag tag-ok">✅</span> <code>POST /things/{name}/shadow</code></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>影子读取</td><td><span class="tag tag-ok">✅</span> <code>GET /api/v1/thing-datas/{name}/shadow</code></td><td><span class="tag tag-ok">✅</span> <code>GET /things/{name}/shadow</code></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>命令响应写入</td><td><span class="tag tag-ok">✅</span> <code>POST /api/v1/thing-datas/command/response</code> → PG</td><td><span class="tag tag-no">❌</span> MQTT only</td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>生命周期报告</td><td><span class="tag tag-ok">✅</span> <code>POST /api/v1/thing-datas/lifecycle</code> → PG</td><td><span class="tag tag-no">❌</span> 只有 MQTT 事件</td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>Jobs get (设备侧)</td><td><span class="tag tag-ok">✅</span> <code>POST /api/v1/thing-datas/jobs/get</code></td><td><span class="tag tag-no">❌</span> MQTT only</td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>Jobs start-next (设备侧)</td><td><span class="tag tag-ok">✅</span> <code>POST /api/v1/thing-datas/jobs/start-next</code></td><td><span class="tag tag-no">❌</span> MQTT only</td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>Jobs execution get (设备侧)</td><td><span class="tag tag-ok">✅</span> <code>POST /api/v1/thing-datas/jobs/{id}/get</code></td><td><span class="tag tag-no">❌</span> MQTT only</td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>Jobs update (设备侧)</td><td><span class="tag tag-ok">✅</span> <code>POST /api/v1/thing-datas/jobs/{id}/update</code></td><td><span class="tag tag-no">❌</span> MQTT only</td><td><span class="tag tag-no">❌</span></td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="s12"><span class="collapse-icon">▼</span> 12. 时序遥测 / 时间序列</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>功能</th><th>Fleets</th><th>AWS IoT Core</th><th>AWS IoT Device Mgmt</th></tr></thead>
+<tbody>
+<tr><td>自定义高频遥测写入</td><td><span class="tag tag-ok">✅</span> MQTT 自定义 Topic → EMQX Rule → EMQX Tables <code>fleets_telemetry</code></td><td><span class="tag tag-ok">✅</span> IoT Rules → Timestream/S3/etc</td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>事件时序存储</td><td><span class="tag tag-ok">✅</span> EMQX Tables <code>fleets_events</code></td><td><span class="tag tag-no">❌</span> 无内置时序</td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>影子 reported 历史</td><td><span class="tag tag-ok">✅</span> EMQX Tables <code>fleets_shadow_reported</code></td><td><span class="tag tag-no">❌</span> 无内置时序</td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>HTTPS 写入时序</td><td><span class="tag tag-ok">✅</span> ThingDatas API → EMQX Tables</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>时序数据库类型</td><td><span class="tag tag-ok">✅</span> EMQX Tables (原 GreptimeDB, PG 协议端口 4003)</td><td><span class="tag tag-no">❌</span> 需外接</td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>TSDB Schema 自动维护</td><td><span class="tag tag-ok">✅</span> <code>EnsureGreptimeSchema</code> 代码维护</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>TSDB 连接管理器 + 热重载</td><td><span class="tag tag-ok">✅</span> <code>TSDBConnectionManager</code> + <code>ConfigRefreshService</code></td><td><span class="tag tag-no">❌</span> 托管</td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>TSDB 配置动态更新</td><td><span class="tag tag-ok">✅</span> <code>PUT /api/v1/settings/emqx/setup</code> 持久化 + 热重载</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="s13"><span class="collapse-icon">▼</span> 13. 设备预置</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>功能</th><th>Fleets</th><th>AWS IoT Core</th><th>AWS IoT Device Mgmt</th></tr></thead>
+<tbody>
+<tr><td>单设备注册 (API)</td><td><span class="tag tag-ok">✅</span> <code>POST /api/v1/things</code></td><td><span class="tag tag-ok">✅</span> <code>RegisterThing</code></td><td><span class="tag tag-ok">✅</span> 同左</td></tr>
+<tr><td>批量注册</td><td><span class="tag tag-ok">✅</span> <code>POST /api/v1/things/import</code> (JSON, 部分成功)</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span> Bulk Register (模板+CSV)</td></tr>
+<tr><td>批量导出</td><td><span class="tag tag-ok">✅</span> <code>POST /api/v1/things/export</code></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>Just-in-Time Provisioning (JITP)</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span></td></tr>
+<tr><td>Just-in-Time Registration (JITR)</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span></td></tr>
+<tr><td>Provisioning by Claim</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span></td></tr>
+<tr><td>Provisioning by Trusted User</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span></td></tr>
+<tr><td>Provisioning Template</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span></td></tr>
+<tr><td>Fleet Provisioning MQTT API</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span> <code>$aws/certificates/*</code>, <code>$aws/provisioning-templates/*</code></td><td><span class="tag tag-ok">✅</span></td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="s14"><span class="collapse-icon">▼</span> 14. 认证与授权</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>功能</th><th>Fleets</th><th>AWS IoT Core</th><th>AWS IoT Device Mgmt</th></tr></thead>
+<tbody>
+<tr><td>Basic Auth (API Key + Secret, bcrypt)</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>SignKey JWT (HS256/384/512)</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>API Key CRUD + 权限颗粒</td><td><span class="tag tag-ok">✅</span> <code>permissions[method][]pathPrefix</code></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>API Resource 自动发现</td><td><span class="tag tag-ok">✅</span> <code>GET /api/v1/api-resources</code></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>受保护系统 API Key</td><td><span class="tag tag-ok">✅</span> <code>ak-emqx-callback</code> 不可删除/修改</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>权限缓存+定期刷新</td><td><span class="tag tag-ok">✅</span> <code>permByKey</code> + <code>ConfigRefreshService</code></td><td><span class="tag tag-no">❌</span> 托管</td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>X.509 双向证书认证</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span> 推荐</td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>SigV4 签名</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>Cognito 集成</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>Custom Authorizer (Lambda)</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>IoT Policy (IAM 策略)</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span> <code>iot:Connect/Publish/Subscribe/Receive</code></td><td><span class="tag tag-ok">✅</span></td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="s15"><span class="collapse-icon">▼</span> 15. EMQX Broker 集成</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>功能</th><th>Fleets</th><th>AWS IoT Core</th><th>AWS IoT Device Mgmt</th></tr></thead>
+<tbody>
+<tr><td>EMQX V5 REST API 下行发布</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>无 MQTT 订阅 (只读 DB + 写 EMQX API)</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-no">❌</span> (订阅 MQTT)</td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>EMQX API 配置管理</td><td><span class="tag tag-ok">✅</span> <code>GET/PUT /api/v1/settings/emqx</code></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>EMQX 状态检测</td><td><span class="tag tag-ok">✅</span> <code>IsConnected()</code> → <code>GET /api/v5/status</code></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>发布验证 (双重)</td><td><span class="tag tag-ok">✅</span> <code>validateViaStatus</code> + <code>validateViaPublish</code> (探针)</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td><code>no_matching_subscribers</code> 检测</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>规则引擎动态配置 (Connector/Action/Rule)</td><td><span class="tag tag-ok">✅</span> <code>POST /api/v1/settings/emqx/setup</code></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="s16"><span class="collapse-icon">▼</span> 16. 证书与 HTTPS 配置</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>功能</th><th>Fleets</th><th>AWS IoT Core</th><th>AWS IoT Device Mgmt</th></tr></thead>
+<tbody>
+<tr><td>HTTPS 双协议 (HTTP + HTTPS)</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span> (443/8443)</td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>TLS 证书热重载</td><td><span class="tag tag-ok">✅</span> <code>PUT /api/v1/settings/https</code> + <code>GetCertificate</code> 回调</td><td><span class="tag tag-no">❌</span> 托管</td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>最小 TLS 版本</td><td><span class="tag tag-ok">✅</span> TLS 1.2</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>证书链验证</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-no">❌</span></td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="s17"><span class="collapse-icon">▼</span> 17. Teleport SSH 运维</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>功能</th><th>Fleets</th><th>AWS IoT Core</th><th>AWS IoT Device Mgmt</th></tr></thead>
+<tbody>
+<tr><td>Teleport 集群注册/加入</td><td><span class="tag tag-ok">✅</span> <code>POST /api/v1/teleport</code></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>Teleport 续期</td><td><span class="tag tag-ok">✅</span> <code>PUT /api/v1/teleport</code></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>Teleport 停止/重置</td><td><span class="tag tag-ok">✅</span> <code>DELETE</code>, <code>PUT /api/v1/teleport/reset</code></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>Teleport 状态查询</td><td><span class="tag tag-ok">✅</span> <code>GET /api/v1/teleport/status</code></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="s18"><span class="collapse-icon">▼</span> 18. 高可用性</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>功能</th><th>Fleets</th><th>AWS IoT Core</th><th>AWS IoT Device Mgmt</th></tr></thead>
+<tbody>
+<tr><td>PostgreSQL Advisory Lock (per-thing)</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>无状态 Handler/Service</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span> 托管</td><td><span class="tag tag-ok">✅</span></td></tr>
+<tr><td>共享 SignKey (system_configs)</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>配置热重载 (SignKey/权限/TSDB)</td><td><span class="tag tag-ok">✅</span> <code>ConfigRefreshService</code> (每 N 秒脏检查)</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>实例 ID 日志标识</td><td><span class="tag tag-ok">✅</span> <code>INSTANCE_ID</code></td><td><span class="tag tag-ok">✅</span> 托管</td><td><span class="tag tag-ok">✅</span></td></tr>
+<tr><td>多区域支持</td><td><span class="tag tag-no">❌</span> 需自部署</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span></td></tr>
+<tr><td>自动扩展</td><td><span class="tag tag-no">❌</span> 需自配置</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span></td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="s19"><span class="collapse-icon">▼</span> 19. 监控、指标与运维</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>功能</th><th>Fleets</th><th>AWS IoT Core</th><th>AWS IoT Device Mgmt</th></tr></thead>
+<tbody>
+<tr><td>健康检查</td><td><span class="tag tag-ok">✅</span> <code>GET /api/v1/health</code> (服务+EMQX)</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span></td></tr>
+<tr><td>全局概览</td><td><span class="tag tag-ok">✅</span> <code>GET /api/v1/overview</code> (Type/Thing/在线/离线计数)</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span></td></tr>
+<tr><td>系统指标</td><td><span class="tag tag-ok">✅</span> <code>GET /api/v1/system_metrics</code> (CPU/磁盘/网络/内存/进程)</td><td><span class="tag tag-ok">✅</span> CloudWatch</td><td><span class="tag tag-ok">✅</span></td></tr>
+<tr><td>业务指标</td><td><span class="tag tag-ok">✅</span> <code>GET /api/v1/vector_metrics</code> (20+ fleets_* 指标)</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span></td></tr>
+<tr><td>流量指标</td><td><span class="tag tag-ok">✅</span> <code>GET /api/v1/traffic_metrics</code> (ingress/egress)</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span></td></tr>
+<tr><td>本地访问限制</td><td><span class="tag tag-ok">✅</span> 指标 API 仅限 localhost</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>Fleet Metrics (CloudWatch 自动推送)</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span></td></tr>
+<tr><td>日志管理 (文件轮转)</td><td><span class="tag tag-ok">✅</span> <code>LOG_FILE</code> + <code>LOG_MAX_SIZE</code> + <code>LOG_MAX_BACKUPS</code></td><td><span class="tag tag-ok">✅</span> CloudWatch Logs</td><td><span class="tag tag-ok">✅</span></td></tr>
+<tr><td>结构化日志 (slog)</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>请求 ID 追踪 (X-Request-ID)</td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>CORS 支持</td><td><span class="tag tag-ok">✅</span> 全源允许</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="s20"><span class="collapse-icon">▼</span> 20. OpenAPI / API 文档</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>功能</th><th>Fleets</th><th>AWS IoT Core</th><th>AWS IoT Device Mgmt</th></tr></thead>
+<tbody>
+<tr><td>自动 OpenAPI 3.1</td><td><span class="tag tag-ok">✅</span> <code>/openapi.json</code>, <code>/openapi.yaml</code></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>交互式 API 文档</td><td><span class="tag tag-ok">✅</span> <code>/docs</code> (可开关)</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="s21"><span class="collapse-icon">▼</span> 21. AWS 专属功能（未实现）</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>功能</th><th>Fleets</th><th>AWS IoT Core</th><th>AWS IoT Device Mgmt</th></tr></thead>
+<tbody>
+<tr><td>Device Defender (安全审计+异常检测)</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span> Fleet Indexing 集成</td></tr>
+<tr><td>Secure Tunneling (远程隧道)</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-ok">✅</span> 多并发连接</td></tr>
+<tr><td>Device Advisor (设备认证测试)</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>Device Location (非GPS定位)</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>Streams (MQTT 文件传输)</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span> <code>$aws/.../streams/*</code></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>OTA Update Manager (固件升级)</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span></td></tr>
+<tr><td>Software Package Catalog</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span> 版本分布+追踪</td></tr>
+<tr><td>Fleet Hub (Web 仪表盘)</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-warn">⚠️</span> 2025-10-18 停用</td></tr>
+<tr><td>CoAP/UDP (NB-IoT)</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span> 通过合作伙伴</td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>LoRaWAN Network Server</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span> AWS IoT Core for LoRaWAN</td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>Amazon Sidewalk</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span></td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>MQTT5 User Property 自动注入</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span> MQTT5 Propagating</td><td><span class="tag tag-no">❌</span></td></tr>
+<tr><td>Greengrass Core 更新 Job</td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-no">❌</span></td><td><span class="tag tag-ok">✅</span></td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="s22"><span class="collapse-icon">▼</span> 22. 架构差异总结</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>维度</th><th>Fleets</th><th>AWS IoT Core + Device Mgmt</th></tr></thead>
+<tbody>
+<tr><td><strong>网络层</strong></td><td>EMQX Broker (自托管/外部)</td><td>AWS 托管 MQTT Gateway</td></tr>
+<tr><td><strong>云侧 MQTT 订阅</strong></td><td><span class="tag tag-no">❌</span> 永不订阅</td><td><span class="tag tag-no">❌</span> 不订阅</td></tr>
+<tr><td><strong>设备→云路径</strong></td><td>MQTT → EMQX Rule / ThingDatas API → EMQX Tables+PG</td><td>MQTT → IoT Rules → Timestream/Lambda/etc 或 HTTPS → <code>POST /topics/</code></td></tr>
+<tr><td><strong>云→设备路径</strong></td><td>EMQX V5 REST API → EMQX → Device (影子/jobs/commands)</td><td>Device Shadow / Jobs / Commands MQTT 主题</td></tr>
+<tr><td><strong>协议兼容</strong></td><td><code>$aws/</code> → <code>$emqx/</code> 镜像, payload 结构兼容</td><td>原生 <code>$aws/</code> 系统主题</td></tr>
+<tr><td><strong>设备鉴权</strong></td><td>Basic Auth + SignKey JWT (设备侧 API Key)</td><td>X.509 证书 / SigV4 / Custom Auth (Lambda)</td></tr>
+<tr><td><strong>设备模型</strong></td><td>丰富 JSON Schema: 属性/事件/命令/连接/安全/生命周期/边缘/关系</td><td>简单 <code>searchableAttributes</code> (仅字符串数组)</td></tr>
+<tr><td><strong>Group 成员机制</strong></td><td>标签驱动动态 (tagFilter AND 匹配)</td><td>静态层级 (parent/child) + 动态组 (属性查询)</td></tr>
+<tr><td><strong>时序数据</strong></td><td>内置 EMQX Tables (PG 协议)</td><td>无内置, 需外接 Timestream/S3</td></tr>
+<tr><td><strong>部署方式</strong></td><td>自托管 (Docker/裸机), 需自行运维 EMQX+PG+EMQX Tables</td><td>全托管 AWS 服务</td></tr>
+<tr><td><strong>OpenAPI 文档</strong></td><td>自动生成</td><td>无</td></tr>
+<tr><td><strong>设备 SDK</strong></td><td>无 (MQTT/HTTPS 标准协议)</td><td>丰富 SDK (C/JS/Python/Java/嵌入式C)</td></tr>
+</tbody>
+</table>
+</div>
+<h1>MQTT Topic 映射参考</h1>
+<div class="section-content" id="content-s22">
+<hr>
+</div>
+<h2 id="mqtt-overview"><span class="collapse-icon">▼</span> MQTT Topic 总览</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Category</th><th>AWS IoT Core</th><th>Fleets</th><th>Status</th></tr></thead>
+<tbody>
+<tr><td>Shadow</td><td><code>$aws/things/{name}/shadow/*</code></td><td><code>$emqx/things/{name}/shadow/*</code></td><td><span class="tag tag-ok">✅</span> Identical pattern</td></tr>
+<tr><td>Telemetry (time-series samples)</td><td><code>dt/{app}/{loc}/{name}/telemetry</code> (custom)</td><td>Custom MQTT + EMQX Rule → EMQX Tables <code>fleets_telemetry</code></td><td><span class="tag tag-ok">✅</span> Same custom-topic pattern; see <a href="./telemetry.md" target="_blank">telemetry.md</a></td></tr>
+<tr><td>Events</td><td><code>event/{app}/{name}/{type}</code> (custom)</td><td><code>$emqx/things/{name}/events/{type}</code> (system)</td><td><span class="tag tag-warn">⚠️</span> Fleets promotes to system topic</td></tr>
+<tr><td>Jobs</td><td><code>$aws/things/{name}/jobs/*</code></td><td><code>$emqx/things/{name}/jobs/*</code></td><td><span class="tag tag-ok">✅</span> Identical pattern</td></tr>
+<tr><td>Commands</td><td><code>$aws/commands/{devices}/{id}/executions/{eid}/*</code></td><td><code>$emqx/commands/things/{name}/executions/{eid}/*</code></td><td><span class="tag tag-ok">✅</span> Identical pattern</td></tr>
+<tr><td>Lifecycle</td><td>`$aws/events/presence/connected\</td><td>disconnected/{clientId}`</td><td>`$events/client_connected\</td><td>disconnected`</td><td><span class="tag tag-warn">⚠️</span> Different path, same trigger</td></tr>
+<tr><td>Registry Events</td><td>`$aws/events/thing\</td><td>thingType\</td><td>thingGroup/*`</td><td>`$emqx/events/thing\</td><td>thingType\</td><td>thingGroup/*`</td><td><span class="tag tag-ok">✅</span> Identical pattern</td></tr>
+<tr><td>Job Events</td><td>`$aws/events/job\</td><td>jobExecution/*`</td><td>`$emqx/events/job\</td><td>jobExecution/*`</td><td><span class="tag tag-ok">✅</span> Identical pattern</td></tr>
+<tr><td>Provisioning</td><td><code>$aws/certificates/*</code>, <code>$aws/provisioning-templates/*</code></td><td>—</td><td><span class="tag tag-no">❌</span> Not implemented</td></tr>
+<tr><td>Device Defender</td><td><code>$aws/things/{name}/defender/metrics/*</code></td><td>—</td><td><span class="tag tag-no">❌</span> Not implemented</td></tr>
+<tr><td>Secure Tunneling</td><td><code>$aws/things/{name}/tunnels/*</code></td><td>—</td><td><span class="tag tag-no">❌</span> Not implemented</td></tr>
+<tr><td>Streams</td><td><code>$aws/things/{name}/streams/*</code></td><td>—</td><td><span class="tag tag-no">❌</span> Not implemented</td></tr>
+<tr><td>Basic Ingest</td><td><code>$aws/rules/{ruleName}</code></td><td>—</td><td><span class="tag tag-no">❌</span> Not implemented</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="shadow-topics"><span class="collapse-icon">▼</span> Device Shadow Topics</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Topic</th><th>Direction</th><th>Purpose</th></tr></thead>
+<tbody>
+<tr><td><code>{prefix}/get</code></td><td>Device → Broker</td><td>Request shadow document</td></tr>
+<tr><td><code>{prefix}/get/accepted</code></td><td>Broker → Device</td><td>Shadow retrieval success (full document)</td></tr>
+<tr><td><code>{prefix}/get/rejected</code></td><td>Broker → Device</td><td>Shadow retrieval failure</td></tr>
+<tr><td><strong><code>{prefix}/update</code></strong></td><td>Device/App → Broker</td><td><strong>Update reported or desired state</strong></td></tr>
+<tr><td><code>{prefix}/update/accepted</code></td><td>Broker → Device</td><td>Update confirmation</td></tr>
+<tr><td><code>{prefix}/update/rejected</code></td><td>Broker → Device</td><td>Update rejection</td></tr>
+<tr><td><code>{prefix}/update/delta</code></td><td>Broker → Device</td><td>Difference between desired and reported</td></tr>
+<tr><td><code>{prefix}/update/documents</code></td><td>Broker → Subscribers</td><td>Before/after state snapshot</td></tr>
+<tr><td><code>{prefix}/delete</code></td><td>Device/App → Broker</td><td>Delete shadow</td></tr>
+<tr><td><code>{prefix}/delete/accepted</code></td><td>Broker → Device</td><td>Delete confirmation</td></tr>
+<tr><td><code>{prefix}/delete/rejected</code></td><td>Broker → Device</td><td>Delete rejection</td></tr>
+</tbody>
+</table>
+</div>
+<div class="table-wrap"><table>
+<thead><tr><th>Topic / API</th><th>Direction</th><th>Purpose</th><th>vs AWS</th></tr></thead>
+<tbody>
+<tr><td><strong><code>{prefix}/update</code></strong> (MQTT)</td><td>Device → Cloud</td><td>Device reports state (via EMQX Rule)</td><td><span class="tag tag-ok">✅</span> Same topic, same payload <code>{&quot;state&quot;:{&quot;reported&quot;:{...}}}</code></td></tr>
+<tr><td><strong><code>{prefix}/update</code></strong> (EMQX API publish)</td><td>Fleets → Device</td><td>Fleets publishes desired state</td><td><span class="tag tag-ok">✅</span> Same topic, payload <code>{&quot;state&quot;:{&quot;desired&quot;:{...}},&quot;version&quot;:N}</code></td></tr>
+<tr><td><strong><code>{prefix}/update/delta</code></strong> (EMQX API publish)</td><td>Fleets → Device</td><td>Delta notification</td><td><span class="tag tag-ok">✅</span> Same topic, payload <code>{&quot;version&quot;,&quot;timestamp&quot;,&quot;state&quot;:{...},&quot;metadata&quot;:{...}}</code></td></tr>
+<tr><td><code>GET /api/v1/thing-datas/{name}/shadow</code> (HTTPS)</td><td>Device → Fleets</td><td>Read current shadow</td><td><span class="tag tag-warn">⚠️</span> Replaces MQTT <code>{prefix}/get</code> + <code>/get/accepted</code></td></tr>
+<tr><td><code>PATCH /api/v1/things/{id}/shadow</code> (HTTPS)</td><td>User → Fleets</td><td>Update desired state</td><td><span class="tag tag-warn">⚠️</span> Replaces MQTT <code>{prefix}/update</code> (desired)</td></tr>
+<tr><td><code>DELETE /api/v1/things/{id}/shadow</code> (HTTPS)</td><td>User → Fleets</td><td>Clear desired state</td><td><span class="tag tag-warn">⚠️</span> Replaces MQTT <code>{prefix}/delete</code></td></tr>
+<tr><td><code>{prefix}/get</code> (MQTT)</td><td>—</td><td>—</td><td><span class="tag tag-no">❌</span> Not implemented</td></tr>
+<tr><td><code>{prefix}/delete</code> (MQTT)</td><td>—</td><td>—</td><td><span class="tag tag-no">❌</span> Not implemented</td></tr>
+<tr><td><code>/accepted</code>, <code>/rejected</code>, <code>/documents</code></td><td>—</td><td>—</td><td><span class="tag tag-no">❌</span> Not implemented (Fleets never subscribes)</td></tr>
+</tbody>
+</table>
+</div>
+<div class="section-content" id="content-shadow-topics">
+<h3>AWS IoT Core ($aws/ prefix)</h3>
+<h3>Fleets ($emqx/ prefix, `{prefix}` = `$emqx/things/{name}/shadow`)</h3>
+<h3 id="shadow-payload">Shadow Payload Comparison</h3>
+<p><strong>AWS IoT Core update request</strong> — <code>{prefix}/update</code>:</p>
+</div>
+<pre><code>{
+  &quot;state&quot;: {
+    &quot;desired&quot;: { &quot;color&quot;: &quot;red&quot;, &quot;power&quot;: &quot;on&quot; },
+    &quot;reported&quot;: { &quot;temperature&quot;: 25.3 }
+  },
+  &quot;clientToken&quot;: &quot;token-123&quot;,
+  &quot;version&quot;: 5
+}
+</code></pre>
+<p><strong>Fleets shadow update</strong> — PATCH <code>/api/v1/things/{id}/shadow</code>:</p>
+<pre><code>{
+  &quot;desired&quot;: { &quot;targetTemperature&quot;: 23.5, &quot;powerState&quot;: true }
+}
+</code></pre>
+<p><strong>Fleets shadow update published to device</strong> — <code>$emqx/things/{name}/shadow/update</code>:</p>
+<pre><code>{
+  &quot;state&quot;: {
+    &quot;desired&quot;: { &quot;targetTemperature&quot;: 23.5, &quot;powerState&quot;: true }
+  },
+  &quot;version&quot;: 3
+}
+</code></pre>
+<p><strong>AWS IoT Core delta</strong> — <code>{prefix}/update/delta</code>:</p>
+<pre><code>{
+  &quot;version&quot;: 3,
+  &quot;timestamp&quot;: 1683000000,
+  &quot;state&quot;: { &quot;color&quot;: &quot;red&quot; },
+  &quot;metadata&quot;: { &quot;color&quot;: { &quot;timestamp&quot;: 1683000000 } },
+  &quot;clientToken&quot;: &quot;...&quot;
+}
+</code></pre>
+<p><strong>Fleets delta</strong> — <code>$emqx/things/{name}/shadow/update/delta</code>:</p>
+<pre><code>{
+  &quot;version&quot;: 3,
+  &quot;timestamp&quot;: 1683000000,
+  &quot;state&quot;: { &quot;powerState&quot;: true, &quot;targetTemperature&quot;: 23.5 },
+  &quot;metadata&quot;: { &quot;powerState&quot;: { &quot;timestamp&quot;: 1683000000 }, &quot;targetTemperature&quot;: { &quot;timestamp&quot;: 1683000000 } }
+}
+</code></pre>
+<p><span class="tag tag-ok">✅</span> Same payload structure (minus <code>clientToken</code> which is optional in Fleets).</p>
+<hr>
+<h2 id="jobs-topics"><span class="collapse-icon">▼</span> Jobs Topics</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Topic</th><th>Direction</th><th>Purpose</th></tr></thead>
+<tbody>
+<tr><td><code>$aws/things/{name}/jobs/get</code></td><td>Device → Broker</td><td>Request pending jobs list</td></tr>
+<tr><td><code>$aws/things/{name}/jobs/get/accepted</code></td><td>Broker → Device</td><td>Pending job list</td></tr>
+<tr><td><code>$aws/things/{name}/jobs/get/rejected</code></td><td>Broker → Device</td><td>Error</td></tr>
+<tr><td><code>$aws/things/{name}/jobs/start-next</code></td><td>Device → Broker</td><td>Start next pending job</td></tr>
+<tr><td><code>$aws/things/{name}/jobs/start-next/accepted</code></td><td>Broker → Device</td><td>Job execution details</td></tr>
+<tr><td><code>$aws/things/{name}/jobs/start-next/rejected</code></td><td>Broker → Device</td><td>Error</td></tr>
+<tr><td><code>$aws/things/{name}/jobs/{jobId}/get</code></td><td>Device → Broker</td><td>Describe execution</td></tr>
+<tr><td><code>$aws/things/{name}/jobs/{jobId}/get/accepted</code></td><td>Broker → Device</td><td>Execution details</td></tr>
+<tr><td><code>$aws/things/{name}/jobs/{jobId}/get/rejected</code></td><td>Broker → Device</td><td>Error</td></tr>
+<tr><td><code>$aws/things/{name}/jobs/{jobId}/update</code></td><td>Device → Broker</td><td>Report progress</td></tr>
+<tr><td><code>$aws/things/{name}/jobs/{jobId}/update/accepted</code></td><td>Broker → Device</td><td>Update confirmation</td></tr>
+<tr><td><code>$aws/things/{name}/jobs/{jobId}/update/rejected</code></td><td>Broker → Device</td><td>Error</td></tr>
+<tr><td><code>$aws/things/{name}/jobs/notify</code></td><td>Broker → Device</td><td>Pending jobs changed</td></tr>
+<tr><td><code>$aws/things/{name}/jobs/notify-next</code></td><td>Broker → Device</td><td>Next job changed</td></tr>
+</tbody>
+</table>
+</div>
+<div class="table-wrap"><table>
+<thead><tr><th>Topic / API</th><th>Direction</th><th>Purpose</th><th>vs AWS</th></tr></thead>
+<tbody>
+<tr><td><strong><code>$emqx/things/{name}/jobs/notify</code></strong> (EMQX API publish)</td><td>Fleets → Device</td><td>Pending jobs changed</td><td><span class="tag tag-ok">✅</span> Same topic + payload</td></tr>
+<tr><td><strong><code>$emqx/things/{name}/jobs/notify-next</code></strong> (EMQX API publish)</td><td>Fleets → Device</td><td>Next job changed</td><td><span class="tag tag-ok">✅</span> Same topic + payload</td></tr>
+<tr><td><strong><code>$emqx/things/{name}/jobs/get</code></strong> (MQTT → EMQX Rule → HTTPS)</td><td>Device → Fleets</td><td>Request pending jobs</td><td><span class="tag tag-ok">✅</span> Fleets publishes <code>/get/accepted</code> or <code>/get/rejected</code></td></tr>
+<tr><td><strong><code>$emqx/things/{name}/jobs/start-next</code></strong> (MQTT → EMQX Rule → HTTPS)</td><td>Device → Fleets</td><td>Start next job</td><td><span class="tag tag-ok">✅</span> Fleets publishes <code>/start-next/accepted</code> or <code>/start-next/rejected</code></td></tr>
+<tr><td><strong><code>$emqx/things/{name}/jobs/{jobId}/get</code></strong> (MQTT → EMQX Rule → HTTPS)</td><td>Device → Fleets</td><td>Describe one execution</td><td><span class="tag tag-ok">✅</span> Fleets publishes <code>/{jobId}/get/accepted</code> or <code>/{jobId}/get/rejected</code></td></tr>
+<tr><td><strong><code>$emqx/things/{name}/jobs/{jobId}/update</code></strong> (MQTT → EMQX Rule → HTTPS)</td><td>Device → Fleets</td><td>Report progress</td><td><span class="tag tag-ok">✅</span> Fleets publishes <code>/{jobId}/update/accepted</code> or <code>/{jobId}/update/rejected</code></td></tr>
+<tr><td><code>POST /api/v1/thing-datas/jobs/get</code> (HTTPS)</td><td>Device / EMQX Rule → Fleets</td><td>Request pending jobs</td><td><span class="tag tag-ok">✅</span> HTTPS equivalent to MQTT Jobs get</td></tr>
+<tr><td><code>POST /api/v1/thing-datas/jobs/start-next</code> (HTTPS)</td><td>Device / EMQX Rule → Fleets</td><td>Start next job</td><td><span class="tag tag-ok">✅</span> HTTPS equivalent to MQTT Jobs start-next</td></tr>
+<tr><td><code>POST /api/v1/jobs</code> (HTTPS)</td><td>User → Fleets</td><td>Create fleet job</td><td><span class="tag tag-warn">⚠️</span> AWS equivalent: <code>CreateJob</code> API (HTTPS)</td></tr>
+<tr><td><code>GET /api/v1/jobs</code> (HTTPS)</td><td>User → Fleets</td><td>List jobs</td><td><span class="tag tag-warn">⚠️</span> AWS: <code>ListJobs</code> API</td></tr>
+<tr><td><code>GET /api/v1/jobs/{jobId}</code> (HTTPS)</td><td>User → Fleets</td><td>Get job with executions</td><td><span class="tag tag-warn">⚠️</span> AWS: <code>DescribeJob</code> + <code>ListJobExecutions</code> APIs</td></tr>
+</tbody>
+</table>
+</div>
+<div class="section-content" id="content-jobs-topics">
+<h3>AWS IoT Core</h3>
+<h3>Fleets</h3>
+<h3 id="job-payload">Job Payload Comparison</h3>
+<p><strong>AWS IoT Core job notification</strong> — <code>$aws/things/{name}/jobs/notify</code>:</p>
+</div>
+<pre><code>{
+  &quot;jobs&quot;: {
+    &quot;QUEUED&quot;: [{ &quot;jobId&quot;: &quot;job-002&quot;, &quot;queuedAt&quot;: 1489096425070, &quot;versionNumber&quot;: 1 }]
+  },
+  &quot;timestamp&quot;: 1489096425070
+}
+</code></pre>
+<p><strong>Fleets job notification</strong> — <code>$emqx/things/{name}/jobs/notify</code>:</p>
+<pre><code>{
+  &quot;jobs&quot;: {
+    &quot;QUEUED&quot;: [{ &quot;jobId&quot;: &quot;job-002&quot;, &quot;queuedAt&quot;: 1489096425070, &quot;versionNumber&quot;: 1 }]
+  },
+  &quot;timestamp&quot;: 1489096425070
+}
+</code></pre>
+<p><span class="tag tag-ok">✅</span> <strong>Identical</strong> — matching payload structure for notifications and start-next responses.</p>
+<p><strong>AWS IoT Core start-next response</strong> — <code>/start-next/accepted</code>:</p>
+<pre><code>{
+  &quot;execution&quot;: {
+    &quot;jobId&quot;: &quot;job-002&quot;, &quot;thingName&quot;: &quot;device-001&quot;,
+    &quot;jobDocument&quot;: { &quot;operation&quot;: &quot;firmware_update&quot;, &quot;version&quot;: &quot;2.0.0&quot; },
+    &quot;status&quot;: &quot;IN_PROGRESS&quot;, &quot;queuedAt&quot;: 1489096425070,
+    &quot;lastUpdatedAt&quot;: 1489096425070, &quot;versionNumber&quot;: 1,
+    &quot;executionNumber&quot;: 1234567890
+  },
+  &quot;clientToken&quot;: &quot;client-001&quot;, &quot;timestamp&quot;: 1489096426000
+}
+</code></pre>
+<p><strong>Fleets start-next response</strong> — <code>POST /api/v1/thing-datas/jobs/start-next</code>:</p>
+<pre><code>{
+  &quot;execution&quot;: {
+    &quot;jobId&quot;: &quot;job-002&quot;, &quot;thingName&quot;: &quot;sensor-001&quot;,
+    &quot;jobDocument&quot;: { &quot;operation&quot;: &quot;firmware_update&quot;, &quot;version&quot;: &quot;2.0.0&quot; },
+    &quot;status&quot;: &quot;IN_PROGRESS&quot;, &quot;queuedAt&quot;: 1489096425070,
+    &quot;lastUpdatedAt&quot;: 1489096426000, &quot;versionNumber&quot;: 1,
+    &quot;executionNumber&quot;: 1489096425070
+  },
+  &quot;clientToken&quot;: &quot;client-001&quot;, &quot;timestamp&quot;: 1489096426000
+}
+</code></pre>
+<p><span class="tag tag-ok">✅</span> <strong>Identical</strong> payload structure (minor naming variance: Fleets uses <code>jobDocument</code> as parsed map).</p>
+<hr>
+<h2 id="commands-topics"><span class="collapse-icon">▼</span> Commands Topics</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Topic</th><th>Direction</th><th>Purpose</th></tr></thead>
+<tbody>
+<tr><td><code>$aws/commands/{devices}/{DeviceID}/executions/{id}/request</code></td><td>Broker → Device</td><td>Command execution request</td></tr>
+<tr><td><code>$aws/commands/{devices}/{DeviceID}/executions/{id}/response</code></td><td>Device → Broker</td><td>Device publishes result</td></tr>
+<tr><td><code>$aws/commands/{devices}/{DeviceID}/executions/{id}/response/accepted</code></td><td>Broker → Device</td><td>Cloud confirms</td></tr>
+<tr><td><code>$aws/commands/{devices}/{DeviceID}/executions/{id}/response/rejected</code></td><td>Broker → Device</td><td>Cloud failed</td></tr>
+</tbody>
+</table>
+</div>
+<div class="table-wrap"><table>
+<thead><tr><th>Topic / API</th><th>Direction</th><th>Purpose</th><th>vs AWS</th></tr></thead>
+<tbody>
+<tr><td><strong><code>$emqx/commands/things/{name}/executions/{id}/request</code></strong> (EMQX API publish)</td><td>Fleets → Device</td><td>Command request</td><td><span class="tag tag-ok">✅</span> Same topic; <code>{devices}</code> always <code>things</code></td></tr>
+<tr><td><strong><code>$emqx/commands/things/{name}/executions/{id}/response</code></strong> (MQTT → Rule → HTTPS)</td><td>Device → Fleets</td><td>Command result</td><td><span class="tag tag-ok">✅</span> Same topic</td></tr>
+<tr><td><code>POST /api/v1/commands</code> (HTTPS)</td><td>User → Fleets</td><td>Send command</td><td><span class="tag tag-warn">⚠️</span> AWS: <code>StartCommandExecution</code> API</td></tr>
+<tr><td><code>POST /api/v1/thing-datas/command/response</code> (HTTPS)</td><td>Device → Fleets</td><td>Forward command result</td><td><span class="tag tag-warn">⚠️</span> AWS uses MQTT <code>/response</code> topic directly</td></tr>
+<tr><td><code>/response/accepted</code>, <code>/response/rejected</code></td><td>—</td><td>—</td><td><span class="tag tag-no">❌</span> Not implemented</td></tr>
+</tbody>
+</table>
+</div>
+<div class="section-content" id="content-commands-topics">
+<h3>AWS IoT Core</h3>
+<h3>Fleets</h3>
+<h3 id="command-payload">Command Payload Comparison</h3>
+<p><strong>AWS command request</strong> — <code>$aws/commands/things/{name}/executions/{id}/request</code>:</p>
+</div>
+<pre><code>{
+  &quot;commandId&quot;: &quot;reboot-001&quot;,
+  &quot;parameters&quot;: { &quot;delay&quot;: 10 }
+}
+</code></pre>
+<p><strong>Fleets command request</strong> — <code>$emqx/commands/things/{name}/executions/{id}/request</code>:</p>
+<pre><code>{
+  &quot;commandId&quot;: &quot;reboot-001&quot;,
+  &quot;action&quot;: &quot;reboot&quot;,
+  &quot;params&quot;: { &quot;delay&quot;: 5 },
+  &quot;timestamp&quot;: 1715432400,
+  &quot;ttl&quot;: 60
+}
+</code></pre>
+<p><span class="tag tag-warn">⚠️</span> <strong>Different payload.</strong> AWS uses <code>parameters</code>; Fleets uses <code>action</code> + <code>params</code> + <code>timestamp</code> + <code>ttl</code>.</p>
+<p><strong>AWS command response</strong> — <code>{prefix}/executions/{id}/response</code>:</p>
+<pre><code>{
+  &quot;status&quot;: &quot;SUCCEEDED&quot;,
+  &quot;result&quot;: { &quot;message&quot;: &quot;Device will reboot in 10 seconds&quot; }
+}
+</code></pre>
+<p><strong>Fleets command response</strong> — <code>POST /api/v1/thing-datas/command/response</code>:</p>
+<pre><code>{
+  &quot;thingName&quot;: &quot;sensor-001&quot;,
+  &quot;executionId&quot;: &quot;exec-abc123&quot;,
+  &quot;status&quot;: &quot;SUCCEEDED&quot;,
+  &quot;result&quot;: { &quot;message&quot;: &quot;Device will reboot in 5 seconds&quot; },
+  &quot;timestamp&quot;: 1715432405000
+}
+</code></pre>
+<p><span class="tag tag-warn">⚠️</span> Fleets version includes <code>thingName</code>, <code>executionId</code>, <code>timestamp</code>; no <code>statusDetails</code> field.</p>
+<hr>
+<h2 id="telemetry-events"><span class="collapse-icon">▼</span> Telemetry &amp; Events</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Topic</th><th>QoS</th><th>Direction</th><th>Purpose</th></tr></thead>
+<tbody>
+<tr><td><code>dt/{app-id}/{location}/{thing-name}/telemetry</code></td><td>QoS 0</td><td>Device → Cloud</td><td>Sensor/state data</td></tr>
+<tr><td><code>event/{app-id}/{thing-name}/{event-type}</code></td><td>QoS 1</td><td>Device → Cloud</td><td>Alerts/anomalies</td></tr>
+<tr><td><code>dt/{app-id}/{thing-name}/status</code></td><td>QoS 1 + Retain</td><td>Device → Cloud</td><td>Online/offline status</td></tr>
+</tbody>
+</table>
+</div>
+<div class="table-wrap"><table>
+<thead><tr><th>Topic</th><th>QoS</th><th>Direction</th><th>Purpose</th></tr></thead>
+<tbody>
+<tr><td>*(user-defined, e.g. <code>dt/.../telemetry</code>)*</td><td>QoS 0</td><td>Device → Cloud</td><td>Optional EMQX Tables <code>fleets_telemetry</code> via EMQX Rule Bridge (not a Fleets system topic)</td></tr>
+<tr><td><strong><code>$emqx/things/{name}/events/{type}</code></strong></td><td>QoS 1</td><td>Device → Cloud</td><td>Events (system type)</td></tr>
+<tr><td>—</td><td>—</td><td>—</td><td>Device state / measurements: use <strong>Shadow reported</strong> on <code>$emqx/things/{name}/shadow/update</code> or HTTPS <code>POST /api/v1/thing-datas/shadow/reported</code></td></tr>
+</tbody>
+</table>
+</div>
+<div class="section-content" id="content-telemetry-events">
+<h3>AWS IoT Core (Custom Topics)</h3>
+<h3>Fleets</h3>
+<p><strong>Key difference</strong>: AWS keeps high-rate samples on <strong>custom</strong> <code>dt/...</code> topics. Fleets aligns with that: <strong>custom MQTT + rules</strong> write <code>fleets_telemetry</code>. <strong>Events</strong> remain a Fleets <strong>system</strong> topic under <code>$emqx/things/{name}/events/{type}</code>.</p>
+<h3>Telemetry-style payload (custom topic → EMQX Tables)</h3>
+<p><strong>AWS</strong> — published to <code>dt/{app}/{loc}/{name}/telemetry</code>:</p>
+</div>
+<pre><code>{
+  &quot;thingName&quot;: &quot;sensor-001&quot;,
+  &quot;timestamp&quot;: 1746518400,
+  &quot;data&quot;: { &quot;temperature&quot;: 25.3, &quot;humidity&quot;: 68.2 },
+  &quot;metadata&quot;: { &quot;firmware&quot;: &quot;v1.2.0&quot;, &quot;rssi&quot;: -75 }
+}
+</code></pre>
+<p><strong>Fleets</strong> — same topic style is valid; EMQX rules map fields into EMQX Tables (see <code>scripts/setup-emqx-rule.sh</code>). There is <strong>no</strong> <code>POST /api/v1/thing-datas/telemetry</code> and no <code>$emqx/things/{name}/telemetry</code> ingest path. For HTTPS-only devices, use <strong>shadow reported</strong> instead.</p>
+<pre><code>{
+  &quot;thingName&quot;: &quot;sensor-001&quot;,
+  &quot;state&quot;: { &quot;reported&quot;: { &quot;temperature&quot;: 25.3, &quot;humidity&quot;: 68.2 } }
+}
+</code></pre>
+<p><span class="tag tag-warn">⚠️</span> When using MQTT shadow update, timestamps follow rule configuration; ThingDatas shadow API uses server time for history inserts.</p>
+<hr>
+<h2 id="lifecycle"><span class="collapse-icon">▼</span> Lifecycle Events</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Topic</th><th>Trigger</th></tr></thead>
+<tbody>
+<tr><td><code>$aws/events/presence/connected/{clientId}</code></td><td>MQTT connection established</td></tr>
+<tr><td><code>$aws/events/presence/disconnected/{clientId}</code></td><td>Normal or abnormal disconnect</td></tr>
+<tr><td><code>$aws/events/subscriptions/subscribed/{clientId}</code></td><td>Client subscribes to topic</td></tr>
+<tr><td><code>$aws/events/subscriptions/unsubscribed/{clientId}</code></td><td>Client unsubscribes</td></tr>
+</tbody>
+</table>
+</div>
+<div class="table-wrap"><table>
+<thead><tr><th>EMQX Topic</th><th>Trigger</th><th>Destination</th></tr></thead>
+<tbody>
+<tr><td><code>$events/client_connected</code></td><td>MQTT connection established</td><td>Fleets ThingDatas API <code>POST /api/v1/thing-datas/lifecycle</code></td></tr>
+<tr><td><code>$events/client_disconnected</code></td><td>Normal or abnormal disconnect</td><td>Fleets ThingDatas API <code>POST /api/v1/thing-datas/lifecycle</code></td></tr>
+<tr><td><code>$events/client_subscribed</code></td><td>Client subscribes</td><td>(Not routed to Fleets)</td></tr>
+<tr><td><code>$events/client_unsubscribed</code></td><td>Client unsubscribes</td><td>(Not routed to Fleets)</td></tr>
+</tbody>
+</table>
+</div>
+<div class="section-content" id="content-lifecycle">
+<h3>AWS IoT Core</h3>
+<h3>Fleets</h3>
+<p><strong>Note</strong>: EMQX generates <code>$events/client_*</code> events internally. These are EMQX&#x27;s built-in event system topics, not MQTT topics that devices can publish to. The <code>$aws/</code> equivalent is <code>$aws/events/presence/*</code>.</p>
+<hr>
+</div>
+<h2 id="registry-events"><span class="collapse-icon">▼</span> Registry Events</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Event Type</th><th>AWS Topic</th><th>Fleets Topic</th><th>Payload</th></tr></thead>
+<tbody>
+<tr><td>Thing created/updated/deleted</td><td><code>$aws/events/thing/{name}/*</code></td><td><code>$emqx/events/thing/{name}/*</code></td><td><code>{&quot;thingName&quot;,&quot;eventType&quot;,&quot;timestamp&quot;}</code></td></tr>
+<tr><td>ThingType created/updated/deleted</td><td><code>$aws/events/thingType/{name}/*</code></td><td><code>$emqx/events/thingType/{name}/*</code></td><td><code>{&quot;thingTypeName&quot;,&quot;eventType&quot;,&quot;timestamp&quot;}</code></td></tr>
+<tr><td>ThingGroup created/updated/deleted</td><td><code>$aws/events/thingGroup/{name}/*</code></td><td><code>$emqx/events/thingGroup/{name}/*</code></td><td><code>{&quot;thingGroupName&quot;,&quot;eventType&quot;,&quot;timestamp&quot;}</code></td></tr>
+<tr><td>Group membership added/removed</td><td><code>$aws/events/thingGroupMembership/.../{thing}/{event}</code></td><td><code>$emqx/events/thingGroupMembership/.../{thing}/{event}</code></td><td><code>{&quot;thingGroupName&quot;,&quot;thingName&quot;,&quot;eventType&quot;,&quot;timestamp&quot;}</code></td></tr>
+<tr><td>Group hierarchy added/removed</td><td><code>$aws/events/thingGroupHierarchy/*</code></td><td>— <span class="tag tag-no">❌</span></td><td>Not implemented</td></tr>
+</tbody>
+</table>
+</div>
+<div class="section-content" id="content-registry-events">
+<p><span class="tag tag-ok">✅</span> All implemented event types match AWS patterns (topic structure + payload).</p>
+<hr>
+</div>
+<h2 id="job-events"><span class="collapse-icon">▼</span> Job Event Topics</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Event Type</th><th>AWS Topic</th><th>Fleets Topic</th><th>Payload</th></tr></thead>
+<tbody>
+<tr><td>Job completed</td><td><code>$aws/events/job/{id}/completed</code></td><td><code>$emqx/events/job/{id}/completed</code></td><td><code>{&quot;jobId&quot;,&quot;eventType&quot;,&quot;status&quot;,&quot;timestamp&quot;}</code></td></tr>
+<tr><td>Job canceled</td><td><code>$aws/events/job/{id}/canceled</code></td><td><code>$emqx/events/job/{id}/canceled</code></td><td>Same</td></tr>
+<tr><td>Job deleted</td><td><code>$aws/events/job/{id}/deleted</code></td><td><code>$emqx/events/job/{id}/deleted</code></td><td>Same</td></tr>
+<tr><td>Execution succeeded</td><td><code>$aws/events/jobExecution/{id}/succeeded</code></td><td><code>$emqx/events/jobExecution/{id}/succeeded</code></td><td>Same</td></tr>
+<tr><td>Execution failed</td><td><code>$aws/events/jobExecution/{id}/failed</code></td><td><code>$emqx/events/jobExecution/{id}/failed</code></td><td>Same</td></tr>
+<tr><td>Execution rejected</td><td><code>$aws/events/jobExecution/{id}/rejected</code></td><td><code>$emqx/events/jobExecution/{id}/rejected</code></td><td>Same</td></tr>
+<tr><td>Execution canceled</td><td><code>$aws/events/jobExecution/{id}/canceled</code></td><td><code>$emqx/events/jobExecution/{id}/canceled</code></td><td>Same</td></tr>
+<tr><td>Execution timed_out</td><td><code>$aws/events/jobExecution/{id}/timed_out</code></td><td><code>$emqx/events/jobExecution/{id}/timed_out</code></td><td>Same</td></tr>
+<tr><td>Execution removed</td><td><code>$aws/events/jobExecution/{id}/removed</code></td><td><code>$emqx/events/jobExecution/{id}/removed</code></td><td>Same</td></tr>
+<tr><td>Execution deleted</td><td><code>$aws/events/jobExecution/{id}/deleted</code></td><td>— <span class="tag tag-no">❌</span></td><td>Not implemented</td></tr>
+</tbody>
+</table>
+</div>
+<h1 id="https-api">HTTPS API 映射</h1>
+<div class="table-wrap"><table>
+<thead><tr><th>AWS IoT Core API</th><th>Fleets Endpoint</th><th>Method</th><th>Purpose</th></tr></thead>
+<tbody>
+<tr><td><code>POST /topics/{topic}?qos={qos}</code></td><td><code>POST /api/v1/thing-datas/events</code></td><td>POST</td><td>Publish events</td></tr>
+<tr><td><code>GET /things/{thingName}/shadow</code></td><td><code>GET /api/v1/thing-datas/{thingName}/shadow</code></td><td>GET</td><td>Read shadow</td></tr>
+<tr><td><code>POST /things/{thingName}/shadow</code></td><td><code>POST /api/v1/thing-datas/shadow/reported</code></td><td>POST</td><td>Update shadow reported</td></tr>
+<tr><td><code>UpdateThingShadow</code> (API)</td><td><code>PATCH /api/v1/things/{id}/shadow</code></td><td>PATCH</td><td>Update desired state</td></tr>
+<tr><td><code>CreateJob</code> (API)</td><td><code>POST /api/v1/jobs</code></td><td>POST</td><td>Create fleet job</td></tr>
+<tr><td><code>DescribeJobExecution</code> (API)</td><td><code>GET /api/v1/jobs/{id}</code></td><td>GET</td><td>Get job with executions</td></tr>
+<tr><td><code>SearchIndex</code> (Fleet Indexing API)</td><td><code>POST /api/v1/device-query/search</code></td><td>POST</td><td>Search devices</td></tr>
+<tr><td><code>StartCommandExecution</code> (API)</td><td><code>POST /api/v1/commands</code></td><td>POST</td><td>Send command</td></tr>
+<tr><td><code>DescribeThing</code> (Registry API)</td><td><code>GET /api/v1/things/{id}</code></td><td>GET</td><td>Get thing</td></tr>
+<tr><td><code>CreateThingType</code> (Registry API)</td><td><code>POST /api/v1/thing-types</code></td><td>POST</td><td>Create thing type</td></tr>
+<tr><td>—</td><td><code>POST /api/v1/thing-datas/jobs/get</code></td><td>POST</td><td>Device: pending jobs</td></tr>
+<tr><td>—</td><td><code>POST /api/v1/thing-datas/jobs/start-next</code></td><td>POST</td><td>Device: start next job</td></tr>
+<tr><td>—</td><td><code>POST /api/v1/thing-datas/jobs/{jobId}/update</code></td><td>POST</td><td>Device: job update</td></tr>
+<tr><td>—</td><td><code>POST /api/v1/thing-datas/lifecycle</code></td><td>POST</td><td>EMQX: lifecycle event</td></tr>
+<tr><td>—</td><td><code>POST /api/v1/thing-datas/command/response</code></td><td>POST</td><td>Device: command response</td></tr>
+</tbody>
+</table>
+</div>
+<h1 id="protocol-cheatsheet">设备侧协议速查</h1>
+<div class="table-wrap"><table>
+<thead><tr><th>Operation</th><th>AWS IoT Core</th><th>Fleets</th></tr></thead>
+<tbody>
+<tr><td>Publish high-rate samples (MQTT)</td><td><code>dt/{app}/{loc}/{name}/telemetry</code></td><td>Same custom topic + EMQX Rule → EMQX Tables (see <a href="./telemetry.md" target="_blank">telemetry.md</a>)</td></tr>
+<tr><td>Publish device state (HTTPS)</td><td><code>POST /topics/$aws/...</code> or shadow APIs</td><td><code>POST /api/v1/thing-datas/shadow/reported</code></td></tr>
+<tr><td>Report shadow state (MQTT)</td><td><code>$aws/things/{name}/shadow/update</code></td><td><code>$emqx/things/{name}/shadow/update</code></td></tr>
+<tr><td>Report shadow state (HTTPS)</td><td><code>POST /things/{name}/shadow</code></td><td><code>POST /api/v1/thing-datas/shadow/reported</code></td></tr>
+<tr><td>Read shadow (HTTPS)</td><td><code>GET /things/{name}/shadow</code></td><td><code>GET /api/v1/thing-datas/{name}/shadow</code></td></tr>
+<tr><td>Update desired state (HTTPS)</td><td><code>UpdateThingShadow</code> API</td><td><code>PATCH /api/v1/things/{id}/shadow</code></td></tr>
+<tr><td>Receive shadow delta (MQTT)</td><td><code>$aws/things/{name}/shadow/update/delta</code></td><td><code>$emqx/things/{name}/shadow/update/delta</code></td></tr>
+<tr><td>Create fleet job (HTTPS)</td><td><code>CreateJob</code> API</td><td><code>POST /api/v1/jobs</code></td></tr>
+<tr><td>Send command (HTTPS)</td><td><code>StartCommandExecution</code> API</td><td><code>POST /api/v1/commands</code></td></tr>
+<tr><td>Request pending jobs (MQTT)</td><td><code>$aws/things/{name}/jobs/get</code></td><td><code>$emqx/things/{name}/jobs/get</code></td></tr>
+<tr><td>Request pending jobs (HTTPS)</td><td>—</td><td><code>POST /api/v1/thing-datas/jobs/get</code></td></tr>
+<tr><td>Search devices (HTTPS)</td><td><code>SearchIndex</code> API</td><td><code>POST /api/v1/device-query/search</code></td></tr>
+</tbody>
+</table>
+</div>
+<h1 id="conclusion">对比结论</h1>
+<div class="section-content" id="content-job-events">
+<p><span class="tag tag-ok">✅</span> All covered except <code>jobExecution/deleted</code> (Fleets uses <code>removed</code> instead of explicit <code>deleted</code>).</p>
+<hr>
+<hr>
+</div>
+<h2 id="conclusion-fleets"><span class="collapse-icon">▼</span> Fleets 优势领域</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>领域</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td><strong>设备模型</strong></td><td>ThingType 支持丰富 JSON Schema（properties 含类型/单位/范围、events、commands、connectivity、security、lifecycle、edge、relations）。AWS IoT Core 仅支持 <code>searchableAttributes</code>（字符串数组）。Fleets 还支持 Schema 继承（Thing ← ThingType）和 JSONB 任意结构属性。</td></tr>
+<tr><td><strong>时序数据库内置</strong></td><td>EMQX Tables（原 GreptimeDB）作为内置时序数据库，通过 PG 协议（端口 4003）读写。设备数据（事件 <code>fleets_events</code>、影子历史 <code>fleets_shadow_reported</code>、自定义遥测 <code>fleets_telemetry</code>）天然时序化。AWS 无内置时序能力，需外接 Timestream/S3。</td></tr>
+<tr><td><strong>设备侧 HTTPS 协议</strong></td><td>ThingDatas API 提供 9 个设备端 HTTPS 端点（events、shadow reported/read、command response、lifecycle、jobs get/start-next/update），覆盖设备与云端的所有交互场景。AWS IoT Core 设备侧仅支持 MQTT 或单向 HTTPS publish。</td></tr>
+<tr><td><strong>标签系统</strong></td><td>独立的双类型标签实体（Thing 标签 type=0、ThingType 标签 type=1），支持 CRUD、批量创建、自动创建、孤儿清理。标签驱动动态 Group 成员（<code>tagFilter</code> AND 匹配）、搜索筛选。AWS 无独立标签系统，仅以 Attribute 字符串替代。</td></tr>
+<tr><td><strong>EMQX Broker 深度集成</strong></td><td>通过 EMQX V5 REST API 实现下行发布（影子、jobs、commands、事件）；规则引擎 Connector/Action/Rule 可动态配置；回调 API key 自动轮换；<code>no_matching_subscribers</code> 降噪检测；双重发布验证（status + 探针）。</td></tr>
+<tr><td><strong>运维管理</strong></td><td>Teleport SSH 集群注册/续期/停止/重置/状态查询；TLS 证书通过 API 热重载；结构化日志（slog）；请求 ID 追踪（X-Request-ID）；CORS 支持；自动 OpenAPI 3.1 文档。</td></tr>
+<tr><td><strong>HA 与配置热重载</strong></td><td>PostgreSQL Advisory Lock（per-thing 状态变更）；<code>ConfigRefreshService</code> 定期脏检查同步 SignKey / API Key 权限 / TSDB 连接；实例 ID 日志标识。</td></tr>
+<tr><td><strong>Jobs 高级功能</strong></td><td>完整 rollout 策略（常量/指数）、调度窗口（cron）、中止/超时/重试配置；后台 worker 出站队列 + 通知 + 超时 + continuous 编排；设备侧 HTTPS Jobs 协议。AWS 无设备侧 HTTPS Jobs 端点。</td></tr>
+<tr><td><strong>影子收敛自检</strong></td><td>当 delta 收敛时自动将 Job execution 标记为 <code>SUCCEEDED</code>，减少设备与云端的交互轮次。</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="conclusion-aws"><span class="collapse-icon">▼</span> AWS 优势领域</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>领域</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td><strong>设备预置（Fleet Provisioning）</strong></td><td>AWS 提供完整的 JITP（Just-in-Time Provisioning）、JITR（Just-in-Time Registration）、Claim-based、Trusted User 四种预置方案。Fleets 仅支持 API 单设备注册和 JSON 批量导入。</td></tr>
+<tr><td><strong>设备安全（Device Defender）</strong></td><td>AWS IoT Device Defender 提供自动化安全审计（Audit）、行为规则检测（Rules Detect）、ML 异常检测（ML Detect）以及 SNS/CloudWatch 告警。Fleets 无此功能。</td></tr>
+<tr><td><strong>设备 SDK</strong></td><td>AWS 提供全平台官方 SDK（C/JS/Python/Java/嵌入式 C）。Fleets 仅提供标准 MQTT/HTTPS 协议，设备端需自行实现协议适配。</td></tr>
+<tr><td><strong>OTA 固件升级</strong></td><td>AWS IoT Device Management OTA Update Job + Software Package Catalog 支持固件分发、数字签名、版本追踪、定向更新。Fleets 无此功能。</td></tr>
+<tr><td><strong>Secure Tunneling</strong></td><td>AWS 支持通过 <code>$aws/things/{name}/tunnels/notify</code> 建立安全远程隧道，支持多并发连接，用于远程调试。Fleets 无此功能。</td></tr>
+<tr><td><strong>Fleet Indexing 聚合</strong></td><td>AWS <code>SearchIndex</code> 支持 <code>count/avg/min/max/sum/percentile/cardinality</code> 聚合查询 + Fleet Metrics 自动推送 CloudWatch。Fleets Device Query 不支持聚合和排序。</td></tr>
+<tr><td><strong>全托管 HA</strong></td><td>AWS IoT Core 自动跨区域、跨 AZ 扩展，无需运维底层基础设施。Fleets 需自行运维 EMQX + PostgreSQL + EMQX Tables 集群。</td></tr>
+<tr><td><strong>IoT Policy（IAM）</strong></td><td>AWS 基于 IAM 策略的细粒度权限控制（<code>iot:Connect/Publish/Subscribe/Receive</code> 独立 action，Topic 级别 Resource ARN），支持策略变量 <code>${iot:Thing.ThingName}</code>。Fleets 基于 Basic Auth + API Key 路径前缀匹配。</td></tr>
+<tr><td><strong>Named Shadows</strong></td><td>AWS 支持每个设备创建多个命名影子（<code>$aws/things/{name}/shadow/name/{shadowName}</code>）。Fleets 仅支持单经典影子。</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="conclusion-arch"><span class="collapse-icon">▼</span> 核心架构差异</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>维度</th><th>Fleets</th><th>AWS</th></tr></thead>
+<tbody>
+<tr><td><strong>网络层</strong></td><td>自托管 EMQX Broker</td><td>AWS 托管 MQTT Gateway（自动扩展）</td></tr>
+<tr><td><strong>鉴权体系</strong></td><td>Basic Auth (API Key + Secret, bcrypt) + SignKey JWT</td><td>X.509 双向证书 / SigV4 / Custom Auth (Lambda)</td></tr>
+<tr><td><strong>设备模型</strong></td><td>丰富 JSON Schema（属性/事件/命令/连接/安全/生命周期/边缘/关系）</td><td>简单 <code>searchableAttributes</code>（字符串数组）</td></tr>
+<tr><td><strong>Group 机制</strong></td><td>标签驱动动态（AND 匹配，全局唯一）</td><td>静态层级（parent/child）+ 动态组（属性查询）</td></tr>
+<tr><td><strong>时序数据</strong></td><td>内置 EMQX Tables（PG 协议端口 4003）</td><td>无内置，需外接 Timestream/S3</td></tr>
+<tr><td><strong>设备 SDK</strong></td><td>无（标准 MQTT/HTTPS 协议）</td><td>丰富 SDK（多语言 + 嵌入式）</td></tr>
+<tr><td><strong>设备预置</strong></td><td>API 注册 + JSON 批量导入</td><td>JITP / JITR / Claim / Trusted User 多方案</td></tr>
+<tr><td><strong>设备安全</strong></td><td>无</td><td>Device Defender（审计 + 异常检测+ ML）</td></tr>
+<tr><td><strong>部署模式</strong></td><td>自托管（Docker/裸机）</td><td>全托管</td></tr>
+<tr><td><strong>OpenAPI 文档</strong></td><td>自动生成 <code>/openapi.json</code> + <code>/docs</code></td><td>无</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="conclusion-strategy"><span class="collapse-icon">▼</span> 战略定位建议</h2>
+<div class="section-content" id="content-conclusion-strategy">
+<p>Fleets 在当前版本中更适合以下场景：</p>
+<ul>
+<li><strong>需要私有化/自托管部署</strong>的 IoT 平台（企业内网、边缘数据中心）</li>
+<li><strong>设备模型复杂</strong>的 IoT 场景（需丰富 Schema、Schema 继承、批量导入导出）</li>
+<li><strong>自带 EMQX Broker</strong> 的已有 MQTT 基础设施</li>
+<li><strong>需要内置时序数据库</strong>，不希望外接 Timestream/InfluxDB 等</li>
+<li><strong>需要 HTTPS-only 设备接入</strong>（设备侧不支持 MQTT 订阅）</li>
+<li><strong>需要标签驱动动态组</strong>的灵活设备分组方案</li>
+</ul>
+<p>如需对标 AWS 全功能，建议优先补齐：</p>
+<ol>
+<li><strong>设备预置（Fleet Provisioning）</strong> — MQTT 证书自动注册 + Provisioning Template</li>
+<li><strong>Device Defender</strong> — 设备安全审计 + 行为异常检测</li>
+<li><strong>Secure Tunneling</strong> — 远程调试隧道</li>
+<li><strong>OTA 固件升级</strong> — 固件分发 + 数字签名 + 版本管理</li>
+<li><strong>聚合查询</strong> — Device Query 支持 count/avg/min/max/sum/percentile</li>
+<li><strong>Named Shadows</strong> — 多命名影子支持</li>
+</ol>
+</div>
+
+</main>
+</div>
+
+<button class="back-top" id="backTop" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
+
+<script>
+// Toggle sidebar
+function toggleSidebar(){
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('sidebarOverlay').classList.toggle('open');
+}
+
+// Collapsible sections
+document.querySelectorAll('h2').forEach(h2 => {
+  const next = h2.nextElementSibling;
+  if(next && next.classList.contains('section-content')){
+    h2.addEventListener('click', (e) => {
+      if(e.target.closest('a')) return;
+      h2.classList.toggle('collapsed');
+      next.classList.toggle('collapsed');
+    });
+    // Start with section 2+ collapsed
+    const id = h2.id;
+    if(id && id.startsWith('s') && id !== 's1'){
+      h2.classList.add('collapsed');
+      next.classList.add('collapsed');
+    }
+  }
+});
+
+// Scroll spy for sidebar
+const sections = [];
+document.querySelectorAll('h2[id]').forEach(h2 => {
+  sections.push({id: h2.id, el: h2});
+});
+const sidebarLinks = document.querySelectorAll('.sidebar a[href^="#"]');
+
+function updateActive(){
+  const scrollY = window.scrollY + 80;
+  let activeId = sections[0]?.id || '';
+  for(const s of sections){
+    if(s.el.offsetTop <= scrollY) activeId = s.id;
+  }
+  sidebarLinks.forEach(a => {
+    a.classList.toggle('active', a.getAttribute('href') === '#' + activeId);
+  });
+}
+window.addEventListener('scroll', updateActive);
+window.addEventListener('load', updateActive);
+
+// Back to top
+const backTop = document.getElementById('backTop');
+window.addEventListener('scroll', () => {
+  backTop.classList.toggle('show', window.scrollY > 600);
+});
+
+// Filter functionality
+(function(){
+  const main = document.getElementById('mainContent');
+  const filterDiv = document.createElement('div');
+  filterDiv.className = 'filter-bar';
+  filterDiv.innerHTML = `
+    <input type="text" id="filterInput" placeholder="搜索功能关键词..." />
+    <div class="tag-group">
+      <span class="tag-filter active" data-filter="all">全部</span>
+      <span class="tag-filter" data-filter="ok">✅ 已实现</span>
+      <span class="tag-filter" data-filter="no">❌ 未实现</span>
+      <span class="tag-filter" data-filter="warn">⚠️ 部分</span>
+    </div>
+    <span class="badge" id="filterCount">0</span>
+  `;
+  main.parentNode.insertBefore(filterDiv, main);
+
+  const input = document.getElementById('filterInput');
+  const tagFilters = document.querySelectorAll('.tag-filter');
+  let activeTag = 'all';
+
+  tagFilters.forEach(el => {
+    el.addEventListener('click', () => {
+      tagFilters.forEach(e => e.classList.remove('active'));
+      el.classList.add('active');
+      activeTag = el.dataset.filter;
+      applyFilter();
+    });
+  });
+
+  input.addEventListener('input', applyFilter);
+
+  function applyFilter(){
+    const q = input.value.trim().toLowerCase();
+    const rows = document.querySelectorAll('tbody tr');
+    let visible = 0;
+    rows.forEach(tr => {
+      const text = tr.textContent.toLowerCase();
+      const hasOk = text.includes('✅');
+      const hasNo = text.includes('❌');
+      const hasWarn = text.includes('⚠️');
+
+      let tagMatch = true;
+      if(activeTag === 'ok') tagMatch = hasOk;
+      else if(activeTag === 'no') tagMatch = hasNo;
+      else if(activeTag === 'warn') tagMatch = hasWarn;
+
+      const textMatch = !q || text.includes(q);
+      const show = tagMatch && textMatch;
+      tr.style.display = show ? '' : 'none';
+      if(show) visible++;
+    });
+    document.getElementById('filterCount').textContent = visible + ' / ' + rows.length + ' 行';
+  }
+  applyFilter();
+
+  // Close sidebar on mobile when clicking a link
+  const isMobile = window.innerWidth <= 960;
+  if(isMobile){
+    sidebarLinks.forEach(a => {
+      a.addEventListener('click', () => {
+        document.getElementById('sidebar').classList.remove('open');
+        document.getElementById('sidebarOverlay').classList.remove('open');
+      });
+    });
+  }
+})();
+</script>
+</body>
+</html>
