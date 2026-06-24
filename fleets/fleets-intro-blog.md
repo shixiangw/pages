@@ -165,23 +165,13 @@ No vendor lock-in. Fleets runs wherever you do — **AWS, Azure, GCP**, or on-pr
 
 ## Quick Start
 
-Get Fleets running locally in minutes:
+The easiest way to get started with Fleets is through **EMQX Cloud**, where you can provision a fully managed Fleets instance in minutes — no infrastructure setup required.
 
-```bash
-# Start infrastructure (PostgreSQL, EMQX, EMQX Tables)
-make docker-up
+1. Sign up for [EMQX Cloud](https://cloud.emqx.com)
+2. Create a Fleets deployment from the Cloud Console
+3. Follow the step-by-step [Fleets Quick Start Guide](https://docs.emqx.com/en/cloud/latest/emqx_fleets/emqx_fleets_quick_start.html) to define your first Thing Type, register devices, and start managing your fleet
 
-# Run database migrations
-DATABASE_URL="postgres://postgres:postgres@localhost:5432/fleets?sslmode=disable" make migrate-up
-
-# Configure EMQX rules
-make setup-emqx-rules
-
-# Start Fleets
-make run
-```
-
-Server starts at `http://localhost:8080` with API documentation at `/docs`.
+From zero to a production-grade IoT device management platform — all through the browser.
 
 ---
 
