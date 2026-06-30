@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Markdown Viewer</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+  <style>
+    :root {
+      --bg: #ffffff;
+      --bg-bar: #f6f8fa;
+      --text: #1f2328;
+      --text-secondary: #656d76;
+      --border: #d0d7de;
+      --accent: #0969da;
+      --accent-light: #ddf4ff;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    /* Top bar */
+    .top-bar {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 24px;
+      background: var(--bg-bar);
+      border-bottom: 1px solid var(--border);
+      font-size: 14px;
+    }
+    .top-bar a {
+      color: var(--accent);
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      white-space: nowrap;
+    }
+    .top-bar a:hover { text-decoration: underline; }
+    .top-bar .sep {
+      color: var(--text-secondary);
+      font-size: 12px;
+    }
+    .top-bar .filename {
+      flex: 1;
+      min-width: 0;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .top-bar .raw-link {
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    /* Markdown content */
+    .markdown-body {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 40px 24px 80px;
+    }
+
+    /* Loading */
+    .loading-state {
+      text-align: center;
+      padding: 80px 20px;
+      color: var(--text-secondary);
+    }
+    .spinner {
+      width: 32px;
+      height: 32px;
+      margin: 0 auto 16px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Error */
+    .error-state {
+      text-align: center;
+      padding: 60px 20px;
+    }
+    .error-state .emoji { font-size: 40px; margin-bottom: 10px; }
+    .error-state p { color: var(--text-secondary); font-size: 15px; }
+
+    /* ---- GitHub-style Markdown ---- */
+    .markdown-body h1,
+    .markdown-body h2,
+    .markdown-body h3,
+    .markdown-body h4,
+    .markdown-body h5,
+    .markdown-body h6 {
+      margin-top: 24px;
+      margin-bottom: 16px;
+      font-weight: 600;
+      line-height: 1.25;
+    }
+    .markdown-body h1 { font-size: 2em; border-bottom: 1px solid var(--border); padding-bottom: .3em; }
+    .markdown-body h2 { font-size: 1.5em; border-bottom: 1px solid var(--border); padding-bottom: .3em; }
+    .markdown-body h3 { font-size: 1.25em; }
+    .markdown-body h4 { font-size: 1em; }
+
+    .markdown-body p,
+    .markdown-body blockquote,
+    .markdown-body ul,
+    .markdown-body ol,
+    .markdown-body dl,
+    .markdown-body table,
+    .markdown-body pre {
+      margin-top: 0;
+      margin-bottom: 16px;
+    }
+
+    .markdown-body a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+    .markdown-body a:hover { text-decoration: underline; }
+
+    .markdown-body ul, .markdown-body ol {
+      padding-left: 2em;
+    }
+    .markdown-body li { margin-bottom: .25em; }
+
+    .markdown-body blockquote {
+      padding: 0 1em;
+      color: var(--text-secondary);
+      border-left: .25em solid var(--border);
+    }
+
+    .markdown-body code {
+      font-family: "SF Mono", "Fira Code", "Fira Mono", Menlo, Consolas, monospace;
+      padding: .2em .4em;
+      font-size: 85%;
+      background: rgba(175,184,193,0.2);
+      border-radius: 6px;
+    }
+    .markdown-body pre {
+      padding: 16px;
+      overflow: auto;
+      font-size: 85%;
+      line-height: 1.45;
+      background: #f6f8fa;
+      border-radius: 6px;
+    }
+    .markdown-body pre code {
+      padding: 0;
+      background: transparent;
+      font-size: 100%;
+    }
+
+    .markdown-body table {
+      border-spacing: 0;
+      border-collapse: collapse;
+      width: 100%;
+    }
+    .markdown-body table th,
+    .markdown-body table td {
+      padding: 6px 13px;
+      border: 1px solid var(--border);
+    }
+    .markdown-body table th {
+      font-weight: 600;
+      background: var(--bg-bar);
+    }
+
+    .markdown-body img {
+      max-width: 100%;
+      height: auto;
+    }
+
+    .markdown-body hr {
+      height: .25em;
+      padding: 0;
+      margin: 24px 0;
+      background: var(--border);
+      border: 0;
+    }
+
+    .markdown-body .task-list-item { list-style: none; }
+
+    /* Mermaid-based diagrams in code blocks */
+    .markdown-body .language-mermaid {
+      text-align: center;
+      padding: 16px;
+      background: #f6f8fa;
+      border-radius: 6px;
+    }
+  </style>
+</head>
+<body>
+  <div class="top-bar">
+    <a href="./index.html" id="backLink">← 目录</a>
+    <span class="sep">/</span>
+    <span class="filename" id="filename">加载中…</span>
+    <a class="raw-link" id="rawLink" target="_blank" rel="noopener">查看原文</a>
+  </div>
+
+  <div id="content">
+    <div class="loading-state" id="loadingState">
+      <div class="spinner"></div>
+      <p>正在加载文档…</p>
+    </div>
+    <div class="error-state hidden" id="errorState">
+      <div class="emoji">⚠️</div>
+      <p id="errorMsg">加载失败</p>
+    </div>
+    <div class="markdown-body hidden" id="markdownBody"></div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/15.0.7/marked.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  <script>
+    (function() {
+      const $ = (s) => document.querySelector(s);
+
+      const elLoading = $('#loadingState');
+      const elError = $('#errorState');
+      const elErrorMsg = $('#errorMsg');
+      const elBody = $('#markdownBody');
+      const elFilename = $('#filename');
+      const elRawLink = $('#rawLink');
+      const elBackLink = $('#backLink');
+
+      // --- Get ?path= from URL ---
+      const params = new URLSearchParams(location.search);
+      let filePath = params.get('path');
+
+      if (!filePath) {
+        // Check if the current URL ends with .md (direct access)
+        const path = location.pathname;
+        if (/\.md$/i.test(path)) {
+          // Extract relative path
+          const base = location.origin + location.pathname.substring(0, location.pathname.lastIndexOf('/') + 1);
+          // Try path as-is
+          filePath = path.substring(path.lastIndexOf('/pages/') + 7);
+          if (!filePath) filePath = path.substring(path.lastIndexOf('/') + 1);
+        }
+      }
+
+      if (!filePath) {
+        elLoading.classList.add('hidden');
+        elError.classList.remove('hidden');
+        elErrorMsg.textContent = '缺少文件路径参数 (?path=xxx.md)';
+        return;
+      }
+
+      // Decode path
+      filePath = decodeURIComponent(filePath);
+      elFilename.textContent = filePath;
+      elRawLink.href = `https://github.com/shixiangw/pages/blob/main/${filePath}`;
+
+      // Construct fetch URL
+      const rawUrl = `https://raw.githubusercontent.com/shixiangw/pages/main/${filePath}`;
+
+      // --- Configure marked ---
+      marked.setOptions({
+        breaks: true,
+        gfm: true,
+        highlight: function(code, lang) {
+          if (lang && hljs.getLanguage(lang)) {
+            try {
+              return hljs.highlight(code, { language: lang }).value;
+            } catch (e) {}
+          }
+          return code;
+        }
+      });
+
+      // --- Fetch and render ---
+      async function loadMarkdown() {
+        try {
+          const res = await fetch(rawUrl);
+
+          if (!res.ok) {
+            if (res.status === 404) {
+              throw new Error(`文件不存在: ${filePath}`);
+            }
+            throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+          }
+
+          const text = await res.text();
+
+          // Check if it looks like a binary/image file
+          if (!text.includes('\n') && text.length < 100 && /[^\x20-\x7E]/.test(text)) {
+            throw new Error('该文件不是有效的 Markdown 文档');
+          }
+
+          const html = marked.parse(text);
+          elBody.innerHTML = html;
+
+          // Highlight code blocks
+          elBody.querySelectorAll('pre code').forEach(block => {
+            hljs.highlightElement(block);
+          });
+
+          elLoading.classList.add('hidden');
+          elBody.classList.remove('hidden');
+
+          // Update page title
+          const titleEl = elBody.querySelector('h1');
+          if (titleEl) {
+            document.title = titleEl.textContent.trim() + ' - Markdown Viewer';
+          }
+
+        } catch (err) {
+          elLoading.classList.add('hidden');
+          elError.classList.remove('hidden');
+          elErrorMsg.textContent = err.message;
+          console.error(err);
+        }
+      }
+
+      loadMarkdown();
+    })();
+  </script>
+</body>
+</html>

@@ -325,7 +325,9 @@
           const tagClass = ext === '.html' || ext === '.htm' ? 'html' : 'md';
           const tagLabel = ext === '.html' || ext === '.htm' ? '.html' : '.md';
           const icon = tagClass === 'html' ? '🌐' : '📝';
-          const href = `./${f.path}`;
+          const href = tagClass === 'html'
+            ? `./${f.path}`
+            : `./viewer.html?path=${encodeURIComponent(f.path)}`;
 
           const li = document.createElement('li');
           li.style.listStyle = 'none';
