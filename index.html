@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>📄 Pages 文件目录</title>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --bg-card: #f8f9fa;
+      --bg-hover: #eef0f4;
+      --text: #1f2328;
+      --text-secondary: #656d76;
+      --text-tertiary: #8b949e;
+      --border: #d0d7de;
+      --accent: #0969da;
+      --accent-light: #ddf4ff;
+      --tag-html-bg: #fff1f0;
+      --tag-html-fg: #cf222e;
+      --tag-md-bg: #dafbe1;
+      --tag-md-fg: #1a7f37;
+      --shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 32px 20px 80px;
+    }
+
+    /* Header */
+    header {
+      text-align: center;
+      padding: 48px 0 36px;
+    }
+    header h1 {
+      font-size: 28px;
+      font-weight: 600;
+      letter-spacing: -0.3px;
+    }
+    header h1 a {
+      color: var(--text);
+      text-decoration: none;
+    }
+    header h1 a:hover {
+      color: var(--accent);
+    }
+    header p {
+      color: var(--text-secondary);
+      font-size: 15px;
+      margin-top: 6px;
+    }
+
+    /* Stats bar */
+    .stats {
+      display: flex;
+      justify-content: center;
+      gap: 28px;
+      margin-bottom: 28px;
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+    .stats span {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    /* Search */
+    .search-bar {
+      margin-bottom: 24px;
+    }
+    .search-bar input {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 14px;
+      background: var(--bg);
+      color: var(--text);
+      outline: none;
+      transition: border-color .2s, box-shadow .2s;
+    }
+    .search-bar input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-light);
+    }
+    .search-bar input::placeholder {
+      color: var(--text-tertiary);
+    }
+
+    /* File list */
+    .file-list { list-style: none; }
+
+    .file-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      text-decoration: none;
+      color: var(--text);
+      transition: background .15s;
+    }
+    .file-item:hover {
+      background: var(--bg-hover);
+    }
+
+    .file-icon {
+      flex-shrink: 0;
+      width: 20px;
+      text-align: center;
+      font-size: 16px;
+    }
+
+    .file-path {
+      flex: 1;
+      min-width: 0;
+      font-size: 14px;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .file-path .dir-part {
+      color: var(--text-tertiary);
+      font-weight: 400;
+    }
+
+    .file-tag {
+      flex-shrink: 0;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 4px;
+      line-height: 1.4;
+    }
+    .file-tag.html {
+      background: var(--tag-html-bg);
+      color: var(--tag-html-fg);
+    }
+    .file-tag.md {
+      background: var(--tag-md-bg);
+      color: var(--tag-md-fg);
+    }
+
+    .file-size {
+      flex-shrink: 0;
+      font-size: 12px;
+      color: var(--text-tertiary);
+      min-width: 56px;
+      text-align: right;
+    }
+
+    /* Empty state */
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-tertiary);
+    }
+    .empty-state .emoji { font-size: 40px; margin-bottom: 12px; }
+    .empty-state p { font-size: 15px; }
+
+    /* Loading */
+    .loading {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-tertiary);
+    }
+    .spinner {
+      width: 32px;
+      height: 32px;
+      margin: 0 auto 16px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Error */
+    .error {
+      text-align: center;
+      padding: 48px 20px;
+    }
+    .error .emoji { font-size: 36px; margin-bottom: 10px; }
+    .error p { color: var(--text-secondary); font-size: 14px; }
+    .error button {
+      margin-top: 14px;
+      padding: 8px 18px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .error button:hover {
+      background: var(--bg-hover);
+    }
+
+    /* Footer */
+    footer {
+      text-align: center;
+      padding: 40px 0 20px;
+      font-size: 13px;
+      color: var(--text-tertiary);
+    }
+    footer a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+    footer a:hover { text-decoration: underline; }
+
+    /* Hidden */
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1><a href="https://github.com/shixiangw/pages" target="_blank" rel="noopener">📄 pages</a></h1>
+      <p>HTML &amp; Markdown 文件目录</p>
+    </header>
+
+    <div class="stats" id="stats" aria-live="polite"></div>
+
+    <div class="search-bar">
+      <input type="text" id="searchInput" placeholder="搜索文件名…" autocomplete="off">
+    </div>
+
+    <div id="content">
+      <div class="loading" id="loadingState">
+        <div class="spinner"></div>
+        <p>正在加载文件列表…</p>
+      </div>
+      <div class="error hidden" id="errorState">
+        <div class="emoji">⚠️</div>
+        <p id="errorMsg">加载失败，可能触发了 API 频率限制。</p>
+        <button onclick="location.reload()">重新加载</button>
+      </div>
+      <ul class="file-list hidden" id="fileList"></ul>
+      <div class="empty-state hidden" id="emptyState">
+        <div class="emoji">🔍</div>
+        <p>没有找到匹配的文件</p>
+      </div>
+    </div>
+
+    <footer>
+      <span>自动从 </span><a href="https://github.com/shixiangw/pages" target="_blank" rel="noopener">shixiangw/pages</a><span> 仓库生成</span>
+    </footer>
+  </div>
+
+  <script>
+    (function() {
+      const REPO_OWNER = 'shixiangw';
+      const REPO_NAME = 'pages';
+      const BRANCH = 'main';
+      const EXTENSIONS = new Set(['.html', '.htm', '.md', '.markdown']);
+      const BASE_URL = `https://${REPO_OWNER}.github.io/${REPO_NAME}`;
+      const API_TREE_URL = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/git/trees/${BRANCH}?recursive=1`;
+
+      const $ = (sel) => document.querySelector(sel);
+      const $$ = (sel) => document.querySelectorAll(sel);
+
+      const elStats = $('#stats');
+      const elSearch = $('#searchInput');
+      const elLoading = $('#loadingState');
+      const elError = $('#errorState');
+      const elErrorMsg = $('#errorMsg');
+      const elFileList = $('#fileList');
+      const elEmpty = $('#emptyState');
+
+      let allFiles = [];
+
+      // --- Format file size ---
+      function formatSize(bytes) {
+        if (bytes == null) return '';
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+        return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+      }
+
+      // --- Extract ext ---
+      function getExt(name) {
+        const idx = name.lastIndexOf('.');
+        return idx === -1 ? '' : name.slice(idx).toLowerCase();
+      }
+
+      // --- Determine directory & filename ---
+      function splitPath(path) {
+        const idx = path.lastIndexOf('/');
+        if (idx === -1) return { dir: '', name: path };
+        return { dir: path.slice(0, idx), name: path.slice(idx + 1) };
+      }
+
+      // --- Render file list ---
+      function render(files) {
+        elFileList.innerHTML = '';
+
+        if (files.length === 0) {
+          elEmpty.classList.remove('hidden');
+          elFileList.classList.add('hidden');
+          return;
+        }
+
+        elEmpty.classList.add('hidden');
+        elFileList.classList.remove('hidden');
+
+        const fragment = document.createDocumentFragment();
+
+        files.forEach((f, i) => {
+          const { dir, name } = splitPath(f.path);
+          const ext = getExt(name);
+          const tagClass = ext === '.html' || ext === '.htm' ? 'html' : 'md';
+          const tagLabel = ext === '.html' || ext === '.htm' ? '.html' : '.md';
+          const icon = tagClass === 'html' ? '🌐' : '📝';
+          const href = `./${f.path}`;
+
+          const li = document.createElement('li');
+          li.style.listStyle = 'none';
+          li.style.animation = i <= 20 ? `fadeIn .25s ease ${i * 0.03}s both` : 'none';
+
+          const a = document.createElement('a');
+          a.className = 'file-item';
+          a.href = href;
+          a.target = '_blank';
+          a.rel = 'noopener';
+
+          a.innerHTML = `
+            <span class="file-icon">${icon}</span>
+            <span class="file-path">
+              ${dir ? `<span class="dir-part">${dir}/</span>` : ''}${name}
+            </span>
+            <span class="file-tag ${tagClass}">${tagLabel}</span>
+            <span class="file-size">${formatSize(f.size)}</span>
+          `;
+
+          li.appendChild(a);
+          fragment.appendChild(li);
+        });
+
+        elFileList.appendChild(fragment);
+      }
+
+      // --- Update stats ---
+      function updateStats(files, total) {
+        const htmlCount = files.filter(f => /\.html?$/i.test(f.path)).length;
+        const mdCount = files.filter(f => /\.md$/i.test(f.path)).length;
+        elStats.innerHTML = `
+          <span>📄 共 ${total} 个文件</span>
+          <span>🌐 HTML ${htmlCount}</span>
+          <span>📝 Markdown ${mdCount}</span>
+        `;
+      }
+
+      // --- Apply filter ---
+      function applyFilter(query) {
+        const q = query.trim().toLowerCase();
+        let filtered;
+        if (!q) {
+          filtered = allFiles;
+        } else {
+          filtered = allFiles.filter(f => f.path.toLowerCase().includes(q));
+        }
+        updateStats(filtered, allFiles.length);
+        render(filtered);
+      }
+
+      // --- Show/hide states ---
+      function showLoading() { elLoading.classList.remove('hidden'); elError.classList.add('hidden'); elFileList.classList.add('hidden'); elEmpty.classList.add('hidden'); }
+      function showError(msg) { elLoading.classList.add('hidden'); elError.classList.remove('hidden'); elErrorMsg.textContent = msg || '加载失败，可能触发了 API 频率限制。'; elFileList.classList.add('hidden'); elEmpty.classList.add('hidden'); }
+      function showContent() { elLoading.classList.add('hidden'); elError.classList.add('hidden'); }
+
+      // --- Fetch file tree from GitHub API ---
+      async function fetchFileTree() {
+        showLoading();
+
+        try {
+          const res = await fetch(API_TREE_URL);
+
+          if (res.status === 403) {
+            // Rate limited — try using raw.githubusercontent.com instead
+            // Fallback to embedded file list
+            throw new Error('API rate limit exceeded. GitHub allows only 60 unauthenticated requests per hour.');
+          }
+
+          if (!res.ok) {
+            throw new Error(`GitHub API returned ${res.status}: ${res.statusText}`);
+          }
+
+          const data = await res.json();
+
+          if (!data.tree || !Array.isArray(data.tree)) {
+            throw new Error('Unexpected API response format');
+          }
+
+          // Filter: only blobs (files) with matching extensions, exclude .workbuddy
+          allFiles = data.tree
+            .filter(item => {
+              if (item.type !== 'blob') return false;
+              if (item.path.startsWith('.workbuddy/')) return false;
+              if (item.path.startsWith('.git')) return false;
+              const ext = getExt(item.path);
+              return EXTENSIONS.has(ext);
+            })
+            .map(item => ({
+              path: item.path,
+              size: item.size
+            }))
+            .sort((a, b) => a.path.localeCompare(b.path));
+
+          // Also sort: root files first, then files in folders
+          allFiles.sort((a, b) => {
+            const aDir = a.path.includes('/') ? 1 : 0;
+            const bDir = b.path.includes('/') ? 1 : 0;
+            if (aDir !== bDir) return aDir - bDir;
+            return a.path.localeCompare(b.path);
+          });
+
+          showContent();
+          updateStats(allFiles, allFiles.length);
+          render(allFiles);
+
+          // Wire up search
+          elSearch.addEventListener('input', (e) => applyFilter(e.target.value));
+
+        } catch (err) {
+          console.error('Failed to fetch file tree:', err);
+          showError(err.message);
+        }
+      }
+
+      // --- Add fade-in animation style ---
+      const style = document.createElement('style');
+      style.textContent = `
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(6px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+      `;
+      document.head.appendChild(style);
+
+      // --- Go ---
+      fetchFileTree();
+    })();
+  </script>
+</body>
+</html>
