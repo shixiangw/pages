@@ -304,6 +304,20 @@
           const html = marked.parse(text);
           elBody.innerHTML = html;
 
+          // Resolve relative image paths to raw.githubusercontent.com
+          const mdDir = filePath.includes('/')
+            ? filePath.substring(0, filePath.lastIndexOf('/') + 1)
+            : '';
+          const imgBase = `https://raw.githubusercontent.com/shixiangw/pages/main/${mdDir}`;
+          elBody.querySelectorAll('img').forEach(img => {
+            const src = img.getAttribute('src');
+            if (src && !src.startsWith('http://') && !src.startsWith('https://') && !src.startsWith('data:')) {
+              // Resolve relative path: strip leading ./ and combine with base
+              const clean = src.replace(/^\.\//, '');
+              img.src = imgBase + clean;
+            }
+          });
+
           // Highlight code blocks
           elBody.querySelectorAll('pre code').forEach(block => {
             hljs.highlightElement(block);
