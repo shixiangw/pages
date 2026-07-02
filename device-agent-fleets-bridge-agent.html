@@ -3,242 +3,84 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Bridge Agent — DA × Fleets 集成方案 v1.1</title>
+<title>Bridge Agent — DA × Fleets 集成方案 v1.2</title>
 <style>
-  /* ========== Reset ========== */
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  :root {
-    --bg: #f0f2f5; --surface: #fff; --border: #dde1e8;
-    --text: #1a1d26; --text2: #5a6072; --text3: #8b92a5;
-    --accent: #2463eb; --accent-bg: #e8f0fe;
-    --green: #0e8345; --green-bg: #e6f7ec;
-    --orange: #d97706; --orange-bg: #fef3e2;
-    --red: #d32f2f; --red-bg: #fde8e8;
-    --purple: #7c3aed; --purple-bg: #ede9fe;
-    --teal: #0d9488; --teal-bg: #e6f7f5;
-    --code-bg: #f1f3f6;
-    --mono: "SF Mono","Fira Code","JetBrains Mono","Consolas",monospace;
-    --font: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;
-    --radius: 8px;
-    --tab-h: 44px;
-  }
-  html, body { height: 100%; overflow: hidden; }
-  body {
-    font-family: var(--font); background: var(--bg); color: var(--text);
-    font-size: 14px; line-height: 1.55;
-    display: flex; flex-direction: column;
-  }
-  a { color: var(--accent); text-decoration: none; }
-  a:hover { text-decoration: underline; }
-
-  /* ========== Top Bar ========== */
-  .topbar {
-    display: flex; align-items: center; gap: 10px;
-    padding: 8px 20px; background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    flex-shrink: 0; height: 48px;
-  }
-  .topbar .logo { font-weight: 700; font-size: 15px; color: var(--accent); letter-spacing: -.3px; }
-  .topbar .sep { color: var(--border); font-size: 16px; }
-  .topbar .doc-title { font-size: 13px; color: var(--text2); flex: 1; }
-  .topbar .badges { display: flex; gap: 6px; }
-  .topbar .badge {
-    font-size: 11px; padding: 3px 10px; border-radius: 12px; font-weight: 600;
-  }
-  .badge-v{ background: var(--accent-bg); color: var(--accent); }
-  .badge-r{ background: var(--orange-bg); color: var(--orange); }
-  .badge-d{ background: var(--green-bg); color: var(--green); }
-
-  /* ========== Tabs ========== */
-  .tab-bar {
-    display: flex; gap: 0; padding: 0 12px;
-    background: var(--surface); border-bottom: 1px solid var(--border);
-    flex-shrink: 0; overflow-x: auto;
-    scrollbar-width: none; height: var(--tab-h);
-  }
-  .tab-bar::-webkit-scrollbar { display: none; }
-  .tab-btn {
-    flex-shrink: 0; padding: 0 14px; height: var(--tab-h);
-    border: none; background: none; cursor: pointer;
-    font-size: 12.5px; font-weight: 500; color: var(--text2);
-    border-bottom: 2px solid transparent;
-    transition: all .15s; white-space: nowrap;
-    display: flex; align-items: center; gap: 5px;
-    font-family: var(--font);
-  }
-  .tab-btn:hover { color: var(--text); background: var(--accent-bg); }
-  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
-  .tab-btn .dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
-
-  /* ========== Content ========== */
-  .tab-content { flex: 1; overflow: hidden; position: relative; }
-  .tab-pane {
-    display: none; height: 100%; overflow-y: auto;
-    padding: 16px 24px 24px;
-    scrollbar-width: thin;
-  }
-  .tab-pane::-webkit-scrollbar { width: 4px; }
-  .tab-pane::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
-  .tab-pane.active { display: block; }
-
-  /* ========== Section Styles (compact) ========== */
-  .pane h2 {
-    font-size: 16px; font-weight: 700; margin-bottom: 10px;
-    padding-bottom: 6px; border-bottom: 2px solid var(--accent);
-    display: inline-block;
-  }
-  .pane h3 { font-size: 14px; font-weight: 600; margin: 12px 0 6px; }
-  .pane h4 { font-size: 13px; font-weight: 600; margin: 10px 0 4px; }
-  .pane p { margin-bottom: 8px; font-size: 13px; }
-  .pane ul, .pane ol { margin: 4px 0 8px 18px; }
-  .pane li { margin-bottom: 2px; font-size: 13px; }
-  code {
-    font-family: var(--mono); font-size: 12px;
-    background: var(--code-bg); padding: 1px 5px; border-radius: 3px;
-  }
-  blockquote {
-    margin: 8px 0; padding: 8px 12px;
-    border-left: 3px solid var(--accent); background: var(--accent-bg);
-    border-radius: 0 var(--radius) var(--radius) 0;
-    font-size: 12.5px;
-  }
-  blockquote p { margin: 0; font-size: 12.5px; }
-
-  /* ========== Compact Tables ========== */
-  .tw { overflow-x: auto; margin: 6px 0 10px; border-radius: var(--radius); border: 1px solid var(--border); }
-  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
-  thead { background: #f1f3f7; }
-  th { padding: 6px 10px; text-align: left; font-weight: 600; font-size: 11.5px; color: var(--text2); border-bottom: 2px solid var(--border); white-space: nowrap; }
-  td { padding: 6px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
-  tr:last-child td { border-bottom: none; }
-  tr:hover td { background: #fafbfc; }
-  th:first-child, td:first-child { padding-left: 12px; }
-
-  /* ========== Tags ========== */
-  .tag { display: inline-block; padding: 1px 7px; border-radius: 3px; font-size: 11px; font-weight: 600; }
-  .t-red { background: var(--red-bg); color: var(--red); }
-  .t-orange { background: var(--orange-bg); color: var(--orange); }
-  .t-green { background: var(--green-bg); color: var(--green); }
-  .t-blue { background: var(--accent-bg); color: var(--accent); }
-  .t-purple { background: var(--purple-bg); color: var(--purple); }
-  .t-teal { background: var(--teal-bg); color: var(--teal); }
-  .check { color: var(--green); font-weight: 700; }
-  .cross { color: var(--red); }
-
-  /* ========== Code Blocks ========== */
-  pre {
-    margin: 6px 0 10px; background: #1e1e2e; color: #cdd6f4;
-    border-radius: var(--radius); overflow-x: auto;
-    font-size: 11.5px; line-height: 1.45; padding: 10px 14px;
-  }
-  pre code { background: none; padding: 0; font-size: inherit; color: inherit; }
-  pre .kw { color: #cba6f7; } pre .str { color: #a6e3a1; } pre .cm { color: #6c7086; font-style: italic; }
-  pre .fn { color: #89b4fa; } pre .num { color: #fab387; } pre .tp { color: #f38ba8; }
-
-  /* ========== Card Grid ========== */
-  .card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 6px 0 10px; }
-  .card { border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px; background: var(--surface); }
-  .card h5 { font-size: 13px; font-weight: 600; margin-bottom: 4px; display: flex; align-items: center; gap: 5px; }
-  .card p { font-size: 12px; color: var(--text2); margin: 0; }
-  .card ul { margin: 3px 0 0 14px; font-size: 12px; }
-  .card li { margin-bottom: 1px; }
-
-  /* ========== Problem Cards ========== */
-  .problems { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 6px 0 8px; }
-  .pb { display: flex; gap: 8px; padding: 8px 10px; border-radius: var(--radius); border: 1px solid var(--border); background: var(--surface); }
-  .pb .p-num { flex-shrink: 0; width: 28px; height: 20px; display: flex; align-items: center; justify-content: center; border-radius: 3px; font-size: 11px; font-weight: 700; color: #fff; }
-  .pb .p-tit { font-weight: 600; font-size: 12.5px; }
-  .pb .p-desc { font-size: 11.5px; color: var(--text2); }
-
-  /* ========== Flow Steps ========== */
-  .fs { margin: 6px 0 8px; }
-  .fs-item { counter-increment: fs; display: flex; gap: 8px; padding: 4px 0; border-bottom: 1px dashed var(--border); font-size: 12.5px; }
-  .fs-item:last-child { border-bottom: none; }
-  .fs-item .f-n { width: 20px; height: 20px; border-radius: 50%; background: var(--accent-bg); color: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; margin-top: 1px; }
-  .fs-item .f-b { flex: 1; }
-
-  /* ========== Phase blocks ========== */
-  .phases { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr 1fr; gap: 6px; margin: 6px 0 8px; }
-  .ph { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
-  .ph-h { padding: 6px 10px; font-weight: 600; font-size: 12px; display: flex; align-items: center; gap: 6px; }
-  .ph-h .n { width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: #fff; flex-shrink: 0; }
-  .ph-h .d { margin-left: auto; font-size: 10px; padding: 1px 7px; border-radius: 8px; background: var(--code-bg); color: var(--text2); flex-shrink: 0; }
-  .ph-b { padding: 4px 10px 8px; font-size: 11.5px; }
-  .ph-b ul { margin: 0 0 0 14px; } .ph-b li { margin-bottom: 1px; }
-
-  /* ========== Q&A ========== */
-  .qa-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 6px 0 8px; }
-  .qa { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
-  .qa-q { display: flex; align-items: center; gap: 6px; padding: 6px 10px; font-weight: 600; font-size: 12.5px; }
-  .qa-q .qb { width: 26px; height: 20px; display: flex; align-items: center; justify-content: center; border-radius: 3px; font-size: 10px; font-weight: 700; color: #fff; flex-shrink: 0; }
-  .qa-b { padding: 2px 10px 8px 42px; font-size: 11.5px; color: var(--text2); }
-  .qa-b strong { color: var(--text); }
-
-  /* ========== Diff side-by-side ========== */
-  .diff { display: grid; grid-template-columns: 1fr 1fr; gap: 0; margin: 6px 0 10px; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
-  .d-old { background: #fff5f5; padding: 8px 12px; border-right: 1px solid var(--border); }
-  .d-new { background: #f0faf4; padding: 8px 12px; }
-  .d-lb { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; margin-bottom: 4px; }
-  .d-old .d-lb { color: var(--red); } .d-new .d-lb { color: var(--green); }
-  .d-i { font-size: 12px; padding: 3px 0; border-bottom: 1px solid rgba(0,0,0,.05); }
-  .d-i:last-child { border-bottom: none; }
-  .d-k { font-weight: 600; color: var(--text2); font-size: 10px; display: block; }
-
-  /* ========== Capability Matrix ========== */
-  .caps { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin: 6px 0 10px; }
-  .cap { text-align: center; padding: 6px 8px; border-radius: var(--radius); border: 1px solid var(--border); }
-  .cap .c-icon { font-size: 18px; }
-  .cap .c-label { font-size: 11px; color: var(--text2); margin-top: 2px; }
-
-  /* ========== Data Flow compact ========== */
-  .flows { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin: 6px 0 10px; }
-  .fl { display: flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 4px; background: var(--code-bg); font-size: 11.5px; }
-  .fl .dir { font-size: 14px; flex-shrink: 0; }
-
-  /* ========== Hero strip ========== */
-  .hero-strip {
-    display: flex; gap: 12px; align-items: center;
-    padding: 8px 14px; background: linear-gradient(135deg, #e8f0fe 0%, #f0faf4 100%);
-    border-radius: var(--radius); margin-bottom: 10px;
-  }
-
-  /* ========== Inline dot badges for capabilities ========== */
-  .dot-on { color: var(--green); }
-  .dot-off { color: var(--text3); }
-  .dot-future { color: var(--teal); }
-
-  @media (max-width: 800px) {
-    .card-grid, .problems, .phases, .qa-grid, .flows, .caps { grid-template-columns: 1fr; }
-    .diff { grid-template-columns: 1fr; }
-    .d-old { border-right: none; border-bottom: 1px solid var(--border); }
-    .tab-btn { padding: 0 10px; font-size: 11.5px; }
-    .tab-pane { padding: 12px 14px 20px; }
-  }
-  @media (max-width: 640px) {
-    .topbar .doc-title { display: none; }
-    .tab-btn { padding: 0 8px; font-size: 11px; }
-  }
-  @media print {
-    body { overflow: visible; } .tab-pane { display: block !important; overflow: visible; height: auto; }
-    .tab-bar, .topbar { display: none; }
-  }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{--bg:#f0f2f5;--surface:#fff;--border:#dde1e8;--text:#1a1d26;--text2:#5a6072;--text3:#8b92a5;--accent:#2463eb;--accent-bg:#e8f0fe;--green:#0e8345;--green-bg:#e6f7ec;--orange:#d97706;--orange-bg:#fef3e2;--red:#d32f2f;--red-bg:#fde8e8;--purple:#7c3aed;--purple-bg:#ede9fe;--teal:#0d9488;--teal-bg:#e6f7f5;--code-bg:#f1f3f6;--mono:"SF Mono","Fira Code","JetBrains Mono","Consolas",monospace;--font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;--radius:8px;--tab-h:44px}
+  html,body{height:100%;overflow:hidden}body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14px;line-height:1.55;display:flex;flex-direction:column}
+  a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+  .topbar{display:flex;align-items:center;gap:10px;padding:8px 20px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;height:48px}
+  .topbar .logo{font-weight:700;font-size:15px;color:var(--accent);letter-spacing:-.3px}
+  .topbar .sep{color:var(--border);font-size:16px}
+  .topbar .doc-title{font-size:13px;color:var(--text2);flex:1}
+  .topbar .badges{display:flex;gap:6px}
+  .topbar .badge{font-size:11px;padding:3px 10px;border-radius:12px;font-weight:600}
+  .badge-v{background:var(--accent-bg);color:var(--accent)}.badge-r{background:var(--orange-bg);color:var(--orange)}.badge-d{background:var(--green-bg);color:var(--green)}
+  .tab-bar{display:flex;gap:0;padding:0 12px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto;scrollbar-width:none;height:var(--tab-h)}
+  .tab-bar::-webkit-scrollbar{display:none}
+  .tab-btn{flex-shrink:0;padding:0 14px;height:var(--tab-h);border:none;background:none;cursor:pointer;font-size:12.5px;font-weight:500;color:var(--text2);border-bottom:2px solid transparent;transition:all .15s;white-space:nowrap;display:flex;align-items:center;gap:5px;font-family:var(--font)}
+  .tab-btn:hover{color:var(--text);background:var(--accent-bg)}.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:600}
+  .tab-btn .dot{width:6px;height:6px;border-radius:50%;display:inline-block}
+  .tab-content{flex:1;overflow:hidden;position:relative}
+  .tab-pane{display:none;height:100%;overflow-y:auto;padding:16px 24px 24px;scrollbar-width:thin}
+  .tab-pane::-webkit-scrollbar{width:4px}.tab-pane::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+  .tab-pane.active{display:block}
+  .pane h2{font-size:16px;font-weight:700;margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid var(--accent);display:inline-block}
+  .pane h3{font-size:14px;font-weight:600;margin:12px 0 6px}.pane h4{font-size:13px;font-weight:600;margin:10px 0 4px}.pane p{margin-bottom:8px;font-size:13px}.pane ul,.pane ol{margin:4px 0 8px 18px}.pane li{margin-bottom:2px;font-size:13px}
+  code{font-family:var(--mono);font-size:12px;background:var(--code-bg);padding:1px 5px;border-radius:3px}
+  blockquote{margin:8px 0;padding:8px 12px;border-left:3px solid var(--accent);background:var(--accent-bg);border-radius:0 var(--radius) var(--radius) 0;font-size:12.5px}blockquote p{margin:0;font-size:12.5px}
+  .tw{overflow-x:auto;margin:6px 0 10px;border-radius:var(--radius);border:1px solid var(--border)}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}thead{background:#f1f3f7}
+  th{padding:6px 10px;text-align:left;font-weight:600;font-size:11.5px;color:var(--text2);border-bottom:2px solid var(--border);white-space:nowrap}
+  td{padding:6px 10px;border-bottom:1px solid var(--border);vertical-align:top}tr:last-child td{border-bottom:none}tr:hover td{background:#fafbfc}
+  th:first-child,td:first-child{padding-left:12px}
+  .tag{display:inline-block;padding:1px 7px;border-radius:3px;font-size:11px;font-weight:600}
+  .t-red{background:var(--red-bg);color:var(--red)}.t-orange{background:var(--orange-bg);color:var(--orange)}.t-green{background:var(--green-bg);color:var(--green)}
+  .t-blue{background:var(--accent-bg);color:var(--accent)}.t-purple{background:var(--purple-bg);color:var(--purple)}.t-teal{background:var(--teal-bg);color:var(--teal)}
+  .check{color:var(--green);font-weight:700}
+  pre{margin:6px 0 10px;background:#1e1e2e;color:#cdd6f4;border-radius:var(--radius);overflow-x:auto;font-size:11.5px;line-height:1.45;padding:10px 14px}
+  pre code{background:none;padding:0;font-size:inherit;color:inherit}
+  pre .kw{color:#cba6f7}pre .str{color:#a6e3a1}pre .cm{color:#6c7086;font-style:italic}pre .fn{color:#89b4fa}pre .num{color:#fab387}pre .tp{color:#f38ba8}
+  .card-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:6px 0 10px}
+  .card{border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;background:var(--surface)}.card h5{font-size:13px;font-weight:600;margin-bottom:4px;display:flex;align-items:center;gap:5px}.card p{font-size:12px;color:var(--text2);margin:0}
+  .problems{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:6px 0 8px}
+  .pb{display:flex;gap:8px;padding:8px 10px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface)}.pb .p-num{flex-shrink:0;width:28px;height:20px;display:flex;align-items:center;justify-content:center;border-radius:3px;font-size:11px;font-weight:700;color:#fff}.pb .p-tit{font-weight:600;font-size:12.5px}.pb .p-desc{font-size:11.5px;color:var(--text2)}
+  .fs{margin:6px 0 8px;counter-reset:fs}
+  .fs-item{display:flex;gap:8px;padding:4px 0;border-bottom:1px dashed var(--border);font-size:12.5px}.fs-item:last-child{border-bottom:none}
+  .fs-item .f-n{width:20px;height:20px;border-radius:50%;background:var(--accent-bg);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;margin-top:1px}.fs-item .f-b{flex:1}
+  .phases{display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:6px;margin:6px 0 8px}
+  .ph{border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+  .ph-h{padding:6px 10px;font-weight:600;font-size:12px;display:flex;align-items:center;gap:6px}.ph-h .n{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;flex-shrink:0}.ph-h .d{margin-left:auto;font-size:10px;padding:1px 7px;border-radius:8px;background:var(--code-bg);color:var(--text2);flex-shrink:0}
+  .ph-b{padding:4px 10px 8px;font-size:11.5px}.ph-b ul{margin:0 0 0 14px}.ph-b li{margin-bottom:1px}
+  .qa-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:6px 0 8px}
+  .qa{border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+  .qa-q{display:flex;align-items:center;gap:6px;padding:6px 10px;font-weight:600;font-size:12.5px}.qa-q .qb{width:26px;height:20px;display:flex;align-items:center;justify-content:center;border-radius:3px;font-size:10px;font-weight:700;color:#fff;flex-shrink:0}
+  .qa-b{padding:2px 10px 8px 42px;font-size:11.5px;color:var(--text2)}.qa-b strong{color:var(--text)}
+  .diff{display:grid;grid-template-columns:1fr 1fr;gap:0;margin:6px 0 10px;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+  .d-old{background:#fff5f5;padding:8px 12px;border-right:1px solid var(--border)}.d-new{background:#f0faf4;padding:8px 12px}
+  .d-lb{font-size:10px;text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:4px}.d-old .d-lb{color:var(--red)}.d-new .d-lb{color:var(--green)}
+  .d-i{font-size:12px;padding:3px 0;border-bottom:1px solid rgba(0,0,0,.05)}.d-i:last-child{border-bottom:none}.d-k{font-weight:600;color:var(--text2);font-size:10px;display:block}
+  .caps{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:6px 0 10px}
+  .cap{text-align:center;padding:6px 8px;border-radius:var(--radius);border:1px solid var(--border)}.cap .c-icon{font-size:18px}.cap .c-label{font-size:11px;color:var(--text2);margin-top:2px}
+  .hero-strip{display:flex;gap:12px;align-items:center;padding:8px 14px;background:linear-gradient(135deg,#e8f0fe 0%,#f0faf4 100%);border-radius:var(--radius);margin-bottom:10px}
+  @media(max-width:800px){.card-grid,.problems,.phases,.qa-grid,.caps{grid-template-columns:1fr}.diff{grid-template-columns:1fr}.d-old{border-right:none;border-bottom:1px solid var(--border)}.tab-btn{padding:0 10px;font-size:11.5px}.tab-pane{padding:12px 14px 20px}}
+  @media(max-width:640px){.topbar .doc-title{display:none}.tab-btn{padding:0 8px;font-size:11px}}
+  @media print{body{overflow:visible}.tab-pane{display:block!important;overflow:visible;height:auto}.tab-bar,.topbar{display:none}}
 </style>
 </head>
 <body>
 
-<!-- ========== TOP BAR ========== -->
 <div class="topbar">
   <span class="logo">◆ Bridge Agent</span>
   <span class="sep">/</span>
   <span class="doc-title">Device Agent × Fleets 集成方案</span>
   <div class="badges">
-    <span class="badge badge-v">v1.1</span>
-    <span class="badge badge-r">评审优化</span>
+    <span class="badge badge-v">v1.2</span>
+    <span class="badge badge-r">代码库调研</span>
     <span class="badge badge-d">2026-07-02</span>
   </div>
 </div>
 
-<!-- ========== TABS ========== -->
 <div class="tab-bar" id="tabBar">
   <button class="tab-btn active" data-tab="overview"><span class="dot" style="background:var(--accent)"></span>概览</button>
   <button class="tab-btn" data-tab="arch"><span class="dot" style="background:var(--purple)"></span>架构</button>
@@ -252,40 +94,48 @@
   <button class="tab-btn" data-tab="pending"><span class="dot" style="background:var(--red)"></span>待定问题</button>
 </div>
 
-<!-- ========== CONTENT ========== -->
 <div class="tab-content">
 
-<!-- ===== PANE 1: 概览 ===== -->
+<!-- ===== 概览 ===== -->
 <div class="tab-pane active" id="pane-overview">
   <div class="hero-strip">
-    <div style="flex:1">
-      <strong style="font-size:15px">Device Agent <span style="color:var(--accent)">×</span> Fleets</strong>
-      <div style="font-size:12px;color:var(--text2);margin-top:2px">
-        独立 Bridge Agent 进程双向协议适配 · 替代 EMQX Rule republish
-      </div>
-    </div>
-    <div style="text-align:right;font-size:11px;color:var(--text2);flex-shrink:0">
-      前置：<a href="./device-agent-fleets-integration.md">旧方案 v2.5</a>
-    </div>
+    <div style="flex:1"><strong style="font-size:15px">Device Agent <span style="color:var(--accent)">×</span> Fleets</strong>
+      <div style="font-size:12px;color:var(--text2);margin-top:2px">独立 Bridge Agent 双向协议适配 · 代码库调研评审版</div></div>
+    <div style="text-align:right;font-size:11px;color:var(--text2);flex-shrink:0">前置：<a href="./device-agent-fleets-integration.md">旧方案 v2.5</a></div>
   </div>
 
   <h2>背景与动机</h2>
-  <p>旧方案以 EMQX Rule Engine <strong>republish</strong> 为核心，适合上行但存在结构性不足：</p>
+  <p>旧方案以 EMQX Rule Engine <strong>republish</strong> 为核心，上行可用但存在结构性不足：</p>
   <div class="problems">
-    <div class="pb"><div class="p-num" style="background:var(--red)">P1</div><div class="p-b"><div class="p-tit">下行能力缺失</div><div class="p-desc">Command、Shadow、Jobs 被收入远期 TODO，Rule republish 难以闭环</div></div></div>
-    <div class="pb"><div class="p-num" style="background:var(--orange)">P2</div><div class="p-b"><div class="p-tit">Rule 无法承载复杂语义</div><div class="p-desc">Shadow desired、Jobs 状态机需有状态逻辑 + Schema 查表</div></div></div>
+    <div class="pb"><div class="p-num" style="background:var(--red)">P1</div><div class="p-b"><div class="p-tit">下行能力缺失</div><div class="p-desc">Command、Shadow、Jobs 收远期；Rule republish 难以闭环</div></div></div>
+    <div class="pb"><div class="p-num" style="background:var(--orange)">P2</div><div class="p-b"><div class="p-tit">Rule 无法承载复杂语义</div><div class="p-desc">有状态逻辑 + Schema 查表，Rule SQL 表达力不足</div></div></div>
     <div class="pb"><div class="p-num" style="background:var(--purple)">P3</div><div class="p-b"><div class="p-tit">ThingType 转换受限</div><div class="p-desc">Rule 无法在运行时引用映射表做字段级转换</div></div></div>
-    <div class="pb"><div class="p-num" style="background:var(--orange)">P4</div><div class="p-b"><div class="p-tit">ErrNoMatchingSubscribers</div><div class="p-desc">Fleets 原生设备订阅与 DA 不一致，下行阻塞</div></div></div>
+    <div class="pb"><div class="p-num" style="background:var(--orange)">P4</div><div class="p-b"><div class="p-tit">ErrNoMatchingSubscribers</div><div class="p-desc">DA 与 Fleets topic 不一致，下行阻塞</div></div></div>
+  </div>
+  <p><strong>新方案</strong>：独立 Bridge Agent 进程，MQTT 原生 sub/pub + HTTPS ThingDatas API 完成协议适配。</p>
+
+  <h2>前置条件</h2>
+  <div class="tw">
+    <table>
+      <thead><tr><th>#</th><th>前置项</th><th>负责方</th></tr></thead>
+      <tbody>
+        <tr><td><span class="tag t-red">PC1</span></td><td>DA IoT Platform 插件开发（当前不存在）</td><td><strong>DA 团队</strong></td></tr>
+        <tr><td><span class="tag t-red">PC2</span></td><td>设备注册回调机制（onDeviceRegistered）</td><td><strong>DA 团队</strong></td></tr>
+        <tr><td><span class="tag t-orange">PC3</span></td><td>MQTT Client ID 格式约定</td><td>集成方 + DA 团队</td></tr>
+        <tr><td><span class="tag t-orange">PC4</span></td><td>Bridge 仓库位置 + Migration 归属</td><td>Fleets 团队</td></tr>
+        <tr><td><span class="tag t-orange">PC5</span></td><td>设备直连 EMQX Broker</td><td>集成方</td></tr>
+      </tbody>
+    </table>
   </div>
 
-  <h2>设计目标</h2>
+  <h2>目标</h2>
   <div class="card-grid">
-    <div class="card"><h5><span class="tag t-green">双向互通</span></h5><p>上行 + 下行（command/shadow/jobs）一期设计到位</p></div>
-    <div class="card"><h5><span class="tag t-blue">标准路径对齐</span></h5><p>Fleets 预配 EMQX Rule → ThingDatas API 路径不变</p></div>
-    <div class="card"><h5><span class="tag t-purple">Schema 可治理</span></h5><p>映射持久化、版本化，支持人工修订与 API 校验</p></div>
-    <div class="card"><h5><span class="tag t-orange">最小侵入</span></h5><p>Fleets 主进程仅 Migration + 编排 Sidecar</p></div>
-    <div class="card"><h5><span class="tag t-teal">可选启用</span></h5><p>Bridge Agent 与 DA 插件均可独立开关</p></div>
-    <div class="card"><h5><span class="tag t-blue">可观测</span></h5><p>结构化日志、Prometheus 指标、健康检查、trace_id</p></div>
+    <div class="card"><h5><span class="tag t-green">双向互通</span></h5><p>上行 + 下行（command/shadow/jobs）一期到位</p></div>
+    <div class="card"><h5><span class="tag t-blue">标准路径对齐</span></h5><p>Fleets 预配 Rule → ThingDatas 路径不变</p></div>
+    <div class="card"><h5><span class="tag t-purple">Schema 可治理</span></h5><p>映射持久化、版本化、API 校验</p></div>
+    <div class="card"><h5><span class="tag t-orange">最小侵入</span></h5><p>Fleets 仅 Migration + 编排 Sidecar</p></div>
+    <div class="card"><h5><span class="tag t-teal">可选启用</span></h5><p>Bridge Agent 与 DA 插件独立开关</p></div>
+    <div class="card"><h5><span class="tag t-blue">可观测</span></h5><p>Prometheus 指标 + trace_id 全链路</p></div>
   </div>
 
   <h2>原则</h2>
@@ -293,17 +143,18 @@
     <table>
       <thead><tr><th>原则</th><th>说明</th></tr></thead>
       <tbody>
-        <tr><td><strong>Bridge 专职 MQTT</strong></td><td>所有 DA↔Fleets 转换在 Bridge 内完成，不依赖 EMQX Rule republish</td></tr>
-        <tr><td><strong>Fleets 预配照旧</strong></td><td>Bridge 向 <code>$emqx/</code> 发布后，Fleets 既有 Rule 写 PG / EMQX Tables</td></tr>
-        <tr><td><strong>DA 主动注册</strong></td><td>DA IoT 插件是 Fleets Thing/ThingType 注册的唯一发起方</td></tr>
-        <tr><td><strong>映射表为真相源</strong></td><td>Bridge 独写 <code>da_bridge_*</code> 表，版本与 Product 修订联动</td></tr>
-        <tr><td><strong>Fail-safe</strong></td><td>映射缺失时丢弃并告警，不伪造 payload；命令 correlation 严格校验</td></tr>
+        <tr><td><strong>Bridge 专职 MQTT</strong></td><td>所有转换在 Bridge 内完成，不依赖 EMQX Rule republish</td></tr>
+        <tr><td><strong>Fleets 预配照旧</strong></td><td>Bridge 向 <code>$emqx/</code> 发布后，Fleets Rule 写 PG / EMQX Tables</td></tr>
+        <tr><td><strong>DA 主动注册</strong></td><td>DA IoT 插件是 Thing/ThingType 注册唯一发起方</td></tr>
+        <tr><td><strong>映射表真相源</strong></td><td>Bridge 独写 <code>da_bridge_*</code>，版本与 Product 修订联动</td></tr>
+        <tr><td><strong>Fail-safe</strong></td><td>映射缺失时丢弃+告警，命令 correlation 严格校验</td></tr>
+        <tr><td><strong>独立 MQTT 账号</strong></td><td>Bridge 使用独立 EMQX 服务账号，不依赖 REST API</td></tr>
       </tbody>
     </table>
   </div>
 </div>
 
-<!-- ===== PANE 2: 架构 ===== -->
+<!-- ===== 架构 ===== -->
 <div class="tab-pane" id="pane-arch">
   <h2>整体架构</h2>
   <pre>
@@ -327,60 +178,57 @@
   │ • In-Flight Cmd    │
   │ • Mapping Store    │
   └─────────┬──────────┘
-            │ REST
+            │ REST (无 EMQX REST API)
       ┌─────┼──────┐
       ▼     ▼      ▼
    Fleets  DA   PostgreSQL
     API    API  da_bridge_*</pre>
+  <blockquote>v1.2 变更：移除 EMQX REST API 依赖，统一使用 MQTT 原生客户端 + HTTPS ThingDatas API。</blockquote>
 
   <h2>与旧方案关键差异</h2>
   <div class="diff">
     <div class="d-old">
-      <div class="d-lb">❌ 旧方案 v2.5（Rule）</div>
+      <div class="d-lb">❌ 旧方案 v2.5</div>
       <div class="d-i"><span class="d-k">协议转换</span>EMQX Rule SQL republish</div>
-      <div class="d-i"><span class="d-k">MQTT 订阅</span>无（Fleets 不订阅）</div>
-      <div class="d-i"><span class="d-k">下行 Command</span>§12 远期</div>
-      <div class="d-i"><span class="d-k">Shadow 下行</span>§12 远期</div>
-      <div class="d-i"><span class="d-k">Jobs</span>§12 不支持</div>
+      <div class="d-i"><span class="d-k">MQTT 订阅</span>无</div>
+      <div class="d-i"><span class="d-k">下行</span>§12 远期/不支持</div>
       <div class="d-i"><span class="d-k">Schema</span>注册时一次性</div>
       <div class="d-i"><span class="d-k">Fleets 改动</span>BridgePlugin + Rule Manager</div>
+      <div class="d-i"><span class="d-k">延迟</span>Broker 内 ~1ms</div>
     </div>
     <div class="d-new">
-      <div class="d-lb">✅ 新方案 Bridge Agent</div>
-      <div class="d-i"><span class="d-k">协议转换</span>Bridge Agent 内 Go 逻辑</div>
-      <div class="d-i"><span class="d-k">MQTT 订阅</span>Bridge Agent 独立订阅</div>
-      <div class="d-i"><span class="d-k">下行 Command</span>Bridge 订阅 → DA commands</div>
-      <div class="d-i"><span class="d-k">Shadow 下行</span>per-property desiredApply</div>
-      <div class="d-i"><span class="d-k">Jobs</span>commandMap + proxy 双模式</div>
+      <div class="d-lb">✅ Bridge Agent</div>
+      <div class="d-i"><span class="d-k">协议转换</span>Go 逻辑独立进程</div>
+      <div class="d-i"><span class="d-k">MQTT 订阅</span>Bridge 独立订阅</div>
+      <div class="d-i"><span class="d-k">下行</span>Command + Shadow + Jobs</div>
       <div class="d-i"><span class="d-k">Schema</span>运行时查表 + 版本化</div>
-      <div class="d-i"><span class="d-k">Fleets 改动</span>仅 Migration + 编排 Sidecar</div>
+      <div class="d-i"><span class="d-k">Fleets 改动</span>仅 Migration + Sidecar</div>
+      <div class="d-i"><span class="d-k">延迟</span>多一跳 ~5-10ms</div>
     </div>
   </div>
 
   <h2>核心数据流</h2>
   <div class="tw">
     <table>
-      <thead><tr><th>方向</th><th>DA 侧</th><th>Bridge</th><th>Fleets 侧</th></tr></thead>
+      <thead><tr><th>方向</th><th>DA 侧</th><th>Bridge 动作</th><th>Fleets 侧</th></tr></thead>
       <tbody>
-        <tr><td><span class="tag t-green">状态上行</span></td><td><code>v1/…/telemetry</code></td><td>→ <code>shadow/update</code></td><td>Rule → ThingDatas</td></tr>
-        <tr><td><span class="tag t-blue">事件上行</span></td><td><code>v1/…/event</code></td><td>→ <code>events/{type}</code></td><td>Rule → EMQX Tables</td></tr>
-        <tr><td><span class="tag t-purple">命令响应</span></td><td><code>device-agent/…/responses</code></td><td>→ <code>commands/…/response</code></td><td>Rule → ThingDatas</td></tr>
+        <tr><td><span class="tag t-green">状态上行</span></td><td><code>v1/…/telemetry</code></td><td>转 <code>shadow/update</code></td><td>Rule → ThingDatas</td></tr>
+        <tr><td><span class="tag t-blue">事件上行</span></td><td><code>v1/…/event</code></td><td>转 <code>events/{type}</code></td><td>Rule → EMQX Tables</td></tr>
+        <tr><td><span class="tag t-purple">命令响应</span></td><td><code>device-agent/…/responses</code></td><td>转 <code>commands/…/response</code></td><td>Rule → ThingDatas</td></tr>
         <tr><td><span class="tag t-orange">命令下行</span></td><td><code>device-agent/…/commands</code></td><td>订阅 Fleets request → DA</td><td>JobService EMQX pub</td></tr>
         <tr><td><span class="tag t-teal">Shadow 下行</span></td><td>DA commands（合成）</td><td>订阅 desired/delta → mapping</td><td>ShadowService EMQX pub</td></tr>
         <tr><td><span class="tag t-blue">Jobs</span></td><td>DA commands / Bridge 代发</td><td>notify → commandMap/proxy</td><td>JobService EMQX pub</td></tr>
       </tbody>
     </table>
   </div>
-  <blockquote>Lifecycle 不经 Bridge，由 EMQX connect/disconnect 事件 + Fleets 预配规则直接处理。</blockquote>
 </div>
 
-<!-- ===== PANE 3: Bridge 设计 ===== -->
+<!-- ===== Bridge 设计 ===== -->
 <div class="tab-pane" id="pane-bridge">
-  <h2>进程定位</h2>
-  <p>Fleets 部署拓扑中的独立 Sidecar 服务（<code>fleets/cmd/da-bridge/</code>）。</p>
+  <h2>定位与边界</h2>
+  <p>独立 Sidecar 服务（<code>fleets/cmd/da-bridge/</code>）。</p>
   <div class="diff">
-    <div class="d-old">
-      <div class="d-lb" style="color:var(--green)">✅ 负责</div>
+    <div class="d-old"><div class="d-lb" style="color:var(--green)">✅ 负责</div>
       <div class="d-i">DA↔Fleets MQTT 双向转换</div>
       <div class="d-i">Schema 映射运行时查表</div>
       <div class="d-i">映射表读写 + 版本同步</div>
@@ -388,9 +236,8 @@
       <div class="d-i">In-flight PG 持久化 + TTL</div>
       <div class="d-i">健康检查 + Prometheus 指标</div>
     </div>
-    <div class="d-new">
-      <div class="d-lb" style="color:var(--red)">❌ 不负责</div>
-      <div class="d-i">Fleets 业务逻辑（Shadow/Job）</div>
+    <div class="d-new"><div class="d-lb" style="color:var(--red)">❌ 不负责</div>
+      <div class="d-i">Fleets 业务逻辑</div>
       <div class="d-i">DA 设备注册 UI</div>
       <div class="d-i">修改 JobService / ShadowService</div>
       <div class="d-i">DA SDK 行为变更</div>
@@ -403,134 +250,152 @@
   <pre>
 cmd/da-bridge/
 ├── main.go                  # 信号处理、生命周期
-├── config/                  # 环境变量、配置校验
+├── config/                  # 环境变量
 ├── lifecycle/               # Start / Stop / Ready / Live
 ├── <span style="color:#89b4fa">mqtt/</span>
-│   ├── client.go            # MQTT subscribe + high-throughput publish
-│   └── emqx_publish.go      # EMQX REST API v5 publish
+│   └── client.go            # MQTT subscribe + publish（唯一通道）
 ├── <span style="color:#a6e3a1">router/</span>
-│   ├── topic.go             # 统一 Topic 路由 + 参数提取
+│   ├── topic.go             # 统一路由 + 参数提取
 │   └── dispatch.go          # 分发 → translator
 ├── <span style="color:#fab387">translator/</span>
 │   ├── telemetry.go / event.go / command.go
 │   ├── shadow.go            # desired/delta → DA 命令
 │   └── jobs.go              # commandMap + proxy
-├── <span style="color:#cba6f7">schema/</span>
-│   ├── mapper.go / registry.go / validator.go
-├── <span style="color:#a6e3a1">store/</span>
-│   ├── mapping.go / schema_mapping.go / inflight.go
-├── api/ → health.go, admin.go
+├── <span style="color:#cba6f7">schema/</span>     (mapper / registry / validator)
+├── <span style="color:#a6e3a1">store/</span>      (mapping / schema_mapping / inflight)
+├── api/       (health / admin)
 ├── da/client.go             # Device Agent REST 客户端
-├── fleets/client.go         # Fleets REST 客户端
-└── metrics/                 # Prometheus 指标
-</pre>
+├── fleets/client.go         # Fleets REST 客户端（含 HTTPS ThingDatas）
+└── metrics/                 # Prometheus 指标</pre>
+  <blockquote>v1.2 变更：移除 <code>emqx_publish.go</code>，所有 MQTT 发布走原生客户端。Jobs proxy 操作走 HTTPS ThingDatas API。</blockquote>
 
   <h2>生命周期</h2>
   <div class="tw">
     <table>
       <thead><tr><th>阶段</th><th>行为</th></tr></thead>
       <tbody>
-        <tr><td><span class="tag t-orange">Start</span></td><td>DB migrate → 抢 advisory lock → 加载 Schema 缓存 → MQTT 连接（cleanSession=false）→ 批量 subscribe → 注册 handler → in-flight TTL 清理 goroutine</td></tr>
-        <tr><td><span class="tag t-green">Running</span></td><td>处理 MQTT 消息；定期增量同步 Schema；清理过期 in-flight 命令并发布 FAILED 响应</td></tr>
-        <tr><td><span class="tag t-red">Draining</span></td><td>SIGTERM：停止处理 → 等待 in-flight 完成（超时 <code>SHUTDOWN_TIMEOUT</code>）→ 断开 MQTT → 关闭 DB → 释放锁</td></tr>
-        <tr><td><span class="tag t-blue">Ready probe</span></td><td>MQTT 已连接 + 全部 topic 已 subscribe + DB 可达 + advisory lock 持有</td></tr>
-        <tr><td><span class="tag t-purple">Live probe</span></td><td>进程存活 + MQTT reconnecting 算 live</td></tr>
+        <tr><td><span class="tag t-orange">Start</span></td><td>DB migrate → 抢 advisory lock（<code>HashToInt64("da-fleets-bridge")</code>）→ 加载 Schema 缓存 → MQTT 连接（cleanSession=false）→ 批量 subscribe → 注册 handler → in-flight TTL 清理 goroutine</td></tr>
+        <tr><td><span class="tag t-green">Running</span></td><td>处理 MQTT 消息；定期增量同步 Schema；清理过期 in-flight 命令</td></tr>
+        <tr><td><span class="tag t-red">Draining</span></td><td>SIGTERM：停止处理 → 等待 in-flight 完成 → 断开 MQTT → 关闭 DB → 释放锁</td></tr>
+        <tr><td><span class="tag t-blue">Ready</span></td><td>MQTT 已连接 + 全部 subscribe + DB 可达 + 锁持有</td></tr>
+        <tr><td><span class="tag t-purple">Live</span></td><td>进程存活 + MQTT reconnecting 算 live</td></tr>
       </tbody>
     </table>
   </div>
 
   <h2>MQTT 接入</h2>
   <div class="card-grid">
-    <div class="card"><h5><span class="tag t-green">MQTT 原生客户端</span></h5><p>Subscribe + 上行高吞吐 Publish。EMQX REST API 不支持持久订阅。</p></div>
-    <div class="card"><h5><span class="tag t-blue">EMQX REST API v5 /publish</span></h5><p>命令/Jobs 响应 publish。复用 Fleets <code>EMQX_API_KEY</code>。</p></div>
+    <div class="card"><h5><span class="tag t-green">MQTT 原生客户端</span></h5><p>Subscribe + 全部 Publish（Shadow/Event/Command/Jobs 下行）统一走 MQTT client</p></div>
+    <div class="card"><h5><span class="tag t-blue">HTTPS ThingDatas API</span></h5><p>Jobs proxy 模式下的 start-next、update 请求走 HTTPS，无需订阅响应 topic</p></div>
   </div>
   <pre>
 DA_BRIDGE_MQTT_URL=mqtt://localhost:1883
 DA_BRIDGE_MQTT_CLIENT_ID=da-fleets-bridge-{instanceId}
-DA_BRIDGE_MQTT_CLEAN_SESSION=false   # 持久会话，重启不丢消息
+DA_BRIDGE_MQTT_CLEAN_SESSION=false   # 持久会话
 DA_BRIDGE_MQTT_RECONNECT_BACKOFF=1s,5s,15s,30s,60s</pre>
-  <blockquote><code>cleanSession=false</code> + 持久会话保证重启期间消息不丢。in-flight 命令表在 PG 中持久化。</blockquote>
+  <blockquote>EMQX REST API 不再作为发布通道，降低依赖。</blockquote>
 
   <h2>消息处理流水线</h2>
   <pre>
-MQTT OnMessage → <span style="color:#fab387">Topic Router</span> → <span style="color:#a6e3a1">Mapping Lookup</span> → <span style="color:#cba6f7">Schema Registry</span>
-    → <span style="color:#89b4fa">Translator</span> (payload 转换 + 校验)
-    → <span style="color:#a6e3a1">Publish</span> (MQTT client / EMQX REST API)
-    → 结构化日志 + trace_id + latency histogram</pre>
+MQTT OnMessage → <span style="color:#fab387">Topic Router</span>
+  → 解析 {productId(versioned), deviceId, thingName, executionId, jobId}
+  → <span style="color:#a6e3a1">Mapping Lookup</span>
+    da_bridge_mappings WHERE da_product_id=<span style="color:#fab387">versionedPid</span> AND da_device_id=?
+    miss → 丢弃 + metric + warn log
+  → <span style="color:#cba6f7">Schema Lookup</span>
+    da_bridge_mappings.da_base_product_id + schema_version
+    → da_bridge_schema_mappings (mapping_spec)
+  → <span style="color:#89b4fa">Translator</span> (payload 转换 + 校验)
+  → <span style="color:#a6e3a1">Publish</span> (MQTT client / HTTPS ThingDatas)
+  → 结构化日志 + trace_id + latency histogram</pre>
+  <blockquote>v1.2 变更：双 ID 路由。topic 提取 versioned productId 做映射查找，再用 baseProductId 查 schema。</blockquote>
 </div>
 
-<!-- ===== PANE 4: Schema 映射 ===== -->
+<!-- ===== Schema 映射 ===== -->
 <div class="tab-pane" id="pane-schema">
-  <h2>映射表</h2>
+  <h2>映射表（v1.2 更新）</h2>
   <div class="card-grid">
     <div class="card">
       <h5><code>da_bridge_mappings</code></h5>
-      <p>设备实例映射。键：<code>(da_product_id, da_device_id)</code> → thing_id, thing_name, thing_type_id, schema_version, mqtt_client_id</p>
+      <p style="font-size:11.5px">双 ID 设计：<code>da_product_id</code> = versioned（topic 路由）<br><code>da_base_product_id</code> = stable（ThingType 查找）</p>
+      <p style="font-size:11px;color:var(--text3);margin-top:2px">含: thing_id, thing_name, schema_version, mqtt_client_id</p>
     </div>
     <div class="card">
       <h5><code>da_bridge_schema_mappings</code></h5>
-      <p>Product ↔ ThingType 映射规则。status: draft / active / deprecated。含 <code>mapping_spec</code> JSONB</p>
+      <p style="font-size:11.5px"><code>da_base_product_id</code> 稳定键，<code>da_product_ids[]</code> 追踪版本引用</p>
+      <p style="font-size:11px;color:var(--text3);margin-top:2px">status: draft / active / deprecated; mapping_spec JSONB</p>
     </div>
   </div>
+  <pre>
+<span class="cm">-- da_bridge_mappings 双 ID 路由字段</span>
+da_product_id       TEXT NOT NULL,  <span class="cm">-- versioned (如 smart-fan-v1-1)</span>
+da_base_product_id  TEXT NOT NULL,  <span class="cm">-- stable   (如 smart-fan)</span>
+<span class="cm">-- 路由: MQTT topic → da_product_id → da_base_product_id → schema</span>
+<span class="cm">-- 索引</span>
+<span class="kw">CREATE INDEX</span> idx_bridge_mappings_base_product
+  <span class="kw">ON</span> da_bridge_mappings (da_base_product_id);
+
+<span class="cm">-- da_bridge_schema_mappings 新增</span>
+da_base_product_id  TEXT NOT NULL,       <span class="cm">-- 稳定键</span>
+da_product_ids      TEXT[] <span class="kw">NOT NULL DEFAULT</span> <span class="str">'{}'</span>,  <span class="cm">-- 关联版本列表</span></pre>
 
   <h2>mapping_spec 结构</h2>
-  <pre>
-{
-  <span class="str">"properties"</span>: {
-    <span class="str">"reportIntervalSec"</span>: {
-      <span class="str">"writable"</span>: <span class="kw">true</span>,
-      <span class="str">"desiredApply"</span>: { <span class="str">"strategy"</span>: <span class="str">"command"</span>, <span class="str">"command"</span>: <span class="str">"setInterval"</span>,
-        <span class="str">"paramMap"</span>: { <span class="str">"reportIntervalSec"</span>: <span class="str">"interval"</span> } }
-    }
-  },
-  <span class="str">"events"</span>: { <span class="str">"overheat"</span>: { <span class="str">"fleetsSeverity"</span>: <span class="str">"warn"</span>, ... } },
-  <span class="str">"commands"</span>: { <span class="str">"setInterval"</span>: { <span class="str">"daCmd"</span>: <span class="str">"setInterval"</span>, <span class="str">"inputMap"</span>: {...} } },
-  <span class="str">"jobs"</span>: { <span class="str">"mode"</span>: <span class="str">"proxy"</span>, <span class="str">"operationCommandMap"</span>: {} }
+  <pre>{
+  <span class="str">"properties"</span>: { <span class="str">"reportIntervalSec"</span>: {
+    <span class="str">"writable"</span>: <span class="kw">true</span>,
+    <span class="str">"desiredApply"</span>: { <span class="str">"strategy"</span>: <span class="str">"command"</span>, <span class="str">"command"</span>: <span class="str">"setInterval"</span> }
+  }},
+  <span class="str">"events"</span>: { <span class="str">"overheat"</span>: { <span class="str">"fleetsSeverity"</span>: <span class="str">"warn"</span> } },
+  <span class="str">"commands"</span>: { <span class="str">"setInterval"</span>: { <span class="str">"daCmd"</span>: <span class="str">"setInterval"</span>, <span class="str">"inputMap"</span>: {} } },
+  <span class="str">"jobs"</span>: { <span class="str">"mode"</span>: <span class="str">"proxy"</span> }
 }</pre>
 
-  <h2>desiredApply 策略</h2>
+  <h3>desiredApply 策略</h3>
   <div class="tw">
     <table>
       <thead><tr><th>strategy</th><th>行为</th></tr></thead>
       <tbody>
-        <tr><td><span class="tag t-green">command</span></td><td>将 desired 中 writable 字段变化映射为一条 DA <code>commands</code> 消息</td></tr>
-        <tr><td><span class="tag t-blue">stateOnly</span></td><td>仅更新 Fleets reported，不执行下行</td></tr>
+        <tr><td><span class="tag t-green">command</span></td><td>writable 字段变化 → DA commands 消息</td></tr>
+        <tr><td><span class="tag t-blue">stateOnly</span></td><td>仅更新 Fleets reported</td></tr>
         <tr><td><span class="tag t-red">ignore</span></td><td>跳过该字段</td></tr>
       </tbody>
     </table>
   </div>
 
-  <h2>Schema 生成流程</h2>
+  <h3>Schema 生成流程</h3>
   <div class="fs">
-    <div class="fs-item" style="counter-reset:fs 0"><div class="f-n">1</div><div class="f-b"><strong>DA Product 创建/变更</strong> — baseProductId 稳定</div></div>
-    <div class="fs-item"><div class="f-n">2</div><div class="f-b"><strong>schema-mapper 生成草稿</strong> — mapping_spec + ThingType schema</div></div>
-    <div class="fs-item"><div class="f-n">3</div><div class="f-b"><strong>用户修订</strong> — DA UI / JSON 导出编辑</div></div>
-    <div class="fs-item"><div class="f-n">4</div><div class="f-b"><strong>POST Fleets</strong> <code>/api/v1/thing-types</code> — 服务端校验</div></div>
-    <div class="fs-item"><div class="f-n">5</div><div class="f-b"><strong>POST Bridge Admin</strong> <code>/api/v1/schema-mappings</code> — 持久化</div></div>
-    <div class="fs-item"><div class="f-n">6</div><div class="f-b"><strong>Bridge Schema Registry 热加载</strong> — watch PG NOTIFY</div></div>
+    <div class="fs-item" style="counter-reset:fs 0"><div class="f-n">1</div><div class="f-b"><strong>DA Product 变更</strong> — baseProductId 稳定</div></div>
+    <div class="fs-item"><div class="f-n">2</div><div class="f-b"><strong>插件生成草稿</strong> — mapping_spec + ThingType schema</div></div>
+    <div class="fs-item"><div class="f-n">3</div><div class="f-b"><strong>用户修订</strong> — DA UI / JSON 导出</div></div>
+    <div class="fs-item"><div class="f-n">4</div><div class="f-b"><strong>POST Fleets ThingType</strong> — 服务端校验</div></div>
+    <div class="fs-item"><div class="f-n">5</div><div class="f-b"><strong>POST Bridge Admin</strong> — 双 ID：versioned + base 同时写入</div></div>
+    <div class="fs-item"><div class="f-n">6</div><div class="f-b"><strong>Bridge 热加载</strong> — watch PG NOTIFY</div></div>
   </div>
 
-  <h2>默认自动映射规则</h2>
+  <h3>默认映射规则</h3>
   <div class="tw">
     <table>
-      <thead><tr><th>DA DeviceSpec</th><th>Fleets ThingType</th><th>默认策略</th></tr></thead>
+      <thead><tr><th>DA</th><th>Fleets</th><th>默认</th></tr></thead>
       <tbody>
-        <tr><td><code>properties.*</code></td><td><code>schema.properties.*</code></td><td>同名映射；用户标记 writable</td></tr>
-        <tr><td><code>events.*</code></td><td><code>schema.events.info.*</code></td><td>默认 severity=info</td></tr>
-        <tr><td><code>commands.*</code></td><td><code>schema.commands.*</code> (sync)</td><td>parameters → input</td></tr>
-        <tr><td>writable property</td><td>desired/delta 下行</td><td>desiredApply.strategy=command</td></tr>
+        <tr><td><code>properties.*</code></td><td><code>schema.properties.*</code></td><td>同名映射</td></tr>
+        <tr><td><code>events.*</code></td><td><code>schema.events.info.*</code></td><td>severity=info</td></tr>
+        <tr><td><code>commands.*</code></td><td><code>schema.commands.*</code></td><td>parameters→input</td></tr>
+        <tr><td>writable prop</td><td>desired/delta</td><td>desiredApply=command</td></tr>
       </tbody>
     </table>
   </div>
-  <blockquote><strong>运行时缓存</strong>：启动时全量加载 status=active 的映射；热更新定期检测 <code>max(updated_at)</code>；Schema drift 检测告警但不自动覆盖。</blockquote>
+  <blockquote>运行时缓存：启动全量加载 active 映射，定期轮询热更新，drift 检测告警不自动覆盖。</blockquote>
 </div>
 
-<!-- ===== PANE 5: Topic 路由 ===== -->
+<!-- ===== Topic 路由 ===== -->
 <div class="tab-pane" id="pane-topics">
+  <h2>路由关键点</h2>
+  <blockquote>DA MQTT topics 使用 versioned productId（如 <code>smart-fan-v1-1</code>）。Bridge 通过通配符 <code>+</code> 匹配并提取该值，在 <code>da_bridge_mappings</code> 中按 <code>da_product_id</code>（versioned）做第一次路由，再用 <code>da_base_product_id</code> 查 schema。</blockquote>
+
   <h2>Bridge 订阅（Subscribe）</h2>
   <div class="tw">
     <table>
-      <thead><tr><th>#</th><th>方向</th><th>MQTT Topic Pattern</th><th>触发动作</th></tr></thead>
+      <thead><tr><th>#</th><th>方向</th><th>MQTT Topic Pattern</th><th>动作</th></tr></thead>
       <tbody>
         <tr><td><span class="tag t-blue">S1</span></td><td><span class="tag t-green">⬆</span></td><td><code>v1/+/+/telemetry</code></td><td>→ Shadow reported</td></tr>
         <tr><td><span class="tag t-blue">S2</span></td><td><span class="tag t-green">⬆</span></td><td><code>v1/+/+/event</code></td><td>→ Fleets event</td></tr>
@@ -538,8 +403,8 @@ MQTT OnMessage → <span style="color:#fab387">Topic Router</span> → <span sty
         <tr><td><span class="tag t-blue">S4</span></td><td><span class="tag t-red">⬇</span></td><td><code>$emqx/commands/things/da-+/executions/+/request</code></td><td>→ DA command</td></tr>
         <tr><td><span class="tag t-blue">S5</span></td><td><span class="tag t-red">⬇</span></td><td><code>$emqx/things/da-+/shadow/update</code></td><td>desired → DA 命令</td></tr>
         <tr><td><span class="tag t-blue">S6</span></td><td><span class="tag t-red">⬇</span></td><td><code>$emqx/things/da-+/shadow/update/delta</code></td><td>delta → DA 命令</td></tr>
-        <tr><td><span class="tag t-blue">S7</span></td><td><span class="tag t-red">⬇</span></td><td><code>$emqx/things/da-+/jobs/notify</code></td><td>Jobs 通知 → 代理</td></tr>
-        <tr><td><span class="tag t-blue">S8</span></td><td><span class="tag t-red">⬇</span></td><td><code>$emqx/things/da-+/jobs/notify-next</code></td><td>下一个 Job → 代理</td></tr>
+        <tr><td><span class="tag t-blue">S7</span></td><td><span class="tag t-red">⬇</span></td><td><code>$emqx/things/da-+/jobs/notify</code></td><td>Jobs 通知</td></tr>
+        <tr><td><span class="tag t-blue">S8</span></td><td><span class="tag t-red">⬇</span></td><td><code>$emqx/things/da-+/jobs/notify-next</code></td><td>下一个 Job</td></tr>
       </tbody>
     </table>
   </div>
@@ -547,16 +412,17 @@ MQTT OnMessage → <span style="color:#fab387">Topic Router</span> → <span sty
   <h2>Bridge 发布（Publish）</h2>
   <div class="tw">
     <table>
-      <thead><tr><th>#</th><th>方向</th><th>MQTT Topic Pattern</th><th>方式</th><th>说明</th></tr></thead>
+      <thead><tr><th>#</th><th>方向</th><th>MQTT Topic / API</th><th>方式</th></tr></thead>
       <tbody>
-        <tr><td><span class="tag t-orange">P1</span></td><td>⬆</td><td><code>$emqx/things/da-{encPid}--{encDid}/shadow/update</code></td><td>MQTT</td><td>Shadow reported</td></tr>
-        <tr><td><span class="tag t-orange">P2</span></td><td>⬆</td><td><code>$emqx/things/da-{encPid}--{encDid}/events/{eventType}</code></td><td>MQTT</td><td>Event</td></tr>
-        <tr><td><span class="tag t-orange">P3</span></td><td>⬆</td><td><code>$emqx/commands/things/da-…/executions/{id}/response</code></td><td>MQTT/REST</td><td>Command response</td></tr>
-        <tr><td><span class="tag t-orange">P4</span></td><td>⬇</td><td><code>device-agent/{pid}/device/{did}/commands</code></td><td>MQTT</td><td>Command 下发</td></tr>
-        <tr><td><span class="tag t-orange">P5</span></td><td>⬆</td><td><code>$emqx/things/da-…/jobs/{id}/update</code></td><td>REST</td><td>Jobs 状态回写</td></tr>
+        <tr><td><span class="tag t-orange">P1</span></td><td>⬆</td><td><code>$emqx/things/da-{ePid}--{eDid}/shadow/update</code></td><td>MQTT</td></tr>
+        <tr><td><span class="tag t-orange">P2</span></td><td>⬆</td><td><code>$emqx/things/da-{ePid}--{eDid}/events/{type}</code></td><td>MQTT</td></tr>
+        <tr><td><span class="tag t-orange">P3</span></td><td>⬆</td><td><code>$emqx/commands/…/executions/{id}/response</code></td><td>MQTT</td></tr>
+        <tr><td><span class="tag t-orange">P4</span></td><td>⬇</td><td><code>device-agent/{pid}/device/{did}/commands</code></td><td>MQTT</td></tr>
+        <tr><td><span class="tag t-orange">P5</span></td><td>⬆</td><td><code>POST /api/v1/thing-datas/jobs/{start-next,update}</code></td><td><strong>HTTPS</strong> 🔄</td></tr>
       </tbody>
     </table>
   </div>
+  <blockquote>v1.2：P5 从 EMQX REST API 改为 HTTPS ThingDatas API。所有 MQTT publish 统一走原生 client。</blockquote>
 
   <h2>Topic 对照速查</h2>
   <div class="tw">
@@ -565,35 +431,29 @@ MQTT OnMessage → <span style="color:#fab387">Topic Router</span> → <span sty
       <tbody>
         <tr><td><span class="tag t-green">状态上行</span></td><td><code>v1/{pid}/{did}/telemetry</code></td><td><code>$emqx/things/da-{ePid}--{eDid}/shadow/update</code></td></tr>
         <tr><td><span class="tag t-blue">事件上行</span></td><td><code>v1/{pid}/{did}/event</code></td><td><code>$emqx/things/da-{ePid}--{eDid}/events/{type}</code></td></tr>
-        <tr><td><span class="tag t-purple">命令下行</span></td><td><code>device-agent/{pid}/device/{did}/commands</code></td><td><code>$emqx/commands/things/da-…/executions/{id}/request</code></td></tr>
-        <tr><td><span class="tag t-orange">命令响应</span></td><td><code>device-agent/{pid}/device/{did}/responses</code></td><td><code>$emqx/commands/things/da-…/executions/{id}/response</code></td></tr>
+        <tr><td><span class="tag t-purple">命令下行</span></td><td><code>device-agent/{pid}/device/{did}/commands</code></td><td><code>$emqx/commands/…/executions/{id}/request</code></td></tr>
+        <tr><td><span class="tag t-orange">命令响应</span></td><td><code>device-agent/{pid}/device/{did}/responses</code></td><td><code>$emqx/commands/…/executions/{id}/response</code></td></tr>
         <tr><td><span class="tag t-teal">Shadow 下行</span></td><td>↑ commands（合成）</td><td><code>$emqx/things/da-…/shadow/update</code></td></tr>
       </tbody>
     </table>
   </div>
 </div>
 
-<!-- ===== PANE 6: 上行协议 ===== -->
+<!-- ===== 上行协议 ===== -->
 <div class="tab-pane" id="pane-uplink">
   <h2>Telemetry → Shadow reported</h2>
   <p><strong>S1</strong> <code>v1/{productId}/{deviceId}/telemetry</code></p>
   <div class="card-grid">
-    <div class="card">
-      <h5>DA Payload</h5>
-      <pre style="margin:4px 0 0;font-size:11px">{<span class="str">"type"</span>:<span class="str">"state"</span>,<span class="str">"data"</span>:{<span class="str">"temp_a"</span>:<span class="num">23.5</span>},<span class="str">"ts"</span>:<span class="num">1750000000000</span>}</pre>
-    </div>
-    <div class="card">
-      <h5>Bridge 输出</h5>
-      <pre style="margin:4px 0 0;font-size:11px">{<span class="str">"state"</span>:{<span class="str">"reported"</span>:{<span class="str">"temp_a"</span>:<span class="num">23.5</span>}}}</pre>
-    </div>
+    <div class="card"><h5>DA Payload</h5><pre style="margin:4px 0 0;font-size:11px">{<span class="str">"type"</span>:<span class="str">"state"</span>,<span class="str">"data"</span>:{<span class="str">"temp_a"</span>:<span class="num">23.5</span>}}</pre></div>
+    <div class="card"><h5>Bridge 转发</h5><pre style="margin:4px 0 0;font-size:11px">{<span class="str">"state"</span>:{<span class="str">"reported"</span>:{<span class="str">"temp_a"</span>:<span class="num">23.5</span>}}}</pre></div>
   </div>
   <div class="tw">
     <table>
-      <thead><tr><th>DA type</th><th>Bridge 行为</th></tr></thead>
+      <thead><tr><th>DA type</th><th>Bridge</th></tr></thead>
       <tbody>
-        <tr><td><span class="tag t-green">state</span></td><td>转 <code>$emqx/things/{thingName}/shadow/update</code></td></tr>
-        <tr><td><span class="tag t-red">status</span></td><td>忽略（lifecycle 由 EMQX 连接事件处理）</td></tr>
-        <tr><td><span class="tag t-blue">其他</span></td><td>按 mapping 决定</td></tr>
+        <tr><td><span class="tag t-green">state</span></td><td>转 <code>$emqx/…/shadow/update</code></td></tr>
+        <tr><td><span class="tag t-red">status</span></td><td>忽略（lifecycle 由 EMQX 事件处理）</td></tr>
+        <tr><td>其他</td><td>按 mapping 决定</td></tr>
       </tbody>
     </table>
   </div>
@@ -601,131 +461,100 @@ MQTT OnMessage → <span style="color:#fab387">Topic Router</span> → <span sty
   <h2>Event → Fleets events</h2>
   <p><strong>S2</strong> <code>v1/{productId}/{deviceId}/event</code></p>
   <pre>
-DA:  {<span class="str">"type"</span>:<span class="str">"event"</span>,<span class="str">"data"</span>:{<span class="str">"event"</span>:<span class="str">"overheat"</span>,<span class="str">"zone"</span>:<span class="str">"A"</span>,<span class="str">"temperature"</span>:<span class="num">85.3</span>}}
-OUT: <span style="color:#a6e3a1">$emqx/things/da-p-sensor--device-001/events/overheat</span>
-     {"eventType":"overheat","severity":"warn","data":{"zone":"A","temperature":85.3}}</pre>
+DA:  {"event":"overheat","zone":"A","temperature":85.3}
+OUT: $emqx/…/events/overheat  {"eventType":"overheat","severity":"warn","data":{...}}</pre>
 
   <h2>Command Response</h2>
-  <p><strong>S3</strong> <code>device-agent/{productId}/device/{deviceId}/responses</code></p>
-  <p>Bridge 查 <strong>in-flight 命令表</strong>（PG 持久化），按 <code>requestId</code> 关联：</p>
-  <pre>
-DA:  {"requestId":"550e8400-...","code":0,"message":"ok","data":{"estimatedDowntime":45}}
-     → code===0 → <span style="color:#a6e3a1">SUCCEEDED</span> 否则 <span style="color:#f38ba8">FAILED</span>
-OUT: $emqx/commands/things/{thingName}/executions/{executionId}/response
-     {"status":"SUCCEEDED","result":{"estimatedDowntime":45},"timestamp":1715432405}</pre>
-
+  <p><strong>S3</strong> — Bridge 查 <strong>in-flight 命令表</strong>（PG 持久化）：</p>
   <div class="tw">
     <table>
-      <thead><tr><th>in-flight 字段</th><th>说明</th></tr></thead>
+      <thead><tr><th>字段</th><th>说明</th></tr></thead>
       <tbody>
-        <tr><td><code>execution_id</code></td><td>Fleets command execution UUID</td></tr>
-        <tr><td><code>da_request_id</code></td><td>下发 DA 时使用的 requestId (=executionId)</td></tr>
-        <tr><td><code>thing_name</code></td><td>桥接 Thing 名</td></tr>
-        <tr><td><code>expires_at</code></td><td>TTL，过期后台清理并发布 FAILED 响应</td></tr>
+        <tr><td><code>execution_id</code></td><td>Fleets execution UUID</td></tr>
+        <tr><td><code>da_product_id</code></td><td>versioned productId（topic 重建）</td></tr>
+        <tr><td><code>da_request_id</code></td><td>= executionId（直接映射）</td></tr>
+        <tr><td><code>expires_at</code></td><td>TTL，过期发布 FAILED</td></tr>
       </tbody>
     </table>
   </div>
-  <blockquote>TTL 清理 goroutine 每 30s 扫描过期条目 → 发布 FAILED 响应到 Fleets → 删除条目。</blockquote>
+  <pre>
+DA:  {"requestId":"550e8400-...","code":0,"data":{"estimatedDowntime":45}}
+OUT: $emqx/commands/…/executions/{id}/response
+     {"status":"SUCCEEDED","result":{"estimatedDowntime":45},"timestamp":...}</pre>
+  <blockquote>TTL goroutine 每 30s 扫描过期条目 → 发布 FAILED 响应到 Fleets。</blockquote>
 </div>
 
-<!-- ===== PANE 7: 下行协议 ===== -->
+<!-- ===== 下行协议 ===== -->
 <div class="tab-pane" id="pane-downlink">
   <h2>Command 下行</h2>
   <p><strong>S4</strong> <code>$emqx/commands/things/da-+/executions/+/request</code></p>
   <div class="card-grid">
-    <div class="card">
-      <h5>Fleets JobService 发布</h5>
-      <pre style="margin:4px 0 0;font-size:11px">{<span class="str">"action"</span>:<span class="str">"setInterval"</span>,<span class="str">"params"</span>:{<span class="str">"interval"</span>:<span class="num">30</span>},<span class="str">"ttl"</span>:<span class="num">60</span>}</pre>
-    </div>
-    <div class="card">
-      <h5>Bridge 发布到 DA</h5>
-      <pre style="margin:4px 0 0;font-size:11px">{<span class="str">"cmd"</span>:<span class="str">"setInterval"</span>,<span class="str">"params"</span>:{<span class="str">"interval"</span>:<span class="num">30</span>}}</pre>
-    </div>
+    <div class="card"><h5>Fleets JobService 发布</h5><pre style="margin:4px 0 0;font-size:11px">{<span class="str">"action"</span>:<span class="str">"setInterval"</span>,<span class="str">"params"</span>:{<span class="str">"interval"</span>:<span class="num">30</span>},<span class="str">"ttl"</span>:<span class="num">60</span>}</pre></div>
+    <div class="card"><h5>Bridge 发布到 DA</h5><pre style="margin:4px 0 0;font-size:11px">{<span class="str">"cmd"</span>:<span class="str">"setInterval"</span>,<span class="str">"params"</span>:{<span class="str">"interval"</span>:<span class="num">30</span>}}</pre></div>
   </div>
-
-  <p><strong>Bridge 处理步骤</strong>：</p>
-  <ol>
-    <li>从 topic 解析 <code>thingName</code>、<code>executionId</code></li>
-    <li>查 <code>da_bridge_mappings</code> 得 <code>productId</code>、<code>deviceId</code></li>
-    <li>查 <code>mapping_spec.commands[action]</code> 得 <code>daCmd</code>、<code>inputMap</code></li>
-    <li><code>requestId</code> = <code>executionId</code>（直接映射）</li>
-    <li>写入 in-flight 表 → 发布 DA commands topic</li>
-  </ol>
-  <p><span class="check">✅</span> 解决 <code>ErrNoMatchingSubscribers</code>：Bridge 作为订阅者，Fleets publish 时 Broker 存在匹配订阅。</p>
+  <p><strong>Bridge 步骤</strong>：解析 thingName/executionId → 查 mappings → 查 mapping_spec → 写入 in-flight → 发布 DA topic</p>
+  <p><span class="check">✅</span> 解决 <code>ErrNoMatchingSubscribers</code>：Bridge 订阅存在，Fleets publish 时匹配。</p>
 
   <h3>Sequence</h3>
   <pre>
 FleetsUI → FleetsAPI → JobService ──pub req──→ EMQX ──Bridge sub──→ in-flight write
-    → pub DA cmd → DA Device execute → response → Bridge → pub to EMQX
-    → JobService UpdateExecution → SUCCEEDED</pre>
+    → pub DA cmd → DA Device execute → response → Bridge → pub to EMQX → JobService SUCCEEDED</pre>
 
-  <h2>Shadow desired / delta 下行</h2>
-  <p><strong>S5/S6</strong> — DA 无 Shadow 协议，Bridge 将 Fleets Shadow 语义映射为 DA 命令。</p>
+  <h2>Shadow desired/delta 下行</h2>
+  <p><strong>S5/S6</strong> — DA 无 Shadow 协议，Bridge 语义映射为 DA 命令。</p>
   <pre>
-Fleets desired: {"reportIntervalSec":60,"powerMode":"eco"}
-  → desiredApply[reportIntervalSec] → cmd=setInterval, params={interval:60}
-  → desiredApply[powerMode] → cmd=setPowerMode, params={mode:"eco"}</pre>
+desired {reportIntervalSec:60, powerMode:"eco"}
+  → setInterval params:{interval:60}
+  → setPowerMode params:{mode:"eco"}</pre>
 
   <div class="tw">
     <table>
       <thead><tr><th>合并策略</th><th>行为</th></tr></thead>
       <tbody>
-        <tr><td><span class="tag t-green">perField</span>（默认）</td><td>每个字段独立发一条 DA 命令，最安全</td></tr>
-        <tr><td><span class="tag t-orange">singleCommand</span></td><td>所有同 cmd 的字段合并为一条命令的参数</td></tr>
+        <tr><td><span class="tag t-green">perField</span>（默认）</td><td>每字段独立发命令</td></tr>
+        <tr><td><span class="tag t-orange">singleCommand</span></td><td>同 cmd 字段合并</td></tr>
       </tbody>
     </table>
   </div>
-
-  <h2>NTP</h2>
-  <p>DA 设备使用 <code>device-agent/{pid}/device/{did}/ntp/request|response</code>。Fleets 无对应标准 topic。Bridge <strong>不处理</strong> NTP。</p>
+  <p>NTP：Bridge <strong>不处理</strong>。</p>
 </div>
 
-<!-- ===== PANE 8: Jobs & 注册 ===== -->
+<!-- ===== Jobs & 注册 ===== -->
 <div class="tab-pane" id="pane-jobs">
   <h2>Jobs 代理模式</h2>
   <div class="card-grid">
-    <div class="card">
-      <h5><span class="tag t-green">commandMap</span>（推荐）</h5>
-      <p>jobDocument 有固定 operation（如 firmware_update）。Bridge 订阅 notify → 映射为 DA 命令 → 响应后回写。</p>
-      <p style="margin-top:4px;font-size:11px;color:var(--text2)">DA 被动收命令，Phase 4 默认模式。</p>
-    </div>
-    <div class="card">
-      <h5><span class="tag t-blue">proxy</span></h5>
-      <p>DA 完全无 Jobs 意识。Bridge 通过 HTTPS ThingDatas API 完整代跑 Jobs 状态机。</p>
-      <p style="margin-top:4px;font-size:11px;color:var(--text2)">DA 不参与，多步进度上报场景。</p>
-    </div>
+    <div class="card"><h5><span class="tag t-green">commandMap</span>（推荐）</h5><p>jobDocument.operation → DA 命令 → 响应后回写。<br>Phase 4 默认，DA 被动收命令。</p></div>
+    <div class="card"><h5><span class="tag t-blue">proxy</span></h5><p>Bridge HTTPS ThingDatas API 代跑 Jobs 状态机。<br>DA 完全不参与。</p></div>
   </div>
-
-  <h3>commandMap 流程</h3>
   <pre>
-S7/S8 notify → 解析 QUEUED 列表
-  → POST /api/v1/thing-datas/jobs/start-next (HTTPS)
-  → jobDocument.operation → operationCommandMap → daCmd
-  → Publish device-agent/{pid}/device/{did}/commands (MQTT)
-  → DA response → POST jobs/{jobId}/update (HTTPS)</pre>
+S7/S8 notify → QUEUED 列表
+  → POST .../jobs/start-next (HTTPS)
+  → operationCommandMap → daCmd
+  → MQTT publish DA commands
+  → DA response → POST .../jobs/{id}/update (HTTPS)</pre>
 
-  <h3>Jobs 订阅/发布汇总</h3>
+  <h3>Jobs 订阅/发布</h3>
   <div class="tw">
     <table>
-      <thead><tr><th>#</th><th>Topic</th><th>方向</th><th>模式</th></tr></thead>
+      <thead><tr><th>#</th><th>源</th><th>方式</th><th>模式</th></tr></thead>
       <tbody>
-        <tr><td>S7</td><td><code>$emqx/things/da-+/jobs/notify</code></td><td>sub</td><td>commandMap + proxy</td></tr>
-        <tr><td>S8</td><td><code>$emqx/things/da-+/jobs/notify-next</code></td><td>sub</td><td>commandMap + proxy</td></tr>
-        <tr><td>—</td><td><code>POST /api/v1/thing-datas/jobs/{start-next,get,update}</code></td><td>HTTPS</td><td>commandMap + proxy</td></tr>
-        <tr><td>P4</td><td><code>device-agent/{pid}/device/{did}/commands</code></td><td>pub</td><td>commandMap</td></tr>
-        <tr><td>P5</td><td><code>$emqx/things/{name}/jobs/{id}/update</code></td><td>pub</td><td>commandMap 备选</td></tr>
+        <tr><td>S7</td><td><code>$emqx/…/jobs/notify</code></td><td>MQTT sub</td><td>commandMap + proxy</td></tr>
+        <tr><td>S8</td><td><code>$emqx/…/jobs/notify-next</code></td><td>MQTT sub</td><td>commandMap + proxy</td></tr>
+        <tr><td>—</td><td><code>POST .../thing-datas/jobs/start-next</code></td><td><strong>HTTPS</strong></td><td>commandMap + proxy</td></tr>
+        <tr><td>—</td><td><code>POST .../thing-datas/jobs/{id}/update</code></td><td><strong>HTTPS</strong></td><td>commandMap + proxy</td></tr>
+        <tr><td>P4</td><td><code>device-agent/{pid}/device/{did}/commands</code></td><td>MQTT pub</td><td>commandMap</td></tr>
       </tbody>
     </table>
   </div>
 
   <h2>设备注册</h2>
   <div class="fs">
-    <div class="fs-item" style="counter-reset:fs 0"><div class="f-n">1</div><div class="f-b"><strong>DA Device 创建</strong> — baseProductId, deviceId, mqttClientId</div></div>
-    <div class="fs-item"><div class="f-n">2</div><div class="f-b"><strong>插件生成草稿</strong> — ThingType schema + mapping_spec</div></div>
+    <div class="fs-item" style="counter-reset:fs 0"><div class="f-n">1</div><div class="f-b"><strong>DA Device 创建</strong> — versioned productId + baseProductId</div></div>
+    <div class="fs-item"><div class="f-n">2</div><div class="f-b"><strong>插件生成草稿</strong> — ThingType + mapping_spec（**插件尚不存在**）</div></div>
     <div class="fs-item"><div class="f-n">3</div><div class="f-b"><strong>POST Fleets ThingType</strong> — <code>da-product-{baseProductId}</code></div></div>
-    <div class="fs-item"><div class="f-n">4</div><div class="f-b"><strong>POST Fleets Thing</strong> — <code>da-{encBasePid}--{encDid}</code>，带 mqttClientId</div></div>
-    <div class="fs-item"><div class="f-n">5</div><div class="f-b"><strong>POST Bridge Admin schema-mappings</strong> — 写入映射表</div></div>
-    <div class="fs-item"><div class="f-n">6</div><div class="f-b"><strong>Bridge 热加载</strong> — 增量同步映射缓存</div></div>
+    <div class="fs-item"><div class="f-n">4</div><div class="f-b"><strong>POST Fleets Thing</strong> — <code>da-{encBasePid}--{encDid}</code></div></div>
+    <div class="fs-item"><div class="f-n">5</div><div class="f-b"><strong>POST Bridge Admin</strong> — 写入双 ID：versioned + base</div></div>
+    <div class="fs-item"><div class="f-n">6</div><div class="f-b"><strong>Bridge 热加载</strong></div></div>
   </div>
 
   <div class="tw">
@@ -743,32 +572,28 @@ S7/S8 notify → 解析 QUEUED 列表
   <div class="caps">
     <div class="cap"><div class="c-icon">✅</div><div class="c-label">Shadow reported</div></div>
     <div class="cap"><div class="c-icon">✅</div><div class="c-label">Event 上行</div></div>
-    <div class="cap"><div class="c-icon">✅</div><div class="c-label">Lifecycle 状态</div></div>
+    <div class="cap"><div class="c-icon">✅</div><div class="c-label">Lifecycle</div></div>
     <div class="cap"><div class="c-icon">✅</div><div class="c-label">Sync 命令</div></div>
     <div class="cap"><div class="c-icon">✅</div><div class="c-label">Shadow 下行</div></div>
     <div class="cap"><div class="c-icon">⚙️</div><div class="c-label">Jobs 可配置</div></div>
   </div>
 </div>
 
-<!-- ===== PANE 9: 部署 & 路线图 ===== -->
+<!-- ===== 部署 & 路线图 ===== -->
 <div class="tab-pane" id="pane-deploy">
-  <h2>关键环境变量</h2>
+  <h2>环境变量</h2>
   <pre>
-<span class="cm"># MQTT</span>
 DA_BRIDGE_MQTT_URL=mqtt://emqx:1883
 DA_BRIDGE_MQTT_CLIENT_ID=da-fleets-bridge-1
-DA_BRIDGE_MQTT_USERNAME=da-bridge-svc
-<span class="cm"># PostgreSQL（与 Fleets 同库）</span>
+DA_BRIDGE_MQTT_CLEAN_SESSION=false
 DATABASE_URL=postgres://postgres@postgres:5432/fleets
-<span class="cm"># Fleets / DA API</span>
 FLEETS_API_URL=http://fleets:8080
 DA_API_URL=http://device-agent:3000
-<span class="cm"># 行为</span>
 DA_BRIDGE_SHADOW_DESIRED_BATCH_MODE=perField
 DA_BRIDGE_JOBS_MODE=commandMap
 DA_BRIDGE_INFLIGHT_TTL=120s
-DA_BRIDGE_HTTP_PORT=8091
-DA_BRIDGE_SHUTDOWN_TIMEOUT=30s</pre>
+DA_BRIDGE_HTTP_PORT=8091</pre>
+  <blockquote>v1.2：移除了 EMQX_API_KEY/SECRET 环境变量。Jobs proxy 使用 FLEETS_API_KEY 走 HTTPS ThingDatas。</blockquote>
 
   <h2>docker-compose</h2>
   <pre>
@@ -776,143 +601,126 @@ DA_BRIDGE_SHUTDOWN_TIMEOUT=30s</pre>
   da-bridge:
     image: fleets-da-bridge:latest
     depends_on: [fleets, emqx, postgres]
-    ports: ["8091:8091"]
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD","wget","-qO-","http://localhost:8091/ready"]</pre>
+    ports: ["8091:8091"]</pre>
 
   <h2>启动顺序</h2>
   <div class="fs">
     <div class="fs-item" style="counter-reset:fs 1"><div class="f-n">1</div><div class="f-b">PostgreSQL / EMQX Tables</div></div>
-    <div class="fs-item"><div class="f-n">2</div><div class="f-b">EMQX Broker（含 Fleets 预配规则）</div></div>
+    <div class="fs-item"><div class="f-n">2</div><div class="f-b">EMQX Broker（含预配规则）</div></div>
     <div class="fs-item"><div class="f-n">3</div><div class="f-b">Fleets HTTP 主进程</div></div>
-    <div class="fs-item"><div class="f-n">4</div><div class="f-b">Bridge Agent（migrate → connect → subscribe → ready）</div></div>
+    <div class="fs-item"><div class="f-n">4</div><div class="f-b">Bridge Agent</div></div>
     <div class="fs-item"><div class="f-n">5</div><div class="f-b">Device Agent（注册 ThingType/Thing）</div></div>
-    <div class="fs-item"><div class="f-n">6</div><div class="f-b">DA 设备连接 EMQX 开始上报</div></div>
+    <div class="fs-item"><div class="f-n">6</div><div class="f-b">DA 设备连接 EMQX</div></div>
   </div>
 
   <h2>HA & 可观测</h2>
   <div class="card-grid">
-    <div class="card"><h5><span class="tag t-green">Active-Standby</span></h5><p><code>pg_try_advisory_lock(0xDABRIDGE)</code> 选主。备实例仅 <code>/health</code> + 就绪接管。<br>active 用固定 clientId，failover 后 cleanSession=false 恢复。</p></div>
-    <div class="card"><h5><span class="tag t-blue">Prometheus 指标</span></h5><p><code>bridge_messages_total</code>, <code>bridge_translate_errors_total</code>, <code>bridge_uplink_dropped_total</code>, <code>bridge_inflight_commands</code>, <code>bridge_translate_latency_seconds</code></p></div>
+    <div class="card"><h5><span class="tag t-green">Active-Standby</span></h5><p><code>pg_try_advisory_lock(HashToInt64("da-fleets-bridge"))</code> 选主。<br>v1.2：修正锁 ID 为 <code>HashToInt64</code>。</p></div>
+    <div class="card"><h5><span class="tag t-blue">指标</span></h5><p><code>bridge_messages_total</code>, <code>bridge_translate_errors_total</code>, <code>bridge_uplink_dropped_total</code>, <code>bridge_inflight_commands</code></p></div>
   </div>
 
-  <h2>实施路线图</h2>
+  <h2>路线图</h2>
   <div class="phases">
-    <div class="ph">
-      <div class="ph-h" style="background:var(--accent-bg)"><span class="n" style="background:var(--accent)">1</span>骨架+上行<span class="d">2-3w</span></div>
-      <div class="ph-b"><ul><li>项目骨架</li><li>MQTT + 路由 S1-3</li><li>DB migration</li><li>Telemetry/Event</li></ul></div>
-    </div>
-    <div class="ph">
-      <div class="ph-h" style="background:var(--orange-bg)"><span class="n" style="background:var(--orange)">2</span>Command 双向<span class="d">2-3w</span></div>
-      <div class="ph-b"><ul><li>In-flight 表</li><li>Command translator</li><li>correlation</li><li>Admin API</li></ul></div>
-    </div>
-    <div class="ph">
-      <div class="ph-h" style="background:var(--purple-bg)"><span class="n" style="background:var(--purple)">3</span>Shadow 下行<span class="d">1-2w</span></div>
-      <div class="ph-b"><ul><li>desiredApply</li><li>batch mode</li><li>E2E 验证</li></ul></div>
-    </div>
-    <div class="ph">
-      <div class="ph-h" style="background:var(--teal-bg)"><span class="n" style="background:var(--teal)">4</span>Jobs 代理<span class="d">2w</span></div>
-      <div class="ph-b"><ul><li>commandMap</li><li>proxy 模式</li><li>文档标注</li></ul></div>
-    </div>
-    <div class="ph">
-      <div class="ph-h" style="background:var(--code-bg)"><span class="n" style="background:var(--text2)">5</span>生产化</div>
-      <div class="ph-b"><ul><li>HA failover</li><li>监控告警</li><li>压测+文档</li></ul></div>
-    </div>
+    <div class="ph"><div class="ph-h" style="background:var(--accent-bg)"><span class="n" style="background:var(--accent)">1</span>骨架+上行<span class="d">2-3w</span></div><div class="ph-b"><ul><li>项目骨架</li><li>MQTT + 路由</li><li>DB migration</li><li>Telemetry/Event</li></ul></div></div>
+    <div class="ph"><div class="ph-h" style="background:var(--orange-bg)"><span class="n" style="background:var(--orange)">2</span>Command<span class="d">2-3w</span></div><div class="ph-b"><ul><li>In-flight 表</li><li>Command 双向</li><li>correlation</li><li>Admin API</li></ul></div></div>
+    <div class="ph"><div class="ph-h" style="background:var(--purple-bg)"><span class="n" style="background:var(--purple)">3</span>Shadow<span class="d">1-2w</span></div><div class="ph-b"><ul><li>desiredApply</li><li>batch mode</li><li>E2E</li></ul></div></div>
+    <div class="ph"><div class="ph-h" style="background:var(--teal-bg)"><span class="n" style="background:var(--teal)">4</span>Jobs<span class="d">2w</span></div><div class="ph-b"><ul><li>commandMap</li><li>proxy</li><li>文档</li></ul></div></div>
+    <div class="ph"><div class="ph-h" style="background:var(--code-bg)"><span class="n" style="background:var(--text2)">5</span>生产化</div><div class="ph-b"><ul><li>HA failover</li><li>监控告警</li><li>压测</li></ul></div></div>
   </div>
 
   <h2>与旧方案对比</h2>
   <div class="tw">
     <table>
-      <thead><tr><th>维度</th><th style="color:var(--red)">旧方案 v2.5</th><th style="color:var(--green)">新方案 Bridge Agent</th></tr></thead>
+      <thead><tr><th>维度</th><th style="color:var(--red)">旧方案</th><th style="color:var(--green)">新方案</th></tr></thead>
       <tbody>
-        <tr><td>上行</td><td>Rule republish</td><td>Bridge MQTT sub → pub</td></tr>
-        <tr><td>下行</td><td style="color:var(--red)">不支持</td><td style="color:var(--green)">Command + Shadow + Jobs</td></tr>
-        <tr><td>EMQX 依赖</td><td>高（Rule SQL）</td><td>低（仅预配规则）</td></tr>
-        <tr><td>延迟</td><td>~1ms</td><td>~5-10ms（可接受）</td></tr>
-        <tr><td>Fleets 侵入</td><td>BridgePlugin + Rule Manager</td><td>仅 Migration + Sidecar</td></tr>
-        <tr><td>ErrNoMatchingSubscribers</td><td style="color:var(--red)">阻塞缺陷</td><td style="color:var(--green)">彻底解决</td></tr>
+        <tr><td>上行</td><td>Rule republish</td><td>Bridge MQTT sub→pub</td></tr>
+        <tr><td>下行</td><td style="color:var(--red)">不支持</td><td style="color:var(--green)">Command+Shadow+Jobs</td></tr>
+        <tr><td>EMQX 依赖</td><td>高（Rule SQL）</td><td>低</td></tr>
+        <tr><td>Fleets 侵入</td><td>BridgePlugin+Manager</td><td>仅 Migration+Sidecar</td></tr>
+        <tr><td>嵌套订阅</td><td style="color:var(--red)">ErrNoSubscribers</td><td style="color:var(--green)">彻底解决</td></tr>
       </tbody>
     </table>
   </div>
 </div>
 
-<!-- ===== PANE 10: 待定问题 ===== -->
+<!-- ===== 待定问题 ===== -->
 <div class="tab-pane" id="pane-pending">
-  <h2>18.1 阻塞项</h2>
+  <h2>阻塞项（评审结论）</h2>
   <div class="qa-grid">
-    <div class="qa"><div class="qa-q" style="background:var(--red-bg)"><span class="qb" style="background:var(--red)">Q1</span>Bridge 仓库位置</div><div class="qa-b"><strong>建议</strong>：同仓库 <code>fleets/cmd/da-bridge</code>，降低依赖管理成本</div></div>
-    <div class="qa"><div class="qa-q" style="background:var(--orange-bg)"><span class="qb" style="background:var(--orange)">Q2</span><code>da_bridge_*</code> 表归属</div><div class="qa-b"><strong>建议</strong>：Fleets 仓库纳入 migration，Bridge 进程执行 migrate</div></div>
-    <div class="qa"><div class="qa-q" style="background:var(--orange-bg)"><span class="qb" style="background:var(--orange)">Q3</span>mqttClientId 稳定性</div><div class="qa-b"><strong>建议</strong>：从 <code>device.metadata.mqttClientId</code> 读取</div></div>
-    <div class="qa"><div class="qa-q" style="background:var(--purple-bg)"><span class="qb" style="background:var(--purple)">Q4</span>ThingType 修订 UI</div><div class="qa-b"><strong>建议</strong>：Phase 1 用 JSON 导出/手工编辑</div></div>
-    <div class="qa"><div class="qa-q" style="background:var(--accent-bg)"><span class="qb" style="background:var(--accent)">Q5</span>Admin API 认证</div><div class="qa-b"><strong>建议</strong>：使用 Fleets API Key 或独立 Internal Token</div></div>
+    <div class="qa"><div class="qa-q" style="background:var(--red-bg)"><span class="qb" style="background:var(--red)">Q1</span>仓库位置</div><div class="qa-b"><strong>结论</strong>：同仓库 <code>fleets/cmd/da-bridge</code><br>待确认：Fleets 团队</div></div>
+    <div class="qa"><div class="qa-q" style="background:var(--orange-bg)"><span class="qb" style="background:var(--orange)">Q2</span>表归属</div><div class="qa-b"><strong>结论</strong>：Fleets migrations/<br>Bridge 进程执行 migrate</div></div>
+    <div class="qa"><div class="qa-q" style="background:var(--orange-bg)"><span class="qb" style="background:var(--orange)">Q3</span>mqttClientId</div><div class="qa-b"><strong>结论</strong>：约定 <code>{ns}/dev/{did}</code>，插件自动生成+回写 metadata。<br>待 DA 团队确认</div></div>
+    <div class="qa"><div class="qa-q" style="background:var(--purple-bg)"><span class="qb" style="background:var(--purple)">Q4</span>修订 UI</div><div class="qa-b"><strong>结论</strong>：Phase1 JSON 导出编辑，Phase2 UI</div></div>
+    <div class="qa"><div class="qa-q" style="background:var(--accent-bg)"><span class="qb" style="background:var(--accent)">Q5</span>Admin API 认证</div><div class="qa-b"><strong>结论</strong>：Fleets API Key Basic Auth</div></div>
   </div>
 
-  <h2>18.2 架构决策</h2>
+  <h2>架构决策</h2>
   <div class="qa-grid">
-    <div class="qa"><div class="qa-q" style="background:var(--teal-bg)"><span class="qb" style="background:var(--teal)">Q6</span>多 Product 版本</div><div class="qa-b"><strong>建议</strong>：默认 PUT 更新同 ThingType（后向兼容）</div></div>
-    <div class="qa"><div class="qa-q" style="background:var(--teal-bg)"><span class="qb" style="background:var(--teal)">Q7</span>Shadow 合并下发</div><div class="qa-b"><strong>建议</strong>：默认 <code>perField</code></div></div>
-    <div class="qa"><div class="qa-q" style="background:var(--teal-bg)"><span class="qb" style="background:var(--teal)">Q8</span>Jobs proxy 协议</div><div class="qa-b"><strong>建议</strong>：HTTPS ThingDatas API（简单）</div></div>
-    <div class="qa"><div class="qa-q" style="background:var(--teal-bg)"><span class="qb" style="background:var(--teal)">Q9</span>未注册设备 telemetry</div><div class="qa-b"><strong>建议</strong>：丢弃 + metric（简单可靠）</div></div>
+    <div class="qa"><div class="qa-q" style="background:var(--teal-bg)"><span class="qb" style="background:var(--teal)">Q6</span>多版本 ThingType</div><div class="qa-b"><strong>结论</strong>：默认 PUT 更新，大版本创建新 ThingType（<code>-v2</code>）</div></div>
+    <div class="qa"><div class="qa-q" style="background:var(--teal-bg)"><span class="qb" style="background:var(--teal)">Q7</span>Shadow 合并</div><div class="qa-b"><strong>结论</strong>：默认 <code>perField</code></div></div>
+    <div class="qa"><div class="qa-q" style="background:var(--teal-bg)"><span class="qb" style="background:var(--teal)">Q8</span>Jobs proxy 协议</div><div class="qa-b"><strong>结论</strong>：HTTPS ThingDatas<br>✅ 已更新方案</div></div>
+    <div class="qa"><div class="qa-q" style="background:var(--teal-bg)"><span class="qb" style="background:var(--teal)">Q9</span>未注册 telemetry</div><div class="qa-b"><strong>结论</strong>：丢弃 + metric</div></div>
   </div>
 
-  <h2>18.3 DA 侧</h2>
+  <h2>DA 侧问题</h2>
   <div class="qa-grid">
-    <div class="qa"><div class="qa-q" style="background:var(--purple-bg)"><span class="qb" style="background:var(--purple)">Q10</span>插件回调挂载点</div><div class="qa-b"><strong>建议</strong>：增加 <code>onDeviceRegistered</code> 回调</div></div>
-    <div class="qa"><div class="qa-q" style="background:var(--purple-bg)"><span class="qb" style="background:var(--purple)">Q11</span>写 mapping_spec 方式</div><div class="qa-b"><strong>建议</strong>：仅 Bridge Admin API，单写入口</div></div>
-    <div class="qa"><div class="qa-q" style="background:var(--purple-bg)"><span class="qb" style="background:var(--purple)">Q12</span>mqttClientId 暴露</div><div class="qa-b"><strong>建议</strong>：注册时要求非空，空则跳过+warn</div></div>
+    <div class="qa"><div class="qa-q" style="background:var(--purple-bg)"><span class="qb" style="background:var(--purple)">Q10</span>回调挂载点</div><div class="qa-b"><strong>结论</strong>：需在 device-management 增加 EventEmitter。<br>已列为 PC2，待 DA 排期。</div></div>
+    <div class="qa"><div class="qa-q" style="background:var(--purple-bg)"><span class="qb" style="background:var(--purple)">Q11</span>写 mapping 方式</div><div class="qa-b"><strong>结论</strong>：仅 Bridge Admin API，单写入口</div></div>
+    <div class="qa"><div class="qa-q" style="background:var(--purple-bg)"><span class="qb" style="background:var(--purple)">Q12</span>mqttClientId 暴露</div><div class="qa-b"><strong>结论</strong>：metadata JSONB 可直接读写，无需 API 变更</div></div>
+    <div class="qa"><div class="qa-q" style="background:var(--purple-bg)"><span class="qb" style="background:var(--purple)">Q13</span>Event severity</div><div class="qa-b"><strong>结论</strong>：✅ mapping_spec 已覆盖</div></div>
+    <div class="qa"><div class="qa-q" style="background:var(--purple-bg)"><span class="qb" style="background:var(--purple)">Q14</span>多 namespace</div><div class="qa-b"><strong>结论</strong>：Phase1 不阻塞，远期</div></div>
+    <div class="qa"><div class="qa-q" style="background:var(--purple-bg)"><span class="qb" style="background:var(--purple)">Q15</span>高频 telemetry</div><div class="qa-b"><strong>结论</strong>：远期，Phase1 不阻塞</div></div>
   </div>
 
-  <h2>18.4 远期</h2>
+  <h2>评审新增（v1.2）</h2>
   <div class="tw">
     <table>
-      <thead><tr><th>#</th><th>问题</th><th>说明</th></tr></thead>
+      <thead><tr><th>#</th><th>问题</th><th>结论</th></tr></thead>
       <tbody>
-        <tr><td><span class="tag t-blue">Q13</span></td><td>Event severity 动态映射</td><td>mapping_spec 已支持 per-event severity</td></tr>
-        <tr><td><span class="tag t-blue">Q14</span></td><td>多 namespace 隔离</td><td>首期一 Bridge 一 namespace</td></tr>
-        <tr><td><span class="tag t-blue">Q15</span></td><td>自定义 telemetry 高频通道</td><td>远期 Bridge 转发到自定义 topic</td></tr>
+        <tr><td><span class="tag t-red">Q16</span></td><td><code>da_product_id</code> 语义纠正</td><td>新增 <code>da_base_product_id</code> 列，<code>da_product_id</code> 存 versioned 值。✅ 已修正</td></tr>
+        <tr><td><span class="tag t-orange">Q17</span></td><td>advisory lock ID 一致性</td><td>统一为 <code>HashToInt64("da-fleets-bridge")</code>。✅ 已修正</td></tr>
+        <tr><td><span class="tag t-green">Q18</span></td><td>EMQX REST API 是否必需</td><td>移除，所有 publish 走 MQTT client + HTTPS。✅ 已简化</td></tr>
+        <tr><td><span class="tag t-teal">Q19</span></td><td>DA API 路径不含 <code>/v1</code></td><td>实际路径 <code>/api/products/...</code>。✅ 已修正附录 C</td></tr>
+        <tr><td><span class="tag t-blue">Q20</span></td><td>Product 版本升级桥设备更新</td><td>插件触发 reconcile，Bridge Admin 接受覆盖写入</td></tr>
       </tbody>
     </table>
   </div>
+
+  <h2>DA REST API 参考（v1.2 修正）</h2>
+  <div class="tw">
+    <table>
+      <thead><tr><th>用途</th><th>路径</th><th>返回</th></tr></thead>
+      <tbody>
+        <tr><td>获取 Product</td><td><code>GET /api/products/{productId}</code></td><td>ProductInfo（含 baseProductId, version, properties/commands/events）</td></tr>
+        <tr><td>获取 Device</td><td><code>GET /api/products/{productId}/devices/{deviceId}</code></td><td>DeviceInfo（含 metadata JSONB）</td></tr>
+        <tr><td>Product 列表</td><td><code>GET /api/products</code></td><td>ProductInfo[]（?lifecycleStatus=published）</td></tr>
+        <tr><td>Device 列表</td><td><code>GET /api/products/{productId}/devices</code></td><td>DeviceInfo[]（分页）</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <blockquote><strong>注意</strong>：DA 实际路径不含 <code>/v1</code> 前缀。devices 在 products 下嵌套。</blockquote>
 
   <h2>版本记录</h2>
   <div class="tw">
     <table>
       <thead><tr><th>版本</th><th>日期</th><th>变更</th></tr></thead>
       <tbody>
-        <tr><td>v1.0</td><td>2026-07-02</td><td>初稿：独立 Bridge Agent 进程方案</td></tr>
-        <tr><td><strong>v1.1</strong></td><td><strong>2026-07-02</strong></td><td>Topic 路由表、per-property desiredApply、in-flight 持久化、Jobs 双模式</td></tr>
+        <tr><td>v1.0</td><td>2026-07-02</td><td>初稿</td></tr>
+        <tr><td>v1.1</td><td>2026-07-02</td><td>评审优化：路由表、desiredApply、in-flight、Jobs</td></tr>
+        <tr><td><strong>v1.2</strong></td><td><strong>2026-07-02</strong></td><td>代码库调研：双 ID schema、前置条件 PC1-PC5、移除 REST API 依赖、锁 ID 修正、附录 C 修正、Q16-Q20</td></tr>
       </tbody>
     </table>
   </div>
 
   <div style="margin-top:12px;padding:8px 14px;background:var(--code-bg);border-radius:var(--radius);font-size:12px;color:var(--text2);text-align:center">
-    <strong>文档维护者</strong>：集成团队 · 相关文档：<a href="./device-agent-fleets-integration.md">旧方案 v2.5</a> · Fleets README · Device Agent CLAUDE.md
+    <strong>文档维护者</strong>：集成团队 · 相关文档：<a href="./device-agent-fleets-integration.md">旧方案 v2.5</a>
   </div>
 </div>
 
 </div><!-- /tab-content -->
 
 <script>
-(function() {
-  const tabs = document.querySelectorAll('.tab-btn');
-  const panes = {};
-  tabs.forEach(t => {
-    const id = t.dataset.tab;
-    panes[id] = document.getElementById('pane-' + id);
-    t.addEventListener('click', function() {
-      // Deactivate all
-      tabs.forEach(btn => btn.classList.remove('active'));
-      Object.values(panes).forEach(p => p.classList.remove('active'));
-      // Activate current
-      this.classList.add('active');
-      panes[this.dataset.tab].classList.add('active');
-      // Reset scroll
-      panes[this.dataset.tab].scrollTop = 0;
-    });
-  });
-})();
+(function(){const t=document.querySelectorAll('.tab-btn'),p={};t.forEach(b=>{const i=b.dataset.tab;p[i]=document.getElementById('pane-'+i);b.addEventListener('click',function(){t.forEach(x=>x.classList.remove('active'));Object.values(p).forEach(x=>x.classList.remove('active'));this.classList.add('active');const y=p[this.dataset.tab];y.classList.add('active');y.scrollTop=0})})})();
 </script>
-
 </body>
 </html>
