@@ -75,8 +75,8 @@
   <span class="sep">/</span>
   <span class="doc-title">Device Agent × Fleets 集成方案</span>
   <div class="badges">
-    <span class="badge badge-v">v1.2</span>
-    <span class="badge badge-r">代码库调研</span>
+    <span class="badge badge-v">v1.5</span>
+    <span class="badge badge-r">三轮评审优化</span>
     <span class="badge badge-d">2026-07-02</span>
   </div>
 </div>
@@ -100,7 +100,7 @@
 <div class="tab-pane active" id="pane-overview">
   <div class="hero-strip">
     <div style="flex:1"><strong style="font-size:15px">Device Agent <span style="color:var(--accent)">×</span> Fleets</strong>
-      <div style="font-size:12px;color:var(--text2);margin-top:2px">独立 Bridge Agent 双向协议适配 · 代码库调研评审版</div></div>
+      <div style="font-size:12px;color:var(--text2);margin-top:2px">独立 Bridge Agent 双向协议适配 · 三轮评审优化版</div></div>
     <div style="text-align:right;font-size:11px;color:var(--text2);flex-shrink:0">前置：<a href="./device-agent-fleets-integration.md">旧方案 v2.5</a></div>
   </div>
 
@@ -124,6 +124,7 @@
         <tr><td><span class="tag t-orange">PC3</span></td><td>MQTT Client ID 格式约定</td><td>集成方 + DA 团队</td></tr>
         <tr><td><span class="tag t-orange">PC4</span></td><td>Bridge 仓库位置 + Migration 归属</td><td>Fleets 团队</td></tr>
         <tr><td><span class="tag t-orange">PC5</span></td><td>设备直连 EMQX Broker</td><td>集成方</td></tr>
+        <tr><td><span class="tag t-red">PC6</span></td><td>Fleets「不订阅 MQTT」约束例外 / 仓库归属</td><td><strong>Fleets 架构团队</strong></td></tr>
       </tbody>
     </table>
   </div>
@@ -146,9 +147,11 @@
         <tr><td><strong>Bridge 专职 MQTT</strong></td><td>所有转换在 Bridge 内完成，不依赖 EMQX Rule republish</td></tr>
         <tr><td><strong>Fleets 预配照旧</strong></td><td>Bridge 向 <code>$emqx/</code> 发布后，Fleets Rule 写 PG / EMQX Tables</td></tr>
         <tr><td><strong>DA 主动注册</strong></td><td>DA IoT 插件是 Thing/ThingType 注册唯一发起方</td></tr>
-        <tr><td><strong>映射表真相源</strong></td><td>Bridge 独写 <code>da_bridge_*</code>，版本与 Product 修订联动</td></tr>
+        <tr><td><strong>映射表真相源</strong></td><td><code>da_bridge_*</code> 表为运行时真相源；写入统一走 Bridge Admin API，runtime 只读</td></tr>
         <tr><td><strong>Fail-safe</strong></td><td>映射缺失时丢弃+告警，命令 correlation 严格校验</td></tr>
         <tr><td><strong>独立 MQTT 账号</strong></td><td>Bridge 使用独立 EMQX 服务账号，不依赖 REST API</td></tr>
+        <tr><td><strong>QoS 1 + MQTT 5 NoLocal</strong></td><td>关键上下行 topic 统一 QoS 1；MQTT 5 启用 NoLocal 避免自发布回环</td></tr>
+        <tr><td><strong>Source-of-Truth 在 DB</strong></td><td>只读 Schema 缓存，权威来源在 PG，支持失效/热重载</td></tr>
       </tbody>
     </table>
   </div>
@@ -183,7 +186,7 @@
       ▼     ▼      ▼
    Fleets  DA   PostgreSQL
     API    API  da_bridge_*</pre>
-  <blockquote>v1.2 变更：移除 EMQX REST API 依赖，统一使用 MQTT 原生客户端 + HTTPS ThingDatas API。</blockquote>
+  <blockquote>v1.5 核心注意：Bridge Agent 是 Fleets 部署侧唯一 MQTT subscriber。AGENTS.md「Fleets NEVER subscribes to MQTT」约束需通过独立仓库或文档例外条款明确。移除 EMQX REST API 依赖，统一使用 MQTT 原生客户端 + HTTPS ThingDatas API。</blockquote>
 
   <h2>与旧方案关键差异</h2>
   <div class="diff">
@@ -202,8 +205,9 @@
       <div class="d-i"><span class="d-k">MQTT 订阅</span>Bridge 独立订阅</div>
       <div class="d-i"><span class="d-k">下行</span>Command + Shadow + Jobs</div>
       <div class="d-i"><span class="d-k">Schema</span>运行时查表 + 版本化</div>
-      <div class="d-i"><span class="d-k">Fleets 改动</span>仅 Migration + Sidecar</div>
+      <div class="d-i"><span class="d-k">Fleets 改动</span>仅 Migration + Sidecar；需架构归属/例外确认</div>
       <div class="d-i"><span class="d-k">延迟</span>多一跳 ~5-10ms</div>
+      <div class="d-i"><span class="d-k">架构约束</span>需明确 Bridge 为唯一 MQTT subscriber</div>
     </div>
   </div>
 
@@ -267,15 +271,15 @@ cmd/da-bridge/
 ├── da/client.go             # Device Agent REST 客户端
 ├── fleets/client.go         # Fleets REST 客户端（含 HTTPS ThingDatas）
 └── metrics/                 # Prometheus 指标</pre>
-  <blockquote>v1.2 变更：移除 <code>emqx_publish.go</code>，所有 MQTT 发布走原生客户端。Jobs proxy 操作走 HTTPS ThingDatas API。</blockquote>
+  <blockquote>v1.2/v1.5 变更：移除 <code>emqx_publish.go</code>，所有 MQTT 发布走原生客户端（QoS 1，MQTT 5 启用 NoLocal）。Jobs proxy 操作走 HTTPS ThingDatas API。</blockquote>
 
   <h2>生命周期</h2>
   <div class="tw">
     <table>
       <thead><tr><th>阶段</th><th>行为</th></tr></thead>
       <tbody>
-        <tr><td><span class="tag t-orange">Start</span></td><td>DB migrate → 抢 advisory lock（<code>HashToInt64("da-fleets-bridge")</code>）→ 加载 Schema 缓存 → MQTT 连接（cleanSession=false）→ 批量 subscribe → 注册 handler → in-flight TTL 清理 goroutine</td></tr>
-        <tr><td><span class="tag t-green">Running</span></td><td>处理 MQTT 消息；定期增量同步 Schema；清理过期 in-flight 命令</td></tr>
+        <tr><td><span class="tag t-orange">Start</span></td><td>DB migrate → 抢全局 HA advisory lock（<code>HashToInt64("da-fleets-bridge")</code>）→ 加载 Schema 缓存 → MQTT 连接（cleanSession=false, QoS 1, MQTT 5 NoLocal）→ 批量 subscribe → 注册 handler → in-flight TTL 清理 goroutine</td></tr>
+        <tr><td><span class="tag t-green">Running</span></td><td>处理 MQTT 消息；per-thing 变更前获取 advisory lock；定期增量同步 Schema；清理过期 in-flight 命令</td></tr>
         <tr><td><span class="tag t-red">Draining</span></td><td>SIGTERM：停止处理 → 等待 in-flight 完成 → 断开 MQTT → 关闭 DB → 释放锁</td></tr>
         <tr><td><span class="tag t-blue">Ready</span></td><td>MQTT 已连接 + 全部 subscribe + DB 可达 + 锁持有</td></tr>
         <tr><td><span class="tag t-purple">Live</span></td><td>进程存活 + MQTT reconnecting 算 live</td></tr>
@@ -290,10 +294,13 @@ cmd/da-bridge/
   </div>
   <pre>
 DA_BRIDGE_MQTT_URL=mqtt://localhost:1883
+DA_BRIDGE_MQTT_VERSION=5             # 强烈建议 MQTT 5
 DA_BRIDGE_MQTT_CLIENT_ID=da-fleets-bridge-{instanceId}
 DA_BRIDGE_MQTT_CLEAN_SESSION=false   # 持久会话
+DA_BRIDGE_MQTT_QOS=1                 # 关键 topic 统一 QoS 1
+DA_BRIDGE_MQTT_NO_LOCAL=true         # MQTT 5：不接收自己发布的消息
 DA_BRIDGE_MQTT_RECONNECT_BACKOFF=1s,5s,15s,30s,60s</pre>
-  <blockquote>EMQX REST API 不再作为发布通道，降低依赖。</blockquote>
+  <blockquote>EMQX REST API 不再作为发布通道，降低依赖。MQTT 3.1.1 无法使用 NoLocal，必须依赖 S5 handler 的 <code>state.desired</code> 过滤。</blockquote>
 
   <h2>消息处理流水线</h2>
   <pre>
@@ -302,13 +309,15 @@ MQTT OnMessage → <span style="color:#fab387">Topic Router</span>
   → <span style="color:#a6e3a1">Mapping Lookup</span>
     da_bridge_mappings WHERE da_product_id=<span style="color:#fab387">versionedPid</span> AND da_device_id=?
     miss → 丢弃 + metric + warn log
+  → <span style="color:#f38ba8">Per-Thing Advisory Lock</span> (变更类消息)
+    pg_advisory_lock(HashToInt64("da-bridge-" + thingName))
   → <span style="color:#cba6f7">Schema Lookup</span>
     da_bridge_mappings.da_base_product_id + schema_version
     → da_bridge_schema_mappings (mapping_spec)
   → <span style="color:#89b4fa">Translator</span> (payload 转换 + 校验)
-  → <span style="color:#a6e3a1">Publish</span> (MQTT client / HTTPS ThingDatas)
+  → <span style="color:#a6e3a1">Publish</span> (MQTT client QoS 1 / HTTPS ThingDatas)
   → 结构化日志 + trace_id + latency histogram</pre>
-  <blockquote>v1.2 变更：双 ID 路由。topic 提取 versioned productId 做映射查找，再用 baseProductId 查 schema。</blockquote>
+  <blockquote>v1.5 变更：新增 per-thing advisory lock；MQTT publish 统一 QoS 1；双 ID 路由保留。</blockquote>
 </div>
 
 <!-- ===== Schema 映射 ===== -->
@@ -347,7 +356,7 @@ da_product_ids      TEXT[] <span class="kw">NOT NULL DEFAULT</span> <span class=
   }},
   <span class="str">"events"</span>: { <span class="str">"overheat"</span>: { <span class="str">"fleetsSeverity"</span>: <span class="str">"warn"</span> } },
   <span class="str">"commands"</span>: { <span class="str">"setInterval"</span>: { <span class="str">"daCmd"</span>: <span class="str">"setInterval"</span>, <span class="str">"inputMap"</span>: {} } },
-  <span class="str">"jobs"</span>: { <span class="str">"mode"</span>: <span class="str">"proxy"</span> }
+  <span class="str">"jobs"</span>: { <span class="str">"mode"</span>: <span class="str">"commandMap"</span> }
 }</pre>
 
   <h3>desiredApply 策略</h3>
@@ -384,7 +393,7 @@ da_product_ids      TEXT[] <span class="kw">NOT NULL DEFAULT</span> <span class=
       </tbody>
     </table>
   </div>
-  <blockquote>运行时缓存：启动全量加载 active 映射，定期轮询热更新，drift 检测告警不自动覆盖。</blockquote>
+  <blockquote>运行时缓存（只读）：启动全量加载 active 映射，未命中回退 PG；定期轮询 / PG NOTIFY 热更新；drift 检测告警不自动覆盖。</blockquote>
 </div>
 
 <!-- ===== Topic 路由 ===== -->
@@ -414,23 +423,23 @@ da_product_ids      TEXT[] <span class="kw">NOT NULL DEFAULT</span> <span class=
     <table>
       <thead><tr><th>#</th><th>方向</th><th>MQTT Topic / API</th><th>方式</th></tr></thead>
       <tbody>
-        <tr><td><span class="tag t-orange">P1</span></td><td>⬆</td><td><code>$emqx/things/da-{ePid}--{eDid}/shadow/update</code></td><td>MQTT</td></tr>
-        <tr><td><span class="tag t-orange">P2</span></td><td>⬆</td><td><code>$emqx/things/da-{ePid}--{eDid}/events/{type}</code></td><td>MQTT</td></tr>
-        <tr><td><span class="tag t-orange">P3</span></td><td>⬆</td><td><code>$emqx/commands/…/executions/{id}/response</code></td><td>MQTT</td></tr>
-        <tr><td><span class="tag t-orange">P4</span></td><td>⬇</td><td><code>device-agent/{pid}/device/{did}/commands</code></td><td>MQTT</td></tr>
+        <tr><td><span class="tag t-orange">P1</span></td><td>⬆</td><td><code>$emqx/things/da-{eBasePid}--{eDid}/shadow/update</code></td><td>MQTT QoS 1</td></tr>
+        <tr><td><span class="tag t-orange">P2</span></td><td>⬆</td><td><code>$emqx/things/da-{eBasePid}--{eDid}/events/{type}</code></td><td>MQTT QoS 1</td></tr>
+        <tr><td><span class="tag t-orange">P3</span></td><td>⬆</td><td><code>$emqx/commands/…/executions/{id}/response</code></td><td>MQTT QoS 1</td></tr>
+        <tr><td><span class="tag t-orange">P4</span></td><td>⬇</td><td><code>device-agent/{pid}/device/{did}/commands</code></td><td>MQTT QoS 1</td></tr>
         <tr><td><span class="tag t-orange">P5</span></td><td>⬆</td><td><code>POST /api/v1/thing-datas/jobs/{start-next,update}</code></td><td><strong>HTTPS</strong> 🔄</td></tr>
       </tbody>
     </table>
   </div>
-  <blockquote>v1.2：P5 从 EMQX REST API 改为 HTTPS ThingDatas API。所有 MQTT publish 统一走原生 client。</blockquote>
+  <blockquote><strong>⚠️ S5 自发布过滤（v1.5 修正）：</strong>MQTT 3.1.1 会将自己发布的消息投递给自身订阅，必须通过 MQTT 5 NoLocal 或 payload 中 <code>state.desired</code> 存在性过滤。MQTT publish 统一走原生 client，P5 从 EMQX REST API 改为 HTTPS ThingDatas API。</blockquote>
 
   <h2>Topic 对照速查</h2>
   <div class="tw">
     <table>
       <thead><tr><th>方向</th><th>DA Topic</th><th>Fleets Topic</th></tr></thead>
       <tbody>
-        <tr><td><span class="tag t-green">状态上行</span></td><td><code>v1/{pid}/{did}/telemetry</code></td><td><code>$emqx/things/da-{ePid}--{eDid}/shadow/update</code></td></tr>
-        <tr><td><span class="tag t-blue">事件上行</span></td><td><code>v1/{pid}/{did}/event</code></td><td><code>$emqx/things/da-{ePid}--{eDid}/events/{type}</code></td></tr>
+        <tr><td><span class="tag t-green">状态上行</span></td><td><code>v1/{pid}/{did}/telemetry</code></td><td><code>$emqx/things/da-{eBasePid}--{eDid}/shadow/update</code></td></tr>
+        <tr><td><span class="tag t-blue">事件上行</span></td><td><code>v1/{pid}/{did}/event</code></td><td><code>$emqx/things/da-{eBasePid}--{eDid}/events/{type}</code></td></tr>
         <tr><td><span class="tag t-purple">命令下行</span></td><td><code>device-agent/{pid}/device/{did}/commands</code></td><td><code>$emqx/commands/…/executions/{id}/request</code></td></tr>
         <tr><td><span class="tag t-orange">命令响应</span></td><td><code>device-agent/{pid}/device/{did}/responses</code></td><td><code>$emqx/commands/…/executions/{id}/response</code></td></tr>
         <tr><td><span class="tag t-teal">Shadow 下行</span></td><td>↑ commands（合成）</td><td><code>$emqx/things/da-…/shadow/update</code></td></tr>
@@ -479,9 +488,9 @@ OUT: $emqx/…/events/overheat  {"eventType":"overheat","severity":"warn","data"
   </div>
   <pre>
 DA:  {"requestId":"550e8400-...","code":0,"data":{"estimatedDowntime":45}}
-OUT: $emqx/commands/…/executions/{id}/response
+OUT: $emqx/commands/…/executions/{id}/response (QoS 1)
      {"status":"SUCCEEDED","result":{"estimatedDowntime":45},"timestamp":...}</pre>
-  <blockquote>TTL goroutine 每 30s 扫描过期条目 → 发布 FAILED 响应到 Fleets。</blockquote>
+  <blockquote><strong>幂等性：</strong>in-flight 表以 <code>execution_id</code> 为唯一键，使用 <code>ON CONFLICT DO NOTHING</code> 防止重启后重复下发。TTL goroutine 每 30s 扫描过期条目 → 发布 FAILED 响应到 Fleets。</blockquote>
 </div>
 
 <!-- ===== 下行协议 ===== -->
@@ -492,7 +501,7 @@ OUT: $emqx/commands/…/executions/{id}/response
     <div class="card"><h5>Fleets JobService 发布</h5><pre style="margin:4px 0 0;font-size:11px">{<span class="str">"action"</span>:<span class="str">"setInterval"</span>,<span class="str">"params"</span>:{<span class="str">"interval"</span>:<span class="num">30</span>},<span class="str">"ttl"</span>:<span class="num">60</span>}</pre></div>
     <div class="card"><h5>Bridge 发布到 DA</h5><pre style="margin:4px 0 0;font-size:11px">{<span class="str">"cmd"</span>:<span class="str">"setInterval"</span>,<span class="str">"params"</span>:{<span class="str">"interval"</span>:<span class="num">30</span>}}</pre></div>
   </div>
-  <p><strong>Bridge 步骤</strong>：解析 thingName/executionId → 查 mappings → 查 mapping_spec → 写入 in-flight → 发布 DA topic</p>
+  <p><strong>Bridge 步骤</strong>：解析 thingName/executionId → 获取 per-thing advisory lock → 查 mappings → 查 mapping_spec → 幂等写入 in-flight（<code>execution_id</code> 唯一键）→ 发布 DA topic（QoS 1）</p>
   <p><span class="check">✅</span> 解决 <code>ErrNoMatchingSubscribers</code>：Bridge 订阅存在，Fleets publish 时匹配。</p>
 
   <h3>Sequence</h3>
@@ -527,11 +536,12 @@ desired {reportIntervalSec:60, powerMode:"eco"}
     <div class="card"><h5><span class="tag t-blue">proxy</span></h5><p>Bridge HTTPS ThingDatas API 代跑 Jobs 状态机。<br>DA 完全不参与。</p></div>
   </div>
   <pre>
-S7/S8 notify → QUEUED 列表
+S7/S8 notify → 去抖/幂等 → QUEUED 列表
   → POST .../jobs/start-next (HTTPS)
   → operationCommandMap → daCmd
-  → MQTT publish DA commands
+  → MQTT publish DA commands (QoS 1)
   → DA response → POST .../jobs/{id}/update (HTTPS)</pre>
+  <blockquote><strong>Notify 去抖：</strong>Fleets 可能多次发布 notify；Bridge 应基于 timestamp 做去抖，避免频繁调用 <code>start-next</code>。</blockquote>
 
   <h3>Jobs 订阅/发布</h3>
   <div class="tw">
@@ -553,9 +563,10 @@ S7/S8 notify → QUEUED 列表
     <div class="fs-item"><div class="f-n">2</div><div class="f-b"><strong>插件生成草稿</strong> — ThingType + mapping_spec（**插件尚不存在**）</div></div>
     <div class="fs-item"><div class="f-n">3</div><div class="f-b"><strong>POST Fleets ThingType</strong> — <code>da-product-{baseProductId}</code></div></div>
     <div class="fs-item"><div class="f-n">4</div><div class="f-b"><strong>POST Fleets Thing</strong> — <code>da-{encBasePid}--{encDid}</code></div></div>
-    <div class="fs-item"><div class="f-n">5</div><div class="f-b"><strong>POST Bridge Admin</strong> — 写入双 ID：versioned + base</div></div>
-    <div class="fs-item"><div class="f-n">6</div><div class="f-b"><strong>Bridge 热加载</strong></div></div>
+    <div class="fs-item"><div class="f-n">5</div><div class="f-b"><strong>POST Bridge Admin</strong> — 写入双 ID：versioned + base（失败入 retry queue）</div></div>
+    <div class="fs-item"><div class="f-n">6</div><div class="f-b"><strong>Bridge 热加载 / 定时 reconcile</strong></div></div>
   </div>
+  <blockquote><strong>容错：</strong>步骤 3-5 非原子。DA 插件需 retry queue 与 reconcile（<code>GET /api/v1/things?tagName=da-bridge</code>）补全缺失映射。</blockquote>
 
   <div class="tw">
     <table>
@@ -584,8 +595,11 @@ S7/S8 notify → QUEUED 列表
   <h2>环境变量</h2>
   <pre>
 DA_BRIDGE_MQTT_URL=mqtt://emqx:1883
+DA_BRIDGE_MQTT_VERSION=5                  # 强烈建议 MQTT 5
 DA_BRIDGE_MQTT_CLIENT_ID=da-fleets-bridge-1
 DA_BRIDGE_MQTT_CLEAN_SESSION=false
+DA_BRIDGE_MQTT_QOS=1
+DA_BRIDGE_MQTT_NO_LOCAL=true              # MQTT 5 only
 DATABASE_URL=postgres://postgres@postgres:5432/fleets
 FLEETS_API_URL=http://fleets:8080
 DA_API_URL=http://device-agent:3000
@@ -593,7 +607,7 @@ DA_BRIDGE_SHADOW_DESIRED_BATCH_MODE=perField
 DA_BRIDGE_JOBS_MODE=commandMap
 DA_BRIDGE_INFLIGHT_TTL=120s
 DA_BRIDGE_HTTP_PORT=8091</pre>
-  <blockquote>v1.2：移除了 EMQX_API_KEY/SECRET 环境变量。Jobs proxy 使用 FLEETS_API_KEY 走 HTTPS ThingDatas。</blockquote>
+  <blockquote>v1.5：新增 MQTT_VERSION/QOS/NO_LOCAL。移除了 EMQX_API_KEY/SECRET。Jobs proxy 使用 FLEETS_API_KEY 走 HTTPS ThingDatas。</blockquote>
 
   <h2>docker-compose</h2>
   <pre>
@@ -615,13 +629,14 @@ DA_BRIDGE_HTTP_PORT=8091</pre>
 
   <h2>HA & 可观测</h2>
   <div class="card-grid">
-    <div class="card"><h5><span class="tag t-green">Active-Standby</span></h5><p><code>pg_try_advisory_lock(HashToInt64("da-fleets-bridge"))</code> 选主。<br>v1.2：修正锁 ID 为 <code>HashToInt64</code>。</p></div>
+    <div class="card"><h5><span class="tag t-green">Active-Standby</span></h5><p>全局 HA 锁 <code>pg_try_advisory_lock(HashToInt64("da-fleets-bridge"))</code> 选主；处理 per-thing 变更前获取 <code>HashToInt64("da-bridge-"+thingName)</code> 锁。</p></div>
     <div class="card"><h5><span class="tag t-blue">指标</span></h5><p><code>bridge_messages_total</code>, <code>bridge_translate_errors_total</code>, <code>bridge_uplink_dropped_total</code>, <code>bridge_inflight_commands</code></p></div>
   </div>
 
   <h2>路线图</h2>
+  <p><strong>Phase 1 前置</strong>：PC1/PC2（DA 插件/回调）、PC6（Fleets 架构归属/例外）必须定案。</p>
   <div class="phases">
-    <div class="ph"><div class="ph-h" style="background:var(--accent-bg)"><span class="n" style="background:var(--accent)">1</span>骨架+上行<span class="d">2-3w</span></div><div class="ph-b"><ul><li>项目骨架</li><li>MQTT + 路由</li><li>DB migration</li><li>Telemetry/Event</li></ul></div></div>
+    <div class="ph"><div class="ph-h" style="background:var(--accent-bg)"><span class="n" style="background:var(--accent)">1</span>骨架+上行<span class="d">2-3w</span></div><div class="ph-b"><ul><li>项目骨架（独立仓库或 fleets/cmd）</li><li>MQTT 5 + NoLocal + 路由</li><li>DB migration</li><li>Telemetry/Event（QoS 1）</li></ul></div></div>
     <div class="ph"><div class="ph-h" style="background:var(--orange-bg)"><span class="n" style="background:var(--orange)">2</span>Command<span class="d">2-3w</span></div><div class="ph-b"><ul><li>In-flight 表</li><li>Command 双向</li><li>correlation</li><li>Admin API</li></ul></div></div>
     <div class="ph"><div class="ph-h" style="background:var(--purple-bg)"><span class="n" style="background:var(--purple)">3</span>Shadow<span class="d">1-2w</span></div><div class="ph-b"><ul><li>desiredApply</li><li>batch mode</li><li>E2E</li></ul></div></div>
     <div class="ph"><div class="ph-h" style="background:var(--teal-bg)"><span class="n" style="background:var(--teal)">4</span>Jobs<span class="d">2w</span></div><div class="ph-b"><ul><li>commandMap</li><li>proxy</li><li>文档</li></ul></div></div>
@@ -636,8 +651,9 @@ DA_BRIDGE_HTTP_PORT=8091</pre>
         <tr><td>上行</td><td>Rule republish</td><td>Bridge MQTT sub→pub</td></tr>
         <tr><td>下行</td><td style="color:var(--red)">不支持</td><td style="color:var(--green)">Command+Shadow+Jobs</td></tr>
         <tr><td>EMQX 依赖</td><td>高（Rule SQL）</td><td>低</td></tr>
-        <tr><td>Fleets 侵入</td><td>BridgePlugin+Manager</td><td>仅 Migration+Sidecar</td></tr>
+        <tr><td>Fleets 侵入</td><td>BridgePlugin+Manager</td><td>仅 Migration+Sidecar；需架构归属/例外</td></tr>
         <tr><td>嵌套订阅</td><td style="color:var(--red)">ErrNoSubscribers</td><td style="color:var(--green)">彻底解决</td></tr>
+        <tr><td>MQTT 约束</td><td>不违反</td><td>需明确 Bridge 为唯一 subscriber</td></tr>
       </tbody>
     </table>
   </div>
@@ -645,48 +661,58 @@ DA_BRIDGE_HTTP_PORT=8091</pre>
 
 <!-- ===== 待定问题 ===== -->
 <div class="tab-pane" id="pane-pending">
-  <h2>阻塞项（评审结论）</h2>
+  <h2>阻塞项（Phase 1 前必须定案）</h2>
   <div class="qa-grid">
-    <div class="qa"><div class="qa-q" style="background:var(--red-bg)"><span class="qb" style="background:var(--red)">Q1</span>仓库位置</div><div class="qa-b"><strong>结论</strong>：同仓库 <code>fleets/cmd/da-bridge</code><br>待确认：Fleets 团队</div></div>
-    <div class="qa"><div class="qa-q" style="background:var(--orange-bg)"><span class="qb" style="background:var(--orange)">Q2</span>表归属</div><div class="qa-b"><strong>结论</strong>：Fleets migrations/<br>Bridge 进程执行 migrate</div></div>
-    <div class="qa"><div class="qa-q" style="background:var(--orange-bg)"><span class="qb" style="background:var(--orange)">Q3</span>mqttClientId</div><div class="qa-b"><strong>结论</strong>：约定 <code>{ns}/dev/{did}</code>，插件自动生成+回写 metadata。<br>待 DA 团队确认</div></div>
+    <div class="qa"><div class="qa-q" style="background:var(--red-bg)"><span class="qb" style="background:var(--red)">Q1</span>仓库位置与架构归属</div><div class="qa-b"><strong>结论</strong>：与 Fleets「不订阅 MQTT」约束存在张力。首选独立仓库，次选 fleets/cmd/da-bridge + AGENTS.md 例外条款。<br>待确认：<strong>Fleets 架构团队</strong></div></div>
+    <div class="qa"><div class="qa-q" style="background:var(--orange-bg)"><span class="qb" style="background:var(--orange)">Q2</span>表归属</div><div class="qa-b"><strong>结论</strong>：Fleets migrations/（000005_da_bridge）。已验证无冲突。</div></div>
+    <div class="qa"><div class="qa-q" style="background:var(--orange-bg)"><span class="qb" style="background:var(--orange)">Q3</span>mqttClientId</div><div class="qa-b"><strong>结论</strong>：约定 <code>{ns}/dev/{did}</code>，插件自动生成+回写 metadata。<br>待 DA 团队 + 集成方确认</div></div>
     <div class="qa"><div class="qa-q" style="background:var(--purple-bg)"><span class="qb" style="background:var(--purple)">Q4</span>修订 UI</div><div class="qa-b"><strong>结论</strong>：Phase1 JSON 导出编辑，Phase2 UI</div></div>
-    <div class="qa"><div class="qa-q" style="background:var(--accent-bg)"><span class="qb" style="background:var(--accent)">Q5</span>Admin API 认证</div><div class="qa-b"><strong>结论</strong>：Fleets API Key Basic Auth</div></div>
+    <div class="qa"><div class="qa-q" style="background:var(--accent-bg)"><span class="qb" style="background:var(--accent)">Q5</span>Admin API 认证</div><div class="qa-b"><strong>结论</strong>：Fleets API Key Basic Auth；Bridge Admin 独立端口（8091）</div></div>
+    <div class="qa"><div class="qa-q" style="background:var(--red-bg)"><span class="qb" style="background:var(--red)">Q6</span>MQTT 5 NoLocal 可行性</div><div class="qa-b"><strong>结论</strong>：强烈建议 MQTT 5 + NoLocal。若只能用 3.1.1，必须依赖 S5 payload 过滤。</div></div>
   </div>
 
   <h2>架构决策</h2>
   <div class="qa-grid">
-    <div class="qa"><div class="qa-q" style="background:var(--teal-bg)"><span class="qb" style="background:var(--teal)">Q6</span>多版本 ThingType</div><div class="qa-b"><strong>结论</strong>：默认 PUT 更新，大版本创建新 ThingType（<code>-v2</code>）</div></div>
     <div class="qa"><div class="qa-q" style="background:var(--teal-bg)"><span class="qb" style="background:var(--teal)">Q7</span>Shadow 合并</div><div class="qa-b"><strong>结论</strong>：默认 <code>perField</code></div></div>
-    <div class="qa"><div class="qa-q" style="background:var(--teal-bg)"><span class="qb" style="background:var(--teal)">Q8</span>Jobs proxy 协议</div><div class="qa-b"><strong>结论</strong>：HTTPS ThingDatas<br>✅ 已更新方案</div></div>
-    <div class="qa"><div class="qa-q" style="background:var(--teal-bg)"><span class="qb" style="background:var(--teal)">Q9</span>未注册 telemetry</div><div class="qa-b"><strong>结论</strong>：丢弃 + metric</div></div>
+    <div class="qa"><div class="qa-q" style="background:var(--teal-bg)"><span class="qb" style="background:var(--teal)">Q8</span>Jobs proxy 协议</div><div class="qa-b"><strong>结论</strong>：HTTPS ThingDatas<br>✅ 已确认</div></div>
+    <div class="qa"><div class="qa-q" style="background:var(--teal-bg)"><span class="qb" style="background:var(--teal)">Q9</span>未注册 telemetry</div><div class="qa-b"><strong>结论</strong>：丢弃 + metric；通过对账补全</div></div>
+    <div class="qa"><div class="qa-q" style="background:var(--teal-bg)"><span class="qb" style="background:var(--teal)">Q10</span>per-thing advisory lock</div><div class="qa-b"><strong>结论</strong>：per-thing 变更前加锁 <code>HashToInt64("da-bridge-"+thingName)</code></div></div>
+    <div class="qa"><div class="qa-q" style="background:var(--teal-bg)"><span class="qb" style="background:var(--teal)">Q11</span>动态精确订阅</div><div class="qa-b"><strong>结论</strong>：Phase1 用通配符；大规模时考虑精确 topic 列表</div></div>
   </div>
 
   <h2>DA 侧问题</h2>
   <div class="qa-grid">
-    <div class="qa"><div class="qa-q" style="background:var(--purple-bg)"><span class="qb" style="background:var(--purple)">Q10</span>回调挂载点</div><div class="qa-b"><strong>结论</strong>：需在 device-management 增加 EventEmitter。<br>已列为 PC2，待 DA 排期。</div></div>
-    <div class="qa"><div class="qa-q" style="background:var(--purple-bg)"><span class="qb" style="background:var(--purple)">Q11</span>写 mapping 方式</div><div class="qa-b"><strong>结论</strong>：仅 Bridge Admin API，单写入口</div></div>
-    <div class="qa"><div class="qa-q" style="background:var(--purple-bg)"><span class="qb" style="background:var(--purple)">Q12</span>mqttClientId 暴露</div><div class="qa-b"><strong>结论</strong>：metadata JSONB 可直接读写，无需 API 变更</div></div>
-    <div class="qa"><div class="qa-q" style="background:var(--purple-bg)"><span class="qb" style="background:var(--purple)">Q13</span>Event severity</div><div class="qa-b"><strong>结论</strong>：✅ mapping_spec 已覆盖</div></div>
-    <div class="qa"><div class="qa-q" style="background:var(--purple-bg)"><span class="qb" style="background:var(--purple)">Q14</span>多 namespace</div><div class="qa-b"><strong>结论</strong>：Phase1 不阻塞，远期</div></div>
-    <div class="qa"><div class="qa-q" style="background:var(--purple-bg)"><span class="qb" style="background:var(--purple)">Q15</span>高频 telemetry</div><div class="qa-b"><strong>结论</strong>：远期，Phase1 不阻塞</div></div>
+    <div class="qa"><div class="qa-q" style="background:var(--purple-bg)"><span class="qb" style="background:var(--purple)">Q12</span>回调挂载点</div><div class="qa-b"><strong>结论</strong>：需在 device-management 增加 EventEmitter。<br>已列为 PC2，待 DA 排期。</div></div>
+    <div class="qa"><div class="qa-q" style="background:var(--purple-bg)"><span class="qb" style="background:var(--purple)">Q13</span>写 mapping 方式</div><div class="qa-b"><strong>结论</strong>：仅 Bridge Admin API，单写入口；失败入 retry queue</div></div>
+    <div class="qa"><div class="qa-q" style="background:var(--purple-bg)"><span class="qb" style="background:var(--purple)">Q14</span>mqttClientId 暴露</div><div class="qa-b"><strong>结论</strong>：metadata JSONB 可直接读写，无需 API 变更</div></div>
+    <div class="qa"><div class="qa-q" style="background:var(--purple-bg)"><span class="qb" style="background:var(--purple)">Q15</span>DA 命令 payload 格式</div><div class="qa-b"><strong>结论</strong>：假设 <code>{requestId,cmd,params}</code> / <code>{requestId,code,message,data}</code>。<br>待 DA 团队确认</div></div>
+    <div class="qa"><div class="qa-q" style="background:var(--purple-bg)"><span class="qb" style="background:var(--purple)">Q16</span>Event severity</div><div class="qa-b"><strong>结论</strong>：✅ mapping_spec 已覆盖</div></div>
+    <div class="qa"><div class="qa-q" style="background:var(--purple-bg)"><span class="qb" style="background:var(--purple)">Q17</span>多 namespace</div><div class="qa-b"><strong>结论</strong>：Phase1 不阻塞，远期</div></div>
+    <div class="qa"><div class="qa-q" style="background:var(--purple-bg)"><span class="qb" style="background:var(--purple)">Q18</span>高频 telemetry</div><div class="qa-b"><strong>结论</strong>：远期，Phase1 不阻塞</div></div>
   </div>
 
-  <h2>评审新增（v1.2）</h2>
+  <h2>已解决问题（归档）</h2>
   <div class="tw">
     <table>
       <thead><tr><th>#</th><th>问题</th><th>结论</th></tr></thead>
       <tbody>
-        <tr><td><span class="tag t-red">Q16</span></td><td><code>da_product_id</code> 语义纠正</td><td>新增 <code>da_base_product_id</code> 列，<code>da_product_id</code> 存 versioned 值。✅ 已修正</td></tr>
-        <tr><td><span class="tag t-orange">Q17</span></td><td>advisory lock ID 一致性</td><td>统一为 <code>HashToInt64("da-fleets-bridge")</code>。✅ 已修正</td></tr>
-        <tr><td><span class="tag t-green">Q18</span></td><td>EMQX REST API 是否必需</td><td>移除，所有 publish 走 MQTT client + HTTPS。✅ 已简化</td></tr>
-        <tr><td><span class="tag t-teal">Q19</span></td><td>DA API 路径不含 <code>/v1</code></td><td>实际路径 <code>/api/products/...</code>。✅ 已修正附录 C</td></tr>
-        <tr><td><span class="tag t-blue">Q20</span></td><td>Product 版本升级桥设备更新</td><td>插件触发 reconcile，Bridge Admin 接受覆盖写入</td></tr>
+        <tr><td><span class="tag t-red">Q19</span></td><td><code>da_product_id</code> 语义纠正</td><td>新增 <code>da_base_product_id</code> 列。✅ v1.2</td></tr>
+        <tr><td><span class="tag t-orange">Q20</span></td><td>advisory lock ID 一致性</td><td>全局 HA 锁 <code>HashToInt64("da-fleets-bridge")</code>。✅ v1.2</td></tr>
+        <tr><td><span class="tag t-green">Q21</span></td><td>EMQX REST API 是否必需</td><td>移除。✅ v1.2</td></tr>
+        <tr><td><span class="tag t-teal">Q22</span></td><td>DA API 路径不含 <code>/v1</code></td><td>实际路径 <code>/api/products/...</code>。✅ v1.2</td></tr>
+        <tr><td><span class="tag t-blue">Q23</span></td><td>Product 版本升级桥设备更新</td><td>插件 reconcile + Bridge Admin 覆盖写入。✅ v1.2</td></tr>
+        <tr><td><span class="tag t-red">Q24</span></td><td>S5 自发布过滤</td><td>修正 MQTT 语义：MQTT 3.1.1 会自投递；MQTT 5 用 NoLocal。✅ v1.5</td></tr>
+        <tr><td><span class="tag t-orange">Q25</span></td><td>Shadow desired 检测策略</td><td>S5 全量 + S6 delta + Fleets GET API。✅ v1.3</td></tr>
+        <tr><td><span class="tag t-green">Q26</span></td><td>Fleets tag 查询参数</td><td><code>?tagName=da-bridge</code>。✅ v1.4</td></tr>
+        <tr><td><span class="tag t-teal">Q27</span></td><td>Thing 名编码一致性</td><td>统一 <code>da-{encBasePid}--{encDid}</code>。✅ v1.5</td></tr>
+        <tr><td><span class="tag t-blue">Q28</span></td><td>上下行 QoS</td><td>统一关键 topic QoS 1。✅ v1.5</td></tr>
+        <tr><td><span class="tag t-purple">Q29</span></td><td>per-thing advisory lock</td><td>处理 per-thing 变更前加锁。✅ v1.5</td></tr>
+        <tr><td><span class="tag t-purple">Q30</span></td><td>in-flight 命令幂等性</td><td><code>execution_id</code> 唯一键 + ON CONFLICT DO NOTHING。✅ v1.5</td></tr>
       </tbody>
     </table>
   </div>
 
-  <h2>DA REST API 参考（v1.2 修正）</h2>
+  <h2>DA REST API 参考</h2>
   <div class="tw">
     <table>
       <thead><tr><th>用途</th><th>路径</th><th>返回</th></tr></thead>
@@ -707,7 +733,9 @@ DA_BRIDGE_HTTP_PORT=8091</pre>
       <tbody>
         <tr><td>v1.0</td><td>2026-07-02</td><td>初稿</td></tr>
         <tr><td>v1.1</td><td>2026-07-02</td><td>评审优化：路由表、desiredApply、in-flight、Jobs</td></tr>
-        <tr><td><strong>v1.2</strong></td><td><strong>2026-07-02</strong></td><td>代码库调研：双 ID schema、前置条件 PC1-PC5、移除 REST API 依赖、锁 ID 修正、附录 C 修正、Q16-Q20</td></tr>
+        <tr><td>v1.2</td><td>2026-07-02</td><td>代码库调研：双 ID schema、前置条件 PC1-PC5、移除 REST API 依赖、锁 ID 修正、附录 C 修正、Q16-Q20</td></tr>
+        <tr><td>v1.3-v1.4</td><td>2026-07-02</td><td>双代码库评审：S5 过滤、delta 策略、tag 查询验证、资源限制、ACL 注释</td></tr>
+        <tr><td><strong>v1.5</strong></td><td><strong>2026-07-02</strong></td><td>三轮评审：修正自发布语义、QoS 1 + MQTT 5 NoLocal、per-thing advisory lock、Thing 名编码一致性、in-flight 幂等、Jobs notify 去抖、映射注册容错、§1.4 架构张力、Q24-Q30</td></tr>
       </tbody>
     </table>
   </div>
