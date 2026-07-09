@@ -1031,15 +1031,14 @@ rule "HighTempAlert"
       <li>
         <span class="phase-n">P3</span>
         <div class="phase-c">
-          <div class="phase-t">管控面：DA 实例生命周期 + 设备导入/导出</div>
-          <div class="phase-d">Fleets 对 DA 拥有控制面权限。管理 DA 实例进程，控制哪些设备进入/退出 DA 的管理范围。</div>
+          <div class="phase-t">管控面：DA 实例生命周期 + 按需拉取设备模型</div>
+          <div class="phase-d">Fleets 对 DA 拥有控制面权限，管理 DA 实例进程。设备模型采用按需拉取（默认），导入/导出为可选规划功能。</div>
           <div class="phase-d">• DA 实例注册 + 心跳机制（POST /da/instances + PUT .../heartbeat）<br>
           • Fleets 进程管理 API（POST .../start|stop|restart）<br>
-          • <strong>设备导入</strong>：Fleets 调用 DA POST /da/devices/import<br>
-          • <strong>设备导出</strong>：Fleets 调用 DA POST /da/devices/export<br>
-          • Fleets Thing 增加 managedByDa 标记<br>
+          • <strong>按需拉取 thingType</strong>：DA 用 thingId 调 Fleets GET /things/{id}（拉取 metadata）+ GET /thing-types/{name}，只缓存 thingType 模型不存设备列表<br>
           • <strong>Fleets 新增 API</strong>：POST /ai/data/batch-shadow（批量设备状态）<br>
-          • DA 对导入设备的控制权验证（NL 控制 + 规则引擎 + AI 分析全链路）</div>
+          • DA 对设备的控制权验证（NL 控制 + 规则引擎 + AI 分析全链路）<br>
+          • <strong>规划（可选）</strong>：设备导入/导出 API（/da/devices/import|export）+ Thing managedByDa 标记</div>
         </div>
       </li>
       <li>
@@ -1050,7 +1049,7 @@ rule "HighTempAlert"
           <div class="phase-d">• C SDK 模板适配 Fleets 规范<br>
           • Python SDK 模板适配 Fleets 规范<br>
           • Web 控制台：DA 实例列表 + 管理（启动/停止/重启）<br>
-          • Web 控制台：设备导入/导出操作界面<br>
+          • Web 控制台：ThingType 缓存查看 +（规划）设备导入/导出操作界面<br>
           • Web 控制台：SDK 下载入口（适配 Fleets 的 SDK）<br>
           • 集成测试覆盖所有端到端场景<br>
           • Prometheus 监控指标 + 告警</div>
@@ -1079,7 +1078,8 @@ rule "HighTempAlert"
           <tr><td>跨平台实现方式</td><td><span class="tag tg-p">多 DA 实例</span></td><td>每个平台一个 DA 实例，初始化时指定 platform，运行时锁定。</td></tr>
           <tr><td>状态权威源</td><td><span class="tag tg-b">Fleets Shadow</span></td><td>Fleets 是设备状态权威存储。DA 订阅 + API 读取，不做双写。</td></tr>
           <tr><td>DA 生命周期管理</td><td><span class="tag tg-p">Fleets 进程控制</span></td><td>DA 实例注册 + 心跳 + systemd/Docker 启停管控。</td></tr>
-          <tr><td>设备导入导出</td><td><span class="tag tg-b">API 调用（Fleets → DA）</span></td><td>Fleets 通过 import/export API 控制 DA 的管理设备范围。</td></tr>
+          <tr><td>设备模型获取</td><td><span class="tag tg-b">按 thingId 拉取 metadata</span></td><td>默认 DA 不存设备列表，运行时用 thingId 调 Fleets API 拉取 thing metadata，只缓存 thingType（DeviceSpec）模型。</td></tr>
+          <tr><td>设备导入导出</td><td><span class="tag tg-o">规划功能</span></td><td>后续可选：Fleets 通过 import/export API 主动管控 DA 的设备管理范围。</td></tr>
           <tr><td>DA 原生协议</td><td><span class="tag tg-t">独立平台规范 @da/platform-native</span></td><td>原生协议也是独立的 DA 实例（platform: "native"），与 Fleets 实例平行、各自独立运行。</td></tr>
           <tr><td>AI 增强 Fleets</td><td><span class="tag tg-p">DA REST API</span></td><td>Fleets 调用 DA 的 /ai/ 系列 API 获得 NL 查询/异常检测/物模型建议。</td></tr>
         </tbody>
@@ -1143,7 +1143,7 @@ rule "HighTempAlert"
         <text x="880" y="60" text-anchor="middle" font-size="9" fill="#1565c0">原生协议设备（DA 直接管理）</text>
 
         <rect x="740" y="115" width="280" height="45" rx="8" fill="#fff" stroke="#34a853" stroke-width="1.5" filter="url(#shD)"/>
-        <text x="880" y="140" text-anchor="middle" font-size="9" fill="#2e7d32">Fleets 设备（须导入到 DA 实例 B）</text>
+        <text x="880" y="140" text-anchor="middle" font-size="9" fill="#2e7d32">Fleets 设备（DA 实例 B 按 thingId 拉取 thingType）</text>
 
         <!-- Callout -->
         <rect x="40" y="190" width="980" height="28" rx="6" fill="#e6f4ea" stroke="#34a853" stroke-width="1"/>
@@ -1665,15 +1665,19 @@ POST /api/v1/ai/schema/suggest
 <div class="tab-panel" id="tab-control-plane" role="tabpanel" aria-labelledby="tab-control-plane">
 
   <div class="section">
-    <h2 class="section-title">⚙️ 控制面总览：Fleets 管控 DA 生命周期与设备范围</h2>
-    <div class="section-desc">Fleets 作为设备管理平台，对 Device Agent 拥有控制面权限：管理 DA 实例的生命周期（进程级），管控哪些设备导入/导出到 DA（API 级）。
-    集成后 DA 对 Fleets 已有设备也拥有控制权。</div>
+    <h2 class="section-title">⚙️ 控制面总览：Fleets 管控 DA 生命周期，DA 按需拉取设备模型</h2>
+    <div class="section-desc">Fleets 作为设备管理平台，对 Device Agent 拥有控制面权限：管理 DA 实例的生命周期（进程级）。
+    设备模型采用「按需拉取」模式 —— DA 不保存完整设备列表，运行时主动用 <code>thingId</code> 调 Fleets API 拉取该设备的 thing metadata，从中提取并只缓存其 thingType（即 DeviceSpec）。</div>
 
     <div class="info purple">
-      <strong>三层控制面设计：</strong>
+      <strong>两层控制面设计：</strong>
       ① <strong>实例层</strong> — Fleets 管理 DA 进程生命周期（启动/停止/重启/健康监控）
-      ② <strong>设备层</strong> — Fleets 通过 API 控制设备在 DA 的导入/导出/移除
-      ③ <strong>控制层</strong> — DA 对 Fleets 内已导入的设备拥有完整的 NL 控制/规则引擎/AI 分析权限
+      ② <strong>控制层</strong> — DA 对 Fleets 设备拥有完整的 NL 控制/规则引擎/AI 分析权限，交互所需的 DeviceSpec 由 DA 按 <code>thingId</code> 从 Fleets 拉取 thing metadata 后提取其 thingType
+    </div>
+
+    <div class="info orange">
+      <strong>设备范围管控（规划功能）：</strong> 未来可通过导入/导出 API 让 Fleets 主动管控 DA 的设备管理范围。
+      当前默认不启用 —— DA 不维护设备列表，仅在需要与某设备交互时按 <code>thingId</code> 拉取其 thing metadata，只缓存其中的 thingType（DeviceSpec）。
     </div>
 
     <div class="info green">
@@ -1698,18 +1702,20 @@ POST /api/v1/ai/schema/suggest
         <text x="210" y="84" text-anchor="middle" font-size="10" font-weight="600" fill="#1565c0">🔵 DA 实例管理 /api/v1/da/instances</text>
 
         <rect x="60" y="100" width="300" height="28" rx="6" fill="#fff" stroke="#1a73e8" stroke-width="1"/>
-        <text x="210" y="119" text-anchor="middle" font-size="10" font-weight="600" fill="#1565c0">🟢 设备导入导出 /api/v1/da/devices</text>
+        <text x="210" y="119" text-anchor="middle" font-size="10" font-weight="600" fill="#1565c0">🟢 ThingType 查询 GET /thing-types</text>
 
-        <rect x="60" y="135" width="300" height="28" rx="6" fill="#fff" stroke="#1a73e8" stroke-width="1"/>
-        <text x="210" y="154" text-anchor="middle" font-size="10" font-weight="600" fill="#1565c0">🤖 委托 DA 控制 /api/v1/da/control/delegate</text>
+        <rect x="60" y="135" width="300" height="28" rx="6" fill="#f8f9fa" stroke="#9aa0a6" stroke-width="1" stroke-dasharray="4,3"/>
+        <text x="210" y="154" text-anchor="middle" font-size="10" font-weight="600" fill="#80868b">⏳ 设备导入导出（规划）/da/devices</text>
 
         <!-- Arrows: Fleets → DA Lifecycle -->
         <path d="M380,50 L440,50 L440,60 L500,60 L500,70" stroke="#ea4335" stroke-width="2" fill="none" marker-end="url(#arL)"/>
         <text x="440" y="42" text-anchor="middle" font-size="9" fill="#c62828" font-weight="600">进程控制：启动/停止/重启</text>
 
-        <!-- Arrows: Fleets → DA API -->
-        <path d="M380,115 L440,115 L440,130 L500,130 L500,150" stroke="#1a73e8" stroke-width="2" fill="none" marker-end="url(#arL)"/>
-        <text x="440" y="107" text-anchor="middle" font-size="9" fill="#1565c0" font-weight="600">API 调用：导入/导出/委托</text>
+        <!-- Arrows: Fleets ↔ DA API (bidirectional) -->
+        <path d="M380,110 L508,110" stroke="#1a73e8" stroke-width="2" fill="none" marker-end="url(#arL)"/>
+        <path d="M510,130 L382,130" stroke="#1a73e8" stroke-width="2" fill="none" marker-end="url(#arL)"/>
+        <text x="445" y="102" text-anchor="middle" font-size="9" fill="#1565c0" font-weight="600">AI 增强功能</text>
+        <text x="445" y="145" text-anchor="middle" font-size="9" fill="#1565c0" font-weight="600">thingId 查询</text>
 
         <!-- Device Agent -->
         <rect x="510" y="20" width="340" height="200" rx="12" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="2" filter="url(#shL)"/>
@@ -1719,7 +1725,7 @@ POST /api/v1/ai/schema/suggest
         <text x="680" y="84" text-anchor="middle" font-size="10" font-weight="600" fill="#7b1fa2">🔵 DA 注册 + 心跳</text>
 
         <rect x="530" y="100" width="300" height="28" rx="6" fill="#fff" stroke="#7b1fa2" stroke-width="1"/>
-        <text x="680" y="119" text-anchor="middle" font-size="10" font-weight="600" fill="#7b1fa2">🟢 设备列表同步（import/export）</text>
+        <text x="680" y="119" text-anchor="middle" font-size="10" font-weight="600" fill="#7b1fa2">🟢 按 thingId 拉取 metadata（只存 thingType）</text>
 
         <rect x="530" y="135" width="300" height="28" rx="6" fill="#fff" stroke="#7b1fa2" stroke-width="1"/>
         <text x="680" y="154" text-anchor="middle" font-size="10" font-weight="600" fill="#7b1fa2">🤖 NL 控制 / 规则引擎 / AI 分析</text>
@@ -1742,7 +1748,7 @@ POST /api/v1/ai/schema/suggest
         <!-- Device area -->
         <rect x="100" y="330" width="800" height="60" rx="12" fill="#e6f4ea" stroke="#34a853" stroke-width="2" filter="url(#shL)"/>
         <text x="500" y="355" text-anchor="middle" font-size="13" font-weight="700" fill="#2e7d32">Fleets 已有设备（Thing Registry）</text>
-        <text x="500" y="375" text-anchor="middle" font-size="9" fill="#5f6368">设备导入后 DA 获得控制权 · 设备导出后 DA 释放控制权</text>
+        <text x="500" y="375" text-anchor="middle" font-size="9" fill="#5f6368">DA 按 thingId 拉取 thing metadata 即可控制设备 · 无需预先导入设备列表</text>
 
         <!-- Arrows down -->
         <path d="M210,180 L210,330" stroke="#1a73e8" stroke-width="1.5" fill="none" marker-end="url(#arL)" stroke-dasharray="4,3"/>
@@ -1756,7 +1762,7 @@ POST /api/v1/ai/schema/suggest
           <rect x="0" y="0" width="620" height="50" rx="6" fill="#fff" stroke="#e0e0e0"/>
           <text x="10" y="16" font-size="10" font-weight="600" fill="#333">控制面路径</text>
           <line x1="10" y1="30" x2="40" y2="30" stroke="#ea4335" stroke-width="2"/><text x="44" y="34" font-size="9" fill="#555">进程控制（生命周期）</text>
-          <line x1="200" y1="30" x2="230" y2="30" stroke="#1a73e8" stroke-width="1.5"/><text x="234" y="34" font-size="9" fill="#555">API 调用（设备导入导出）</text>
+          <line x1="200" y1="30" x2="230" y2="30" stroke="#1a73e8" stroke-width="1.5"/><text x="234" y="34" font-size="9" fill="#555">API 调用</text>
           <line x1="390" y1="30" x2="420" y2="30" stroke="#f9ab00" stroke-width="1.5"/><text x="424" y="34" font-size="9" fill="#555">Basic Auth 直接调用</text>
           <line x1="10" y1="44" x2="40" y2="44" stroke="#7b1fa2" stroke-width="1.5"/><text x="44" y="48" font-size="9" fill="#555">DA 控制路径</text>
           <line x1="200" y1="44" x2="230" y2="44" stroke="#34a853" stroke-width="1.5" stroke-dasharray="4,3"/><text x="234" y="48" font-size="9" fill="#555">MQTT 数据路径</text>
@@ -1840,13 +1846,11 @@ GET  /api/v1/da/instances/da-inst-001/status
   </div>
 
   <div class="section">
-    <h2 class="section-title">📦 设备导入导出（API 调用）</h2>
+    <h2 class="section-title">📦 设备模型获取：按 thingId 拉取 metadata（只存 thingType）</h2>
 
-    <div class="info orange">
-      <strong>核心逻辑：</strong> Fleets 控制哪些设备进入 DA 的管理范围。
-      <strong>导入</strong>：Fleets 将一批 Thing 的 DeviceSpec 和数据访问权限授予 DA。
-      <strong>导出</strong>：DA 释放对设备的控制权，设备回归 Fleets 独立管理。
-      <strong>双向同步</strong>：DA 和 Fleets 通过 API 保持设备列表一致。
+    <div class="info green">
+      <strong>核心逻辑：</strong> DA <strong>不保存完整设备列表</strong>。当 DA 需要与某个设备交互时（NL 控制、规则触发、AI 分析），
+      主动用 <code>thingId</code> 调 Fleets API 拉取该设备的 thing metadata，从中提取并只缓存其 thingType（即 DeviceSpec），同类型设备共享一份模型，随后通过 <code>$emqx/</code> MQTT 主题直接与设备通信。
     </div>
 
     <div class="arch-fig">
@@ -1854,127 +1858,101 @@ GET  /api/v1/da/instances/da-inst-001/status
         <defs><filter id="shI"><feDropShadow dx="0" dy="1" stdDeviation="2" flood-opacity=".08"/></filter></defs>
         <rect x="0" y="0" width="1100" height="215" rx="8" fill="#fafbfc"/>
 
-        <text x="550" y="22" text-anchor="middle" font-size="13" font-weight="700" fill="#1a73e8">设备导入流程（Fleets → DA）</text>
+        <text x="550" y="22" text-anchor="middle" font-size="13" font-weight="700" fill="#2e7d32">按需拉取流程（DA 主动，thingId 驱动）</text>
 
         <!-- Step boxes -->
-        <rect x="30" y="40" width="180" height="55" rx="8" fill="#e3f2fd" stroke="#1a73e8" stroke-width="1.5" filter="url(#shI)"/>
-        <text x="120" y="60" text-anchor="middle" font-size="10" font-weight="700" fill="#1565c0">1. Fleets 发起导入</text>
-        <text x="120" y="78" text-anchor="middle" font-size="8" fill="#5f6368">POST /da/devices/import</text>
-        <text x="120" y="90" text-anchor="middle" font-size="8" fill="#5f6368">{ thingIds: [...] }</text>
+        <rect x="30" y="40" width="190" height="65" rx="8" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="1.5" filter="url(#shI)"/>
+        <text x="125" y="60" text-anchor="middle" font-size="10" font-weight="700" fill="#7b1fa2">1. 触发交互</text>
+        <text x="125" y="78" text-anchor="middle" font-size="8" fill="#5f6368">NL 控制 / 规则 / AI 分析</text>
+        <text x="125" y="92" text-anchor="middle" font-size="8" fill="#5f6368">已知目标 thingId</text>
 
-        <path d="M210,65 L240,65" stroke="#5f6368" stroke-width="1.5" fill="none" marker-end="url(#arL)"/>
+        <path d="M220,72 L250,72" stroke="#5f6368" stroke-width="1.5" fill="none" marker-end="url(#arL)"/>
 
-        <rect x="250" y="35" width="190" height="65" rx="8" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="1.5" filter="url(#shI)"/>
-        <text x="345" y="55" text-anchor="middle" font-size="10" font-weight="700" fill="#7b1fa2">2. DA 处理请求</text>
-        <text x="345" y="73" text-anchor="middle" font-size="8" fill="#5f6368">调用 Fleets GET /thing-types</text>
-        <text x="345" y="87" text-anchor="middle" font-size="8" fill="#5f6368">生成 DeviceSpec → 加入管理</text>
+        <rect x="260" y="35" width="200" height="75" rx="8" fill="#e3f2fd" stroke="#1a73e8" stroke-width="1.5" filter="url(#shI)"/>
+        <text x="360" y="55" text-anchor="middle" font-size="10" font-weight="700" fill="#1565c0">2. 按 thingId 拉取 metadata</text>
+        <text x="360" y="73" text-anchor="middle" font-size="8" fill="#5f6368">GET /things/{id} → thing metadata</text>
+        <text x="360" y="87" text-anchor="middle" font-size="8" fill="#5f6368">GET /thing-types/{name}</text>
+        <text x="360" y="101" text-anchor="middle" font-size="8" fill="#5f6368">命中缓存则跳过</text>
 
-        <path d="M440,65 L470,65" stroke="#5f6368" stroke-width="1.5" fill="none" marker-end="url(#arL)"/>
+        <path d="M460,72 L490,72" stroke="#5f6368" stroke-width="1.5" fill="none" marker-end="url(#arL)"/>
 
-        <rect x="480" y="40" width="190" height="55" rx="8" fill="#e6f4ea" stroke="#34a853" stroke-width="1.5" filter="url(#shI)"/>
-        <text x="575" y="60" text-anchor="middle" font-size="10" font-weight="700" fill="#2e7d32">3. DA 订阅设备</text>
-        <text x="575" y="78" text-anchor="middle" font-size="8" fill="#5f6368">订阅 $emqx/things/{name}/...</text>
-        <text x="575" y="90" text-anchor="middle" font-size="8" fill="#5f6368">开始接收设备消息</text>
+        <rect x="500" y="40" width="190" height="65" rx="8" fill="#fff3e0" stroke="#f9ab00" stroke-width="1.5" filter="url(#shI)"/>
+        <text x="595" y="60" text-anchor="middle" font-size="10" font-weight="700" fill="#e65100">3. 构建/缓存 DeviceSpec</text>
+        <text x="595" y="78" text-anchor="middle" font-size="8" fill="#5f6368">ThingType → DeviceSpec</text>
+        <text x="595" y="92" text-anchor="middle" font-size="8" fill="#5f6368">只存模型，不存设备列表</text>
 
-        <path d="M670,65 L700,65" stroke="#5f6368" stroke-width="1.5" fill="none" marker-end="url(#arL)"/>
+        <path d="M690,72 L720,72" stroke="#5f6368" stroke-width="1.5" fill="none" marker-end="url(#arL)"/>
 
-        <rect x="710" y="40" width="160" height="55" rx="8" fill="#fce8e6" stroke="#ea4335" stroke-width="1.5" filter="url(#shI)"/>
-        <text x="790" y="60" text-anchor="middle" font-size="10" font-weight="700" fill="#c62828">4. 确认完成</text>
-        <text x="790" y="78" text-anchor="middle" font-size="8" fill="#5f6368">DA → Fleets 返回</text>
-        <text x="790" y="90" text-anchor="middle" font-size="8" fill="#5f6368">imported: 12, failed: 0</text>
+        <rect x="730" y="40" width="180" height="65" rx="8" fill="#e6f4ea" stroke="#34a853" stroke-width="1.5" filter="url(#shI)"/>
+        <text x="820" y="60" text-anchor="middle" font-size="10" font-weight="700" fill="#2e7d32">4. 与设备通信</text>
+        <text x="820" y="78" text-anchor="middle" font-size="8" fill="#5f6368">$emqx/things/{name}/...</text>
+        <text x="820" y="92" text-anchor="middle" font-size="8" fill="#5f6368">下发命令 / 订阅上报</text>
 
-        <g transform="translate(30,120)">
-          <rect x="0" y="0" width="840" height="40" rx="6" fill="#fff3e0" stroke="#f9ab00" stroke-width="1"/>
-          <text x="10" y="16" font-size="9" fill="#e65100">设备导入后：</text>
-          <text x="10" y="32" font-size="8" fill="#5f6368">• DA 获得该设备的 NL 控制 / 规则引擎 / AI 分析权限</text>
-          <text x="330" y="32" font-size="8" fill="#5f6368">• Fleets 仍然拥有设备的完整管理权限（Shadow/Jobs/Commands）</text>
-          <text x="650" y="32" font-size="8" fill="#5f6368">• Fleets Thing 的 managedByDa 标记为 true</text>
-        </g>
-
-        <g transform="translate(30,180)">
-          <rect x="0" y="0" width="840" height="30" rx="6" fill="#1e1e2e"/>
-          <text x="10" y="20" font-size="9" fill="#a6e3a1">设备导出流程方向相反：Fleets 通知 DA 释放设备 → DA 取消订阅 → DA 确认导出 → Fleets 更新 managedByDa = false</text>
+        <g transform="translate(30,125)">
+          <rect x="0" y="0" width="880" height="75" rx="6" fill="#fff" stroke="#e0e0e0"/>
+          <text x="12" y="20" font-size="9" font-weight="600" fill="#333">关键点</text>
+          <text x="12" y="38" font-size="8" fill="#5f6368">• DA 只缓存 thingType（DeviceSpec），同类型设备共享，无需为每个设备存储条目</text>
+          <text x="12" y="54" font-size="8" fill="#5f6368">• 设备权威列表始终在 Fleets 侧，DA 无需与 Fleets 做设备列表同步</text>
+          <text x="12" y="70" font-size="8" fill="#5f6368">• ThingType 缓存可设 TTL / 主动失效，Schema 更新后按 thingId 重新拉取</text>
         </g>
       </svg>
     </div>
 
     <div class="two">
       <div class="card">
-        <h3>📥 导入 API</h3>
-        <pre class="code"><code>POST /api/v1/da/devices/import
-// 调用方：Fleets → DA
-// 作用：将一批 Fleets Thing 导入 DA 管理
+        <h3>🟢 默认流程：按 thingId 拉取 metadata（只存 thingType）</h3>
+        <pre class="code"><code>// DA 需要与设备交互时（示例：NL 控制）
+async function resolveDeviceSpec(thingId) {
+  // 1. 按 thingId 拉取 thing metadata，查该设备属于哪个 ThingType
+  const thing = await fleetsApi.get(`/api/v1/things/${thingId}`);
+  const typeName = thing.thingTypeName;
 
-{
-  "thingIds": ["t-001", "t-002", "t-003"],
-  "thingTypeNames": {
-    "t-001": "com.example.hvac.thermostat",
-    "t-002": "com.example.hvac.thermostat",
-    "t-003": "com.example.sensor.temp"
-  }
+  // 2. ThingType 缓存命中则直接用（同类型共享）
+  if (specCache.has(typeName)) return specCache.get(typeName);
+
+  // 3. 未命中 → 拉取 ThingType Schema 构建 DeviceSpec
+  const thingType = await fleetsApi.get(
+    `/api/v1/thing-types/${typeName}`
+  );
+  const spec = buildDeviceSpec(thingType);
+
+  // 4. 只缓存 thingType（DeviceSpec）模型，不保存设备列表
+  specCache.set(typeName, spec);
+  return spec;
 }
 
-// DA 内部处理：
-// 1. 调用 Fleets GET /thing-types/{name} 获取 Schema
-// 2. 生成每个设备的 DeviceSpec
-// 3. 订阅 $emqx/things/{name}/... MQTT 主题
-// 4. 将设备加入 DA 本地管理列表
-// 5. 返回导入结果
-
-{
-  "success": true,
-  "imported": [
-    { "thingId": "t-001", "status": "active" },
-    { "thingId": "t-002", "status": "active" }
-  ],
-  "failed": [
-    { "thingId": "t-003", "reason": "ThingType not found" }
-  ]
-}
-
-// 同时需要在 Fleets Thing 上标记
-// 以便 Fleets 知道设备已委托给 DA
-PATCH /api/v1/things/{id}
-{
-  "metadata": {
-    "managedByDa": "da-inst-001"
-  }
+// 交互时无需预先导入设备
+async function handleNlControl(input, thingId) {
+  const spec = await resolveDeviceSpec(thingId);
+  const cmd  = parseIntent(input, spec.commands);
+  await adapter.publishCommand(thingId, cmd.name, cmd.params);
 }</code></pre>
       </div>
       <div class="card">
-        <h3>📤 导出 API</h3>
-        <pre class="code"><code>POST /api/v1/da/devices/export
+        <h3>⏳ 规划功能：设备导入 / 导出 API</h3>
+        <div class="info orange" style="margin:0 0 8px">
+          <strong>规划中（默认不启用）：</strong> 未来可让 Fleets 主动管控 DA 的设备管理范围，
+          适用于需要 DA 预订阅设备、预热缓存或限定管理边界的场景。
+        </div>
+        <pre class="code"><code>// 【规划】POST /api/v1/da/devices/import
 // 调用方：Fleets → DA
-// 作用：让 DA 释放对设备的控制权
-
+// 作用：Fleets 主动把一批设备纳入 DA 管理范围
 {
-  "thingIds": ["t-001", "t-002"],
-  "reason": "maintenance" // 或 "reassign"
+  "thingIds": ["t-001", "t-002"]
+}
+// DA 预拉取 ThingType + 预订阅 $emqx/things/{name}/...
+
+// 【规划】POST /api/v1/da/devices/export
+// 作用：Fleets 通知 DA 释放设备（取消订阅 + 清缓存）
+{
+  "thingIds": ["t-001"],
+  "reason": "maintenance"
 }
 
-// DA 内部处理：
-// 1. 取消 $emqx/things/{name}/... 订阅
-// 2. 清除 DA 本地设备状态缓存
-// 3. 停止规则引擎对该设备的策略执行
-// 4. 返回导出确认
-
-{
-  "success": true,
-  "exported": ["t-001"],
-  "failed": [
-    { "thingId": "t-002",
-      "reason": "device not in DA list" }
-  ]
-}
-
-// 获取 DA 管理的设备列表
-GET /api/v1/da/devices
-// → DA 返回当前管理的所有设备
-
-// 查询单个设备在 DA 的状态
-GET /api/v1/da/devices/t-001
-// → { "thingId": "t-001", "status": "active",
-//     "capabilities": ["nl-control", "rules"], ... }</code></pre>
+// 说明：
+// - 默认模式无需导入 —— DA 按 thingId 懒加载即可控制设备
+// - 导入/导出仅用于"预热 / 范围管控"等增强场景
+// - 是否落地取决于后续实际运营需求</code></pre>
       </div>
     </div>
   </div>
@@ -1983,8 +1961,8 @@ GET /api/v1/da/devices/t-001
     <h2 class="section-title">🤖 DA 对 Fleets 已有设备的控制权</h2>
 
     <div class="info purple">
-      <strong>核心机制：</strong> 设备导入 DA 后，DA 通过 <code>$emqx/</code> MQTT 主题与设备通信，
-      <strong>不需要经过 Fleets API</strong>。DA 对设备的控制路径与 Fleets 完全独立，互不干扰。
+      <strong>核心机制：</strong> DA 按 <code>thingId</code> 拉取到设备的 thing metadata、提取其 thingType（DeviceSpec）后，即通过 <code>$emqx/</code> MQTT 主题与设备通信，
+      <strong>控制路径不经过 Fleets API</strong>，与 Fleets 完全独立、互不干扰。设备模型按需获取，无需预先导入。
     </div>
 
     <div class="mg">
@@ -2005,14 +1983,14 @@ GET /api/v1/da/devices/t-001
         • 设备查询与标签分组</p>
       </div>
       <div>
-        <h4>⚡ 委托控制 vs 直接控制</h4>
-        <p>Fleets 可以通过 API 将特定设备的控制权委托给 DA，也可以直接从 DA 收回。
-        委托后 DA 和 Fleets 都能控制设备 —— 两者通过 <strong>最后写入者语义</strong> 自然收敛。</p>
+        <h4>⚡ 按需获取模型</h4>
+        <p>DA 不维护设备列表，运行时用 <code>thingId</code> 向 Fleets 拉取 thing metadata，提取其 thingType 构建 DeviceSpec 并只缓存该模型。
+        DA 与 Fleets 都能控制设备 —— 两者通过 <strong>最后写入者语义</strong> 自然收敛。</p>
       </div>
       <div>
-        <h4>📋 设备委托标记</h4>
-        <p>每个 Thing 增加 <code>metadata.managedByDa</code> 字段。Fleets UI 可以展示已被 DA 管理的设备列表，
-        运维人员可以手动触发导入/导出操作。</p>
+        <h4>📋 设备范围管控（规划）</h4>
+        <p>默认无需标记。若启用规划中的导入/导出功能，可为 Thing 增加 <code>metadata.managedByDa</code> 字段，
+        由 Fleets UI 展示并手动管控 DA 的设备管理范围。</p>
       </div>
     </div>
 
@@ -2027,10 +2005,10 @@ GET /api/v1/da/devices/t-001
           <tr><td><code>PUT /api/v1/da/instances/{id}/heartbeat</code></td><td>DA → Fleets</td><td>DA 实例心跳</td></tr>
           <tr><td><code>GET /api/v1/da/instances</code></td><td>Fleets 内部</td><td>列出所有 DA 实例</td></tr>
           <tr><td><code>POST /api/v1/da/instances/{id}/start|stop|restart</code></td><td>Fleets 内部</td><td>控制 DA 进程生命周期</td></tr>
-          <tr><td><code>POST /api/v1/da/devices/import</code></td><td>Fleets → DA</td><td>导入设备到 DA 管理</td></tr>
-          <tr><td><code>POST /api/v1/da/devices/export</code></td><td>Fleets → DA</td><td>从 DA 导出/释放设备</td></tr>
-          <tr><td><code>GET /api/v1/da/devices</code></td><td>Fleets → DA</td><td>查询 DA 管理设备列表</td></tr>
-          <tr><td><code>GET /api/v1/da/devices/{id}</code></td><td>Fleets → DA</td><td>查询设备在 DA 的状态</td></tr>
+          <tr><td><code>GET /api/v1/things/{id}</code></td><td>DA → Fleets</td><td>按 thingId 拉取 thing metadata（默认）</td></tr>
+          <tr><td><code>GET /api/v1/thing-types/{name}</code></td><td>DA → Fleets</td><td>拉取 ThingType Schema 构建 DeviceSpec（默认）</td></tr>
+          <tr><td><code>POST /api/v1/da/devices/import</code></td><td>Fleets → DA</td><td><span class="tag tg-o">规划</span> 导入设备到 DA 管理范围</td></tr>
+          <tr><td><code>POST /api/v1/da/devices/export</code></td><td>Fleets → DA</td><td><span class="tag tg-o">规划</span> 从 DA 导出/释放设备</td></tr>
         </tbody>
       </table>
     </div>
