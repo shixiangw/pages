@@ -1,9 +1,14 @@
 {
-  "generatedAt": "2026-07-13T09:35:21.084Z",
+  "generatedAt": "2026-07-13T10:07:40.044Z",
   "tree": [
     {
       "path": "device-agent/device-agent-fleets-integration.html",
       "size": 124789,
+      "type": "blob"
+    },
+    {
+      "path": "device-agent/provider-runtime-architecture.html",
+      "size": 47257,
       "type": "blob"
     },
     {
