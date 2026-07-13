@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Filco 圣手二代键盘蓝牙连接指南</title>
+  <style>
+    :root {
+      --bg: #f9fafb;
+      --card-bg: #ffffff;
+      --text: #1f2328;
+      --text-secondary: #57606a;
+      --accent: #0d6efd;
+      --accent-light: #e7f1ff;
+      --accent-dark: #0a58ca;
+      --border: #e1e4e8;
+      --step-bg: #f0f4ff;
+      --step-number-bg: #0d6efd;
+      --step-number-text: #fff;
+      --success: #2da44e;
+      --warning-bg: #fff8e5;
+      --warning-border: #ffd33d;
+      --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
+      --shadow-lg: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    @media (prefers-reduced-motion: no-preference) {
+      html { scroll-behavior: smooth; }
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.7;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* Hero */
+    .hero {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      color: #fff;
+      padding: 60px 24px 50px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle at 30% 70%, rgba(13,110,253,0.1) 0%, transparent 50%),
+                  radial-gradient(circle at 70% 30%, rgba(13,110,253,0.08) 0%, transparent 50%);
+      animation: heroGlow 12s ease-in-out infinite alternate;
+    }
+
+    @keyframes heroGlow {
+      0% { transform: translate(0, 0); }
+      100% { transform: translate(-5%, -5%); }
+    }
+
+    .hero-content {
+      position: relative;
+      z-index: 1;
+      max-width: 700px;
+      margin: 0 auto;
+    }
+
+    .hero-icon {
+      font-size: 56px;
+      margin-bottom: 16px;
+      display: block;
+      line-height: 1;
+    }
+
+    .hero h1 {
+      font-size: 32px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+
+    .hero p {
+      font-size: 16px;
+      color: rgba(255,255,255,0.75);
+      margin-top: 8px;
+    }
+
+    .hero-badge {
+      display: inline-block;
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 20px;
+      padding: 4px 16px;
+      font-size: 13px;
+      color: rgba(255,255,255,0.85);
+      margin-top: 16px;
+    }
+
+    /* Container */
+    .container {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 40px 24px 60px;
+    }
+
+    /* Section header */
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 32px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid var(--border);
+    }
+
+    .section-header h2 {
+      font-size: 22px;
+      font-weight: 600;
+    }
+
+    .section-header .badge {
+      background: var(--accent-light);
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 500;
+      padding: 2px 10px;
+      border-radius: 12px;
+    }
+
+    /* Steps */
+    .steps {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .step-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px 24px 24px 64px;
+      position: relative;
+      box-shadow: var(--shadow);
+      transition: box-shadow 0.2s, transform 0.2s;
+    }
+
+    .step-card:hover {
+      box-shadow: var(--shadow-lg);
+      transform: translateY(-1px);
+    }
+
+    .step-number {
+      position: absolute;
+      left: 20px;
+      top: 24px;
+      width: 30px;
+      height: 30px;
+      background: var(--step-number-bg);
+      color: var(--step-number-text);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .step-card h3 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .step-card p {
+      color: var(--text-secondary);
+      font-size: 15px;
+      line-height: 1.7;
+    }
+
+    .step-card kbd {
+      display: inline-block;
+      background: #f0f2f5;
+      border: 1px solid #d0d7de;
+      border-radius: 4px;
+      padding: 2px 7px;
+      font-family: "SF Mono", "Fira Code", "Consolas", monospace;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+      vertical-align: middle;
+      box-shadow: 0 1px 0 #d0d7de;
+    }
+
+    /* Tips */
+    .tip-block {
+      margin-top: 12px;
+      background: var(--accent-light);
+      border-left: 4px solid var(--accent);
+      border-radius: 0 8px 8px 0;
+      padding: 12px 16px;
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+
+    .tip-block strong {
+      color: var(--accent-dark);
+    }
+
+    .warning-block {
+      margin-top: 12px;
+      background: var(--warning-bg);
+      border-left: 4px solid var(--warning-border);
+      border-radius: 0 8px 8px 0;
+      padding: 12px 16px;
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+
+    .warning-block strong {
+      color: #9a6700;
+    }
+
+    .warning-block::before {
+      content: '💡 ';
+    }
+
+    /* References */
+    .references {
+      margin-top: 40px;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px 28px;
+      box-shadow: var(--shadow);
+    }
+
+    .references h3 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: var(--text);
+    }
+
+    .references ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    .references li {
+      margin-bottom: 8px;
+    }
+
+    .references li:last-child {
+      margin-bottom: 0;
+    }
+
+    .references a {
+      color: var(--accent);
+      text-decoration: none;
+      font-size: 14px;
+      word-break: break-all;
+    }
+
+    .references a:hover {
+      text-decoration: underline;
+    }
+
+    /* Footer */
+    .footer {
+      text-align: center;
+      padding: 32px 24px;
+      color: var(--text-secondary);
+      font-size: 13px;
+      border-top: 1px solid var(--border);
+      max-width: 760px;
+      margin: 0 auto;
+    }
+
+    /* Responsive */
+    @media (max-width: 600px) {
+      .hero { padding: 40px 20px 36px; }
+      .hero h1 { font-size: 24px; }
+      .hero-icon { font-size: 44px; }
+      .container { padding: 24px 16px 40px; }
+      .step-card { padding: 20px 20px 20px 56px; }
+      .step-number { left: 16px; top: 20px; width: 26px; height: 26px; font-size: 13px; }
+      .references { padding: 20px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Hero -->
+  <header class="hero">
+    <div class="hero-content">
+      <span class="hero-icon">⌨️</span>
+      <h1>Filco 圣手二代键盘</h1>
+      <p>蓝牙连接完整指南 · 支持最多 4 台设备配对</p>
+      <span class="hero-badge">Filco Majestouch 2 Bluetooth Edition</span>
+    </div>
+  </header>
+
+  <!-- Content -->
+  <div class="container">
+
+    <!-- Steps section -->
+    <div class="section-header">
+      <h2>连接步骤</h2>
+      <span class="badge">共 6 步</span>
+    </div>
+
+    <div class="steps">
+
+      <!-- Step 1 -->
+      <div class="step-card">
+        <span class="step-number">1</span>
+        <h3>开启电源</h3>
+        <p>将键盘正面的电源开关拨至「开」的位置。</p>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="step-card">
+        <span class="step-number">2</span>
+        <h3>进入配对模式</h3>
+        <p>同时按下 <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>Fn</kbd>，蓝灯和红灯会同时亮起，随后蓝灯开始闪烁，表示键盘已进入配对模式。</p>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="step-card">
+        <span class="step-number">3</span>
+        <h3>选择配对槽位</h3>
+        <p>按下小键盘数字键 <kbd>1</kbd> ~ <kbd>4</kbd> 中的一个（键盘最多可同时连接 4 台设备，每个数字对应一个设备槽位）。</p>
+        <div class="tip-block">
+          <strong>提示：</strong> 如果所选数字之前绑定过其他设备，可在第 2 步完成后先长按「清除按钮」（位于蓝灯和红灯右侧）约 2 秒，清除该槽位的旧配对记录，再选择新的数字。
+        </div>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="step-card">
+        <span class="step-number">4</span>
+        <h3>搜索蓝牙设备</h3>
+        <p>在要连接的设备（如电脑、手机、平板）上，打开蓝牙设置并搜索附近的蓝牙设备。</p>
+      </div>
+
+      <!-- Step 5 -->
+      <div class="step-card">
+        <span class="step-number">5</span>
+        <h3>选择键盘并配对</h3>
+        <p>搜索列表中会出现该键盘的蓝牙名称，点击连接，系统将显示 4 位或 6 位的配对码。</p>
+      </div>
+
+      <!-- Step 6 -->
+      <div class="step-card">
+        <span class="step-number">6</span>
+        <h3>输入配对码</h3>
+        <p>在小键盘上直接输入配对码，然后按 <kbd>⏎ 回车</kbd> 键确认。</p>
+        <div class="warning-block">
+          <strong>注意：</strong> 输入配对码时电脑屏幕不会显示输入内容，这是正常现象，放心输入即可，按下回车后便会连接成功。
+        </div>
+      </div>
+
+    </div>
+
+    <!-- References -->
+    <div class="references">
+      <h3>📎 参考链接</h3>
+      <ul>
+        <li><a href="https://www.e-learn.cn/content/qita/2629935" target="_blank" rel="noopener">https://www.e-learn.cn/content/qita/2629935</a></li>
+        <li><a href="https://www.gaojinan.com/filco-87-bluetooth.html" target="_blank" rel="noopener">https://www.gaojinan.com/filco-87-bluetooth.html</a></li>
+      </ul>
+    </div>
+
+  </div>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <p>基于 Obsidian 笔记优化生成 · 排版与内容仅供参考</p>
+  </footer>
+
+</body>
+</html>

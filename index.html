@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>pages — 文件索引</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --border: #e2e8f0;
+      --text: #1e293b;
+      --text-dim: #64748b;
+      --text-faint: #94a3b8;
+      --primary: #2563eb;
+      --primary-bg: #eff6ff;
+      --folder: #d97706;
+      --folder-bg: #fffbeb;
+      --html-tag: #db2777;
+      --html-tag-bg: #fdf2f8;
+      --md-tag: #0891b2;
+      --md-tag-bg: #ecfeff;
+      --hover: #f1f5f9;
+      --radius: 10px;
+      --shadow: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans SC", sans-serif;
+      --mono: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-size: 15px; }
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      padding: 2rem 1rem;
+    }
+    .container {
+      width: 100%;
+      max-width: 820px;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    /* ─── Header ─── */
+    header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: .5rem;
+    }
+    header h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: -.01em;
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+    }
+    header h1 .repo {
+      color: var(--text-dim);
+      font-weight: 500;
+    }
+    .stats-badge {
+      font-size: .82rem;
+      color: var(--text-dim);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: .25rem .75rem;
+      white-space: nowrap;
+    }
+
+    /* ─── Tabs ─── */
+    .tabs {
+      display: flex;
+      gap: .35rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: .3rem;
+    }
+    .tab {
+      flex: 1;
+      padding: .5rem .75rem;
+      border-radius: 7px;
+      border: none;
+      background: transparent;
+      font-size: .88rem;
+      font-family: var(--font);
+      color: var(--text-dim);
+      cursor: pointer;
+      transition: all .15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: .35rem;
+      white-space: nowrap;
+    }
+    .tab:hover { color: var(--text); background: var(--hover); }
+    .tab.active {
+      background: var(--primary-bg);
+      color: var(--primary);
+      font-weight: 600;
+      box-shadow: 0 1px 2px rgba(37,99,235,.12);
+    }
+    .tab .count {
+      font-size: .72rem;
+      font-weight: 500;
+      opacity: .7;
+    }
+
+    /* ─── Search ─── */
+    .search-wrap {
+      position: relative;
+    }
+    .search-wrap .icon {
+      position: absolute;
+      left: .9rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-faint);
+      font-size: 1rem;
+      pointer-events: none;
+    }
+    .search-wrap input {
+      width: 100%;
+      padding: .65rem .9rem .65rem 2.5rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: .92rem;
+      font-family: var(--font);
+      background: var(--surface);
+      color: var(--text);
+      outline: none;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .search-wrap input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(37,99,235,.1);
+    }
+    .search-wrap .clear {
+      position: absolute;
+      right: .75rem;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: var(--text-faint);
+      cursor: pointer;
+      font-size: 1.1rem;
+      padding: .2rem .35rem;
+      border-radius: 4px;
+      display: none;
+    }
+    .search-wrap .clear.visible { display: block; }
+    .search-wrap .clear:hover { color: var(--text); background: var(--hover); }
+
+    /* ─── Tree container ─── */
+    .tree-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .tree-header {
+      padding: .65rem 1rem;
+      border-bottom: 1px solid var(--border);
+      font-size: .82rem;
+      color: var(--text-dim);
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .tree-root {
+      list-style: none;
+      padding: .35rem 0;
+      max-height: 70vh;
+      overflow-y: auto;
+    }
+
+    /* ─── Tree rows ─── */
+    .tree-row {
+      display: flex;
+      align-items: center;
+      padding: .38rem .75rem;
+      gap: .4rem;
+      text-decoration: none;
+      color: var(--text);
+      font-size: .88rem;
+      cursor: pointer;
+      user-select: none;
+      transition: background .1s;
+      border-left: 3px solid transparent;
+    }
+    .tree-row:hover { background: var(--hover); }
+    .file-row:hover { border-left-color: var(--primary); }
+
+    .toggle {
+      width: 18px;
+      height: 18px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: .65rem;
+      flex-shrink: 0;
+      color: var(--text-faint);
+      transition: transform .15s;
+    }
+    .folder.expanded > .folder-row .toggle { transform: rotate(90deg); }
+
+    .row-icon {
+      width: 20px;
+      text-align: center;
+      flex-shrink: 0;
+      font-size: .95rem;
+    }
+    .row-name {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .folder-row .row-name { font-weight: 600; color: var(--folder); }
+    .row-meta {
+      font-size: .75rem;
+      color: var(--text-faint);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .row-tag {
+      font-size: .68rem;
+      font-weight: 600;
+      padding: .1rem .45rem;
+      border-radius: 4px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .row-tag.html { background: var(--html-tag-bg); color: var(--html-tag); }
+    .row-tag.md   { background: var(--md-tag-bg);   color: var(--md-tag); }
+    .row-size {
+      font-size: .75rem;
+      color: var(--text-faint);
+      font-family: var(--mono);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .row-ext {
+      font-size: .7rem;
+      color: var(--text-faint);
+      flex-shrink: 0;
+      transition: opacity .15s;
+      opacity: 0;
+    }
+    .tree-row:hover .row-ext { opacity: .6; }
+
+    /* ─── Nested children ─── */
+    .tree-children {
+      list-style: none;
+      overflow: hidden;
+      transition: max-height .25s ease;
+    }
+    .folder.collapsed > .tree-children { max-height: 0 !important; }
+
+    /* depth indentation */
+    .tree-row                { padding-left: .75rem; }
+    .tree-children .tree-row { padding-left: 2rem; }
+    .tree-children .tree-children .tree-row { padding-left: 3.25rem; }
+    .tree-children .tree-children .tree-children .tree-row { padding-left: 4.5rem; }
+
+    /* ─── States ─── */
+    .state-wrap {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: var(--text-dim);
+    }
+    .state-wrap .spinner {
+      width: 28px;
+      height: 28px;
+      border: 2.5px solid var(--border);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      margin: 0 auto .75rem;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .state-wrap.error { color: #dc2626; }
+    .hidden { display: none !important; }
+
+    /* ─── Match highlight ─── */
+    mark.tree-match {
+      background: #fef08a;
+      color: inherit;
+      border-radius: 2px;
+      padding: 0 1px;
+    }
+
+    /* ─── Footer ─── */
+    footer {
+      text-align: center;
+      font-size: .78rem;
+      color: var(--text-faint);
+      padding: .5rem 0;
+    }
+    footer a {
+      color: var(--primary);
+      text-decoration: none;
+    }
+    footer a:hover { text-decoration: underline; }
+
+    /* ─── Responsive ─── */
+    @media (max-width: 500px) {
+      body { padding: 1rem .5rem; }
+      .tabs { flex-wrap: wrap; }
+      .tab { flex: 0 0 auto; font-size: .82rem; padding: .4rem .55rem; }
+      .row-tag, .row-size { display: none; }
+      .tree-card { border-radius: 8px; }
+      .tree-root { max-height: 55vh; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <!-- ── Header ── -->
+    <header>
+      <h1>
+        <span>📂</span>
+        <span>shixiangw<span class="repo">/pages</span></span>
+      </h1>
+      <span class="stats-badge" id="statsBadge">加载中…</span>
+    </header>
+
+    <!-- ── Tabs ── -->
+    <nav class="tabs" id="tabs">
+      <button class="tab active" data-filter="all">
+        全部 <span class="count" id="countAll"></span>
+      </button>
+      <button class="tab" data-filter="html">
+        🌐 HTML <span class="count" id="countHtml"></span>
+      </button>
+      <button class="tab" data-filter="md">
+        📝 Markdown <span class="count" id="countMd"></span>
+      </button>
+    </nav>
+
+    <!-- ── Search ── -->
+    <div class="search-wrap">
+      <span class="icon">🔍</span>
+      <input type="text" id="searchInput" placeholder="搜索文件…" autocomplete="off">
+      <button class="clear" id="clearBtn" title="清除">✕</button>
+    </div>
+
+    <!-- ── Tree ── -->
+    <div class="tree-card">
+      <div class="tree-header" id="treeHeader">
+        <span id="headerInfo">加载中…</span>
+      </div>
+
+      <!-- Loading -->
+      <div class="state-wrap" id="loadingState">
+        <div class="spinner"></div>
+        <p>正在加载文件清单…</p>
+      </div>
+
+      <!-- Error -->
+      <div class="state-wrap hidden error" id="errorState">
+        <p id="errorMsg"></p>
+      </div>
+
+      <!-- Empty -->
+      <div class="state-wrap hidden" id="emptyState">
+        <p>没有找到匹配的文件</p>
+      </div>
+
+      <!-- Tree content -->
+      <div class="hidden" id="treeContent">
+        <ul class="tree-root" id="treeRoot"></ul>
+      </div>
+    </div>
+
+    <!-- ── Footer ── -->
+    <footer>
+      <span>由预生成清单 <a href="https://github.com/shixiangw/pages" target="_blank" rel="noopener">filelist.json</a> 渲染</span>
+      <span style="margin:0 .4rem">·</span>
+      <span id="footerTime"></span>
+      <span style="margin:0 .4rem">·</span>
+      <span>GitHub Action 每次 push 自动刷新</span>
+    </footer>
+  </div>
+
+  <script>
+    (function() {
+      const $ = (s) => document.querySelector(s);
+      const $$ = (s) => document.querySelectorAll(s);
+
+      const elTabs      = $('#tabs');
+      const elSearch    = $('#searchInput');
+      const elClear     = $('#clearBtn');
+      const elTreeRoot  = $('#treeRoot');
+      const elTreeContent = $('#treeContent');
+      const elLoading   = $('#loadingState');
+      const elError     = $('#errorState');
+      const elErrorMsg  = $('#errorMsg');
+      const elEmpty     = $('#emptyState');
+      const elHeader    = $('#headerInfo');
+      const elStats     = $('#statsBadge');
+      const elFooterTime = $('#footerTime');
+      const elCountAll  = $('#countAll');
+      const elCountHtml = $('#countHtml');
+      const elCountMd   = $('#countMd');
+
+      let allFiles  = [];
+      let htmlFiles = [];
+      let mdFiles   = [];
+      let activeFilter = 'all';   // 'all' | 'html' | 'md'
+      let searchQuery  = '';
+
+      /* ─── helpers ─── */
+      function getExt(name) {
+        const i = name.lastIndexOf('.');
+        return i === -1 ? '' : name.slice(i).toLowerCase();
+      }
+      function formatSize(b) {
+        if (b == null) return '';
+        if (b < 1024) return b + ' B';
+        if (b < 1024 * 1024) return (b / 1024).toFixed(1) + ' KB';
+        return (b / (1024 * 1024)).toFixed(1) + ' MB';
+      }
+      function escapeHtml(s) {
+        const d = document.createElement('div');
+        d.textContent = s;
+        return d.innerHTML;
+      }
+
+      /* ─── build tree ─── */
+      function buildTree(files) {
+        const root = { children: {}, files: [] };
+        for (const f of files) {
+          const parts = f.path.split('/');
+          let node = root;
+          for (let i = 0; i < parts.length - 1; i++) {
+            if (!node.children[parts[i]]) {
+              node.children[parts[i]] = { children: {}, files: [] };
+            }
+            node = node.children[parts[i]];
+          }
+          node.files.push({
+            name: parts[parts.length - 1],
+            path: f.path,
+            size: f.size,
+          });
+        }
+        return root;
+      }
+
+      /* ─── render ─── */
+      function renderTree(node, depth, parentUl) {
+        // Collect entries at this level
+        const folders = [];
+        const files   = [];
+
+        for (const [name, child] of Object.entries(node.children)) {
+          // Check if this folder contains any file matching current filters
+          if (!folderHasVisible(child)) continue;
+          folders.push({ name, node: child });
+        }
+        folders.sort((a,b) => a.name.localeCompare(b.name));
+
+        for (const f of node.files) {
+          if (!fileMatchesFilter(f)) continue;
+          if (searchQuery && !f.path.toLowerCase().includes(searchQuery)) continue;
+          files.push(f);
+        }
+        files.sort((a,b) => a.name.localeCompare(b.name));
+
+        if (folders.length === 0 && files.length === 0) return;
+
+        for (const folder of folders) {
+          const li       = document.createElement('li');
+          li.className   = 'folder expanded';
+          li.dataset.fpath = folder.name;
+
+          const row = document.createElement('div');
+          row.className = 'tree-row folder-row';
+          row.innerHTML = `
+            <span class="toggle">▶</span>
+            <span class="row-icon">📁</span>
+            <span class="row-name">${escapeHtml(folder.name)}/</span>
+            <span class="row-meta">${countVisible(folder.node)} 项</span>
+          `;
+          row.addEventListener('click', (e) => {
+            e.stopPropagation();
+            li.classList.toggle('expanded');
+            li.classList.toggle('collapsed');
+            // Update max-height for animation
+            const children = li.querySelector(':scope > .tree-children');
+            if (children) {
+              if (li.classList.contains('expanded')) {
+                children.style.maxHeight = children.scrollHeight + 'px';
+              } else {
+                children.style.maxHeight = '0px';
+              }
+            }
+          });
+
+          const childrenUl = document.createElement('ul');
+          childrenUl.className = 'tree-children';
+
+          li.appendChild(row);
+          li.appendChild(childrenUl);
+          parentUl.appendChild(li);
+
+          renderTree(folder.node, depth + 1, childrenUl);
+
+          // Set initial max-height after children are rendered
+          requestAnimationFrame(() => {
+            childrenUl.style.maxHeight = childrenUl.scrollHeight + 'px';
+          });
+        }
+
+        for (const f of files) {
+          const li     = document.createElement('li');
+          li.className = 'file';
+          li.dataset.fpath = f.path;
+
+          const ext = getExt(f.name);
+          const isHtml = ext === '.html' || ext === '.htm';
+          const isMd   = ext === '.md'   || ext === '.markdown';
+          const href  = isHtml
+            ? `./${f.path}`
+            : `./viewer.html?path=${encodeURIComponent(f.path)}`;
+
+          const a = document.createElement('a');
+          a.className = 'tree-row file-row';
+          a.href      = href;
+          a.target    = '_blank';
+          a.rel       = 'noopener';
+
+          const tagHtml = isHtml ? '<span class="row-tag html">.html</span>' : '';
+          const tagMd   = isMd   ? '<span class="row-tag md">.md</span>'     : '';
+
+          a.innerHTML = `
+            <span class="toggle"></span>
+            <span class="row-icon">${isHtml ? '🌐' : '📝'}</span>
+            <span class="row-name">${highlightMatch(escapeHtml(f.name))}</span>
+            ${tagHtml}${tagMd}
+            <span class="row-size">${formatSize(f.size)}</span>
+            <span class="row-ext">▸</span>
+          `;
+          li.appendChild(a);
+          parentUl.appendChild(li);
+        }
+      }
+
+      /* ─── helpers for filter ─── */
+      function fileMatchesFilter(f) {
+        const ext = getExt(f.name);
+        const isHtml = ext === '.html' || ext === '.htm';
+        const isMd = ext === '.md' || ext === '.markdown';
+        if (activeFilter === 'html') return isHtml;
+        if (activeFilter === 'md')   return isMd;
+        return isHtml || isMd;
+      }
+
+      function folderHasVisible(node) {
+        // Check recursively
+        for (const f of node.files) {
+          if (fileMatchesFilter(f) && (!searchQuery || f.path.toLowerCase().includes(searchQuery))) return true;
+        }
+        for (const child of Object.values(node.children)) {
+          if (folderHasVisible(child)) return true;
+        }
+        return false;
+      }
+
+      function countVisible(node) {
+        let n = 0;
+        for (const f of node.files) {
+          if (fileMatchesFilter(f)) n++;
+        }
+        for (const child of Object.values(node.children)) {
+          n += countVisible(child);
+        }
+        return n;
+      }
+
+      function countFiles(filter) {
+        if (filter === 'html') return htmlFiles.length;
+        if (filter === 'md')   return mdFiles.length;
+        return htmlFiles.length + mdFiles.length;
+      }
+
+      /* ─── match highlight ─── */
+      function highlightMatch(text) {
+        if (!searchQuery) return text;
+        const q = searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const re = new RegExp(`(${q})`, 'gi');
+        return text.replace(re, '<mark class="tree-match">$1</mark>');
+      }
+
+      /* ─── re-render ─── */
+      function refresh() {
+        elTreeRoot.innerHTML = '';
+        const root = buildTree(allFiles);
+        renderTree(root, 0, elTreeRoot);
+
+        // Show/hide empty state
+        const hasContent = elTreeRoot.children.length > 0;
+        if (!hasContent) {
+          showState('empty');
+        } else {
+          showState('tree');
+        }
+
+        // Update header
+        const total = allFiles.filter(f => fileMatchesFilter(f) && (!searchQuery || f.path.toLowerCase().includes(searchQuery))).length;
+        elHeader.textContent = searchQuery
+          ? `匹配到 ${total} 个文件 · ${countVisible(root)} 个目录`
+          : `共 ${elTreeRoot.querySelectorAll('.file').length} 个文件 · ${Object.keys(root.children).length} 个目录`;
+      }
+
+      /* ─── state helpers ─── */
+      function showState(which) {
+        // which: 'loading' | 'error' | 'empty' | 'tree'
+        elLoading.classList.toggle('hidden', which !== 'loading');
+        elError.classList.toggle('hidden',   which !== 'error');
+        elEmpty.classList.toggle('hidden',   which !== 'empty');
+        elTreeContent.classList.toggle('hidden', which !== 'tree');
+      }
+
+      /* ─── fetch data ─── */
+      async function init() {
+        showState('loading');
+
+        try {
+          const res = await fetch('./filelist.json', { cache: 'no-cache' });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const data = await res.json();
+          if (!data.tree || !Array.isArray(data.tree)) throw new Error('数据结构异常');
+
+          allFiles = data.tree;
+          htmlFiles = allFiles.filter(f => {
+            const e = getExt(f.path);
+            return e === '.html' || e === '.htm';
+          });
+          mdFiles = allFiles.filter(f => {
+            const e = getExt(f.path);
+            return e === '.md' || e === '.markdown';
+          });
+
+          // Update counts
+          elCountAll.textContent  = `(${htmlFiles.length + mdFiles.length})`;
+          elCountHtml.textContent = `(${htmlFiles.length})`;
+          elCountMd.textContent   = `(${mdFiles.length})`;
+          elStats.textContent = `📄 ${htmlFiles.length + mdFiles.length} 个文件`;
+
+          // Footer time
+          if (data.generatedAt) {
+            const d = new Date(data.generatedAt);
+            elFooterTime.textContent = `清单生成于 ${d.toLocaleString('zh-CN')}`;
+          }
+
+          // Render — 强制隐藏所有非 tree 状态，确保不会残留 error/loading
+          showState('tree');
+          refresh();
+
+        } catch (err) {
+          console.error(err);
+          showState('error');
+          elErrorMsg.textContent = '无法加载 filelist.json（' + err.message + '）。请确认已运行 `node generate-filelist.js` 并重新部署。';
+          elStats.textContent = '加载失败';
+        }
+      }
+
+      /* ─── event handlers ─── */
+
+      // Tabs
+      elTabs.addEventListener('click', (e) => {
+        const tab = e.target.closest('.tab');
+        if (!tab) return;
+        elTabs.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        activeFilter = tab.dataset.filter;
+        refresh();
+      });
+
+      // Search
+      let searchTimer;
+      elSearch.addEventListener('input', () => {
+        clearTimeout(searchTimer);
+        elClear.classList.toggle('visible', elSearch.value.length > 0);
+        searchTimer = setTimeout(() => {
+          searchQuery = elSearch.value.trim().toLowerCase();
+          refresh();
+        }, 150);
+      });
+
+      // Clear button
+      elClear.addEventListener('click', () => {
+        elSearch.value = '';
+        elClear.classList.remove('visible');
+        searchQuery = '';
+        refresh();
+        elSearch.focus();
+      });
+
+      // Keyboard shortcut: / to focus search
+      document.addEventListener('keydown', (e) => {
+        if (e.key === '/' && document.activeElement !== elSearch) {
+          e.preventDefault();
+          elSearch.focus();
+        }
+        if (e.key === 'Escape' && document.activeElement === elSearch) {
+          elSearch.value = '';
+          elClear.classList.remove('visible');
+          searchQuery = '';
+          refresh();
+          elSearch.blur();
+        }
+      });
+
+      // Go
+      init();
+    })();
+  </script>
+</body>
+</html>

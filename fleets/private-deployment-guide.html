@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fleets 私有化部署方案</title>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  <style>
+    /* ─── Reset & Base ─── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --sidebar-w: 280px;
+      --topbar-h: 56px;
+      --accent: #0066cc;
+      --accent-light: #e8f2ff;
+      --bg: #f6f8fb;
+      --surface: #ffffff;
+      --border: #e2e8f0;
+      --text: #1e293b;
+      --text-muted: #64748b;
+      --code-bg: #f1f5f9;
+      --radius: 8px;
+      --shadow: 0 1px 4px rgba(0,0,0,.08), 0 4px 16px rgba(0,0,0,.06);
+    }
+    html { font-size: 15px; scroll-behavior: smooth; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+           background: var(--bg); color: var(--text); line-height: 1.7; }
+
+    /* ─── Top Bar ─── */
+    .topbar {
+      position: fixed; top: 0; left: 0; right: 0; height: var(--topbar-h);
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; padding: 0 24px; z-index: 100;
+      box-shadow: 0 1px 3px rgba(0,0,0,.06);
+    }
+    .topbar-logo {
+      display: flex; align-items: center; gap: 10px; font-weight: 700;
+      font-size: 1.05rem; color: var(--accent); text-decoration: none;
+    }
+    .topbar-logo svg { width: 28px; height: 28px; }
+    .topbar-badge {
+      margin-left: 12px; font-size: .72rem; font-weight: 600;
+      background: var(--accent-light); color: var(--accent);
+      padding: 2px 8px; border-radius: 20px;
+    }
+    .topbar-meta {
+      margin-left: auto; font-size: .78rem; color: var(--text-muted);
+      display: flex; align-items: center; gap: 16px;
+    }
+    .topbar-meta span { display: flex; align-items: center; gap: 4px; }
+    .menu-toggle {
+      display: none; background: none; border: none; cursor: pointer;
+      color: var(--text); margin-left: auto; padding: 6px;
+    }
+
+    /* ─── Layout ─── */
+    .layout { display: flex; padding-top: var(--topbar-h); min-height: 100vh; }
+
+    /* ─── Sidebar ─── */
+    .sidebar {
+      width: var(--sidebar-w); flex-shrink: 0;
+      position: fixed; top: var(--topbar-h); bottom: 0; left: 0;
+      overflow-y: auto; background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 20px 0;
+      transition: transform .25s ease;
+    }
+    .sidebar-section { padding: 0 16px 8px; }
+    .sidebar-section-title {
+      font-size: .68rem; font-weight: 700; letter-spacing: .08em;
+      text-transform: uppercase; color: var(--text-muted);
+      margin-bottom: 6px; padding: 0 8px;
+    }
+    .toc-list { list-style: none; }
+    .toc-item a {
+      display: block; padding: 5px 8px; border-radius: 5px;
+      font-size: .82rem; color: var(--text-muted); text-decoration: none;
+      transition: all .15s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .toc-item a:hover { background: var(--accent-light); color: var(--accent); }
+    .toc-item.active a { background: var(--accent-light); color: var(--accent); font-weight: 600; }
+    .toc-item.h2 a { padding-left: 8px; font-weight: 600; color: var(--text); }
+    .toc-item.h3 a { padding-left: 20px; font-size: .79rem; }
+    .toc-item.h4 a { padding-left: 34px; font-size: .76rem; }
+
+    /* ─── Main Content ─── */
+    .main {
+      margin-left: var(--sidebar-w); flex: 1;
+      padding: 40px 48px 80px;
+      max-width: calc(var(--sidebar-w) + 860px);
+    }
+    .content-wrap {
+      background: var(--surface); border-radius: var(--radius);
+      padding: 48px 56px; box-shadow: var(--shadow);
+    }
+
+    /* ─── Markdown Styles ─── */
+    .content h1 { font-size: 1.9rem; font-weight: 800; color: #0f172a; border-bottom: 2px solid var(--border); padding-bottom: 12px; margin: 0 0 28px; }
+    .content h2 { font-size: 1.35rem; font-weight: 700; color: #1e293b; margin: 48px 0 16px; padding: 10px 16px; background: linear-gradient(90deg,#e8f2ff,transparent); border-left: 4px solid var(--accent); border-radius: 0 6px 6px 0; }
+    .content h3 { font-size: 1.05rem; font-weight: 700; color: #334155; margin: 32px 0 12px; }
+    .content h4 { font-size: .95rem; font-weight: 700; color: #475569; margin: 24px 0 10px; }
+    .content p { margin-bottom: 14px; }
+    .content ul, .content ol { margin: 12px 0 14px 24px; }
+    .content li { margin-bottom: 5px; }
+    .content a { color: var(--accent); text-decoration: none; border-bottom: 1px solid transparent; transition: border-color .15s; }
+    .content a:hover { border-color: var(--accent); }
+
+    /* Blockquote */
+    .content blockquote {
+      border-left: 4px solid #94a3b8; background: #f8fafc;
+      padding: 12px 18px; margin: 16px 0; border-radius: 0 6px 6px 0;
+      color: #475569; font-size: .9rem;
+    }
+    .content blockquote p { margin: 0; }
+
+    /* Code */
+    .content code {
+      font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+      font-size: .84rem; background: var(--code-bg); padding: 2px 6px;
+      border-radius: 4px; color: #c7254e;
+    }
+    .content pre {
+      background: #1e293b; border-radius: 10px; padding: 20px 24px;
+      overflow-x: auto; margin: 18px 0; box-shadow: 0 2px 8px rgba(0,0,0,.15);
+    }
+    .content pre code {
+      background: none; color: #e2e8f0; padding: 0; border-radius: 0;
+      font-size: .83rem; line-height: 1.65;
+    }
+    /* override hljs background */
+    .content pre .hljs { background: transparent; }
+
+    /* Tables */
+    .content table {
+      width: 100%; border-collapse: collapse; margin: 20px 0;
+      font-size: .85rem; border-radius: var(--radius); overflow: hidden;
+      box-shadow: 0 1px 4px rgba(0,0,0,.06);
+    }
+    .content thead { background: var(--accent); color: #fff; }
+    .content thead th { padding: 10px 14px; font-weight: 600; text-align: left; }
+    .content tbody tr { border-bottom: 1px solid var(--border); }
+    .content tbody tr:nth-child(even) { background: #f8fafc; }
+    .content tbody tr:hover { background: var(--accent-light); }
+    .content td { padding: 8px 14px; vertical-align: top; }
+    /* Centered columns */
+    .content td:nth-child(3), .content td:nth-child(4) { text-align: center; }
+
+    /* Hr */
+    .content hr { border: none; border-top: 2px solid var(--border); margin: 40px 0; }
+
+    /* Status badges */
+    .content td:contains("✅"), .content td:contains("🟢") { color: #16a34a; }
+    .content td:contains("⚠️"), .content td:contains("🟡") { color: #d97706; }
+    .content td:contains("❌"), .content td:contains("🔴") { color: #dc2626; }
+
+    /* ─── Progress Sidebar Stats ─── */
+    .stats-bar {
+      margin: 0 16px 16px; padding: 14px 16px;
+      background: var(--accent-light); border-radius: var(--radius);
+      border: 1px solid #bcd4f8;
+    }
+    .stats-bar-title { font-size: .72rem; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 10px; }
+    .stat-item { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-size: .78rem; }
+    .stat-label { color: var(--text-muted); }
+    .stat-val { font-weight: 700; color: var(--text); }
+    .scale-badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px 3px 3px; border-radius: 20px; font-size: .72rem; font-weight: 700; }
+    .scale-s { background: #dcfce7; color: #16a34a; }
+    .scale-m { background: #fef3c7; color: #d97706; }
+    .scale-l { background: #fee2e2; color: #dc2626; }
+    .scale-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+    .scale-s .scale-dot { background: #16a34a; }
+    .scale-m .scale-dot { background: #d97706; }
+    .scale-l .scale-dot { background: #dc2626; }
+
+    /* ─── Back to Top ─── */
+    #backToTop {
+      position: fixed; right: 28px; bottom: 32px; width: 42px; height: 42px;
+      background: var(--accent); color: #fff; border: none; border-radius: 50%;
+      cursor: pointer; display: none; align-items: center; justify-content: center;
+      box-shadow: 0 4px 12px rgba(0,102,204,.4); font-size: 1.1rem;
+      transition: opacity .2s, transform .2s; z-index: 200;
+    }
+    #backToTop:hover { transform: translateY(-2px); }
+
+    /* ─── Responsive ─── */
+    @media (max-width: 900px) {
+      .sidebar { transform: translateX(-100%); z-index: 99; }
+      .sidebar.open { transform: translateX(0); }
+      .main { margin-left: 0; padding: 24px 20px 60px; }
+      .content-wrap { padding: 28px 20px; }
+      .menu-toggle { display: block; }
+      .topbar-meta { display: none; }
+    }
+    @media (max-width: 600px) {
+      .content h1 { font-size: 1.5rem; }
+      .content h2 { font-size: 1.15rem; }
+      .content pre { padding: 14px 16px; }
+      .content table { font-size: .78rem; }
+    }
+
+    /* Sidebar overlay */
+    .sidebar-overlay {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,.3);
+      z-index: 98;
+    }
+    .sidebar-overlay.open { display: block; }
+  </style>
+</head>
+<body>
+
+<!-- Top Bar -->
+<header class="topbar">
+  <a class="topbar-logo" href="#">
+    <svg viewBox="0 0 36 36" fill="none"><rect width="36" height="36" rx="8" fill="#0066cc"/><path d="M8 18c0-5.523 4.477-10 10-10s10 4.477 10 10-4.477 10-10 10S8 23.523 8 18z" fill="white" fill-opacity=".15"/><path d="M12 24l4-12 4 8 3-5 3 9" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    EMQX Fleets
+  </a>
+  <span class="topbar-badge">私有化部署指南 v1.2</span>
+  <div class="topbar-meta">
+    <span>📅 2026-06-30</span>
+    <span>🔧 EMQX Enterprise 5.10.3</span>
+  </div>
+  <button class="menu-toggle" id="menuToggle" aria-label="Toggle menu">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+  </button>
+</header>
+
+<div class="sidebar-overlay" id="overlay"></div>
+
+<div class="layout">
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <!-- Scale quick stats -->
+    <div class="sidebar-section">
+      <div class="stats-bar">
+        <div class="stats-bar-title">📊 三规模速览</div>
+        <div class="stat-item">
+          <span class="stat-label"><span class="scale-badge scale-s"><span class="scale-dot"></span>入门</span></span>
+          <span class="stat-val">10万 / 1万 TPS</span>
+        </div>
+        <div class="stat-item" style="font-size:.73rem;color:var(--text-muted);padding-left:4px;margin-top:-2px;margin-bottom:8px;">62 vCPU · 188 GB · 10台</div>
+        <div class="stat-item">
+          <span class="stat-label"><span class="scale-badge scale-m"><span class="scale-dot"></span>中级</span></span>
+          <span class="stat-val">50万 / 2万 TPS</span>
+        </div>
+        <div class="stat-item" style="font-size:.73rem;color:var(--text-muted);padding-left:4px;margin-top:-2px;margin-bottom:8px;">196 vCPU · 584 GB · 15台</div>
+        <div class="stat-item">
+          <span class="stat-label"><span class="scale-badge scale-l"><span class="scale-dot"></span>大型</span></span>
+          <span class="stat-val">100万 / 5万 TPS</span>
+        </div>
+        <div class="stat-item" style="font-size:.73rem;color:var(--text-muted);padding-left:4px;margin-top:-2px;">464 vCPU · 1568 GB · 18台</div>
+      </div>
+    </div>
+
+    <!-- TOC -->
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">目录导航</div>
+      <ul class="toc-list" id="tocList"></ul>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+    <div class="content-wrap">
+      <div class="content" id="content">
+        <!-- content will be injected by JS -->
+        <div style="text-align:center;padding:60px 0;color:var(--text-muted)">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+          <p style="margin-top:12px">加载中…</p>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Back to Top -->
+<button id="backToTop" title="返回顶部">↑</button>
+
+<script>
+// ─── Markdown source (embedded inline) ───
+const MD_SOURCE = `# Fleets 私有化部署方案 — 资源估算与场景评估
+
+> **版本**: v1.1 | **更新日期**: 2026-06-30 | **基点版本**: EMQX Enterprise 5.10.3 + Fleets (Go)
+> **修正**: v1.1 大幅下调 Fleets 资源（实际仅处理 API CRUD + 认证回调，主数据流经规则引擎直接入 DB），细化 LB 资源（区分 L4 透传 vs L7 TLS 卸载）
+
+---
+
+## 1. 系统架构总览
+
+### 1.1 数据流澄清（关键）
+
+\`\`\`
+设备数据上报（如影子上报、遥测）
+    │
+    ├─ MQTT → EMQX ──→ GreptimeDB (规则桥接 gRPC, 主路径, 不经过 Fleets)
+    │                └─→ Fleets ThingDatas API (规则 HTTP POST, 仅 lifecycle/shadow PG 副本/command response)
+    │                                               └─→ PostgreSQL (少量写入)
+    │
+    └─ HTTPS → Fleets ThingDatas API ──→ GreptimeDB (时序)
+                                         └─→ PostgreSQL (非时序)
+
+Fleets 实际承载的流量：
+  - 管理 API (设备 CRUD、影子查询、作业/命令管理) — 低 QPS
+  - Broker 认证回调 (设备连接/断开时验证) — 极低 QPS
+  - 规则引擎 HTTP POST 回调 — 中等 QPS (不包含主时序数据)
+  - EMQX API 下行发布 (指令/影子/通知) — 低 QPS
+\`\`\`
+
+**核心结论**: 时序数据（占比 80%+ 的 TPS）流经 \`EMQX → GreptimeDB\`，不经过 Fleets。Fleets 处理的是剩余的非时序管理面和部分非时序设备面流量，负载远低于原始 TPS。
+
+### 1.2 依赖组件清单
+
+| # | 组件 | 角色 | 数据流 | 关键端口 |
+|---|------|------|--------|----------|
+| 1 | **EMQX Enterprise** | MQTT Broker — 设备连接、消息路由、规则引擎、认证鉴权 | 设备 ←MQTT/TLS→ EMQX → **GreptimeDB** (规则桥接写入 TS)、EMQX → **Fleets** (规则 HTTP POST 写入 PG) | 1883(MQTT), 8883(MQTTS), 8084(WSS), 18083(API/Dashboard) |
+| 2 | **Fleets (Go)** | 业务后端 — 设备注册、影子、作业、命令、认证、管理 API | 设备 ←HTTPS→ Fleets → **PostgreSQL** (元数据)、Fleets → **GreptimeDB** (查询 TS)、Fleets → **EMQX API** (下行发布) | 8080(HTTP), 8443(HTTPS) |
+| 3 | **PostgreSQL 16** | 元数据存储 — 设备注册表、影子状态、作业、命令、API 密钥、设备凭证 | 连接数: Fleets 实例数 × 连接池 | 5432 |
+| 4 | **GreptimeDB (EMQX Tables)** | 时序数据库 — 事件历史、影子上报历史、可选遥测数据 | EMQX 规则桥接 (gRPC 4001) 写入，Fleets 查询 (PG wire 4003) | 4000(HTTP), 4001(gRPC), 4003(PG wire) |
+| 5 | **负载均衡器** | TLS 卸载（可选）、流量分发 | 外部 → LB → EMQX / Fleets | 443(TLS), 8883(MQTTS) |
+| 6 | **监控告警** | Prometheus + Grafana / ELK | 各组件暴露 metrics 端点 | — |
+
+### 1.3 网络拓扑
+
+\`\`\`
+                  ┌───────────── LB 层 ───────────────┐
+                  │  MQTT: L4 TCP 透传 (haproxy/云 NLB)   │
+                  │  HTTP: L7 TLS 卸载 (haproxy/云 ALB)   │
+                  │  或 云 LB (NLB for MQTT + ALB for API) │
+                  └──────────────────┬──────────────────┘
+                                     │
+           ┌─────────────────────────┼─────────────────────────┐
+           │  MQTT(L4)               │  HTTP(L7)               │
+     ┌─────▼─────────┐      ┌───────▼─────────┐      ┌───────▼──────────┐
+     │  EMQX Cluster  │      │  Fleets (Go)   │      │  Admin / Ops     │
+     │  (N nodes)     │      │  2-3 replicas  │      │  Dashboard       │
+     │  (MQTTS/TLS)   │      └───────┬─────────┘      └──────────────────┘
+     └─────┬──────────┘              │
+           │                         │
+     ┌─────┴──────────┐   ┌─────────┴─────────┐
+     │  GreptimeDB    │   │  PostgreSQL 16    │
+     │  (时序, gRPC)  │   │  (元数据, pgx)    │
+     └────────────────┘   └───────────────────┘
+
+数据流说明:
+  MQTT 上行:  设备 ─MQTTS→ LB(L4透传) ───→ EMQX ──gRPC──→ GreptimeDB (主)
+                                                ─HTTP──→ Fleets → PG (辅: lifecycle/shadow副本)
+  HTTPS 上行: 设备 ─HTTPS→ LB(L7卸载) ──→ Fleets ──→ GreptimeDB / PG
+  下行:       Fleets ─EMQX API→ EMQX ─MQTT→ 设备
+\`\`\`
+
+---
+
+## 2. 三个部署规模下的资源估算
+
+### 2.1 估算假设
+
+| 参数 | 假设值 | 说明 |
+|------|--------|------|
+| 消息 QoS | QoS 1 | 默认生产级可靠性 |
+| 消息 Payload | 256 字节 | 影子上报 + 事件，含 JSON 开销 |
+| 每连接空闲内存 (TCP) | ~250 KB | EMQX 长连接基础开销 |
+| 每连接空闲内存 (TLS) | ~500 KB | TLS 握手 + 会话缓存额外 200-300 KB |
+| 每连接空闲内存 (mTLS) | ~600 KB | 双向认证额外开销 |
+| 设备数据上报频率 | 每 5 分钟 1 次影子上报 | 典型 IoT 场景 |
+| 事件产生频率 | 每设备每天 10 条事件 | 连接/断开/告警等 |
+| 数据传输比 | 上行:下行 = 8:2 | 以数据上报为主，指令为辅 |
+| 数据保留周期 | 90 天 | GreptimeDB 时序数据保留 |
+| **Fleets 实际承载 TPS** | 仅总量的 **10-20%** | 主时序流经 EMQX→GreptimeDB，不经过 Fleets |
+| Fleets 高可用副本 | 2-3 副本 | 轻量 Go 服务，2 副本足够，3 副本冗余 |
+| PostgreSQL 连接池 | 每个 Fleets 实例 20-40 连接 | pgx 默认连接池大小 |
+| LB 工作模式 | **MQTT→L4 TCP 透传** / **API→L7 TLS 卸载** | 见下文详细说明 |
+
+#### Fleets 负载校正（关键）
+
+Fleets **不承载**规则引擎写入 GreptimeDB 的时序数据路径，仅处理：
+
+| Fleets 职责 | 10 万设备 QPS | 50 万设备 QPS | 100 万设备 QPS | 说明 |
+|------------|:-------------:|:-------------:|:--------------:|------|
+| 管理 API (CRUD) | < 5 | < 20 | < 50 | 管理员操作，非持续流量 |
+| Broker 认证回调 | ~0.3 | ~1.7 | ~3.3 | 仅设备重连时触发 |
+| 规则 HTTP POST (shadow PG 副本) | ~333 | ~1,667 | ~3,333 | 5min/次上报 |
+| 规则 HTTP POST (lifecycle/command) | ~3 | ~17 | ~33 | 事件 + 指令响应 |
+| EMQX API 下行发布 | ~55 (10万设备/30min) | ~278 | ~556 | 指令/影子/通知 |
+| **Fleets 总处理 QPS** | **~400** | **~2,000** | **~4,000** | Go 轻松应对 |
+
+> Go HTTP 服务器单核可处理 **5,000+ QPS**（简单 JSON CRUD），Fleets 负载在三个规模下均极低。
+
+### 2.2 规模一：10 万连接 / 1 万 TPS（入门级）
+
+#### 总吞吐量分析
+
+- 10,000 msg/s（双向总吞吐）
+- 上行 ~8,000 msg/s，下行 ~2,000 msg/s
+- 每天消息量: 10,000 × 86,400 = **~8.64 亿条/天**
+- 每天数据写入量（时序）: ~215 GB/day（原始）
+
+#### 资源分配表
+
+| 组件 | 节点数 | 单节点规格 | 合计 CPU | 合计内存 | 存储说明 | 网络带宽 |
+|------|--------|-----------|:--------:|:--------:|---------|:--------:|
+| **EMQX Enterprise** | 2 | 8 vCPU / 16 GB | 16 vCPU | 32 GB | 日志 200 GB SSD | 2 Gbps |
+| **Fleets (Go)** | **2** | **2 vCPU / 4 GB** | **4 vCPU** | **8 GB** | 无状态 | 1 Gbps |
+| **PostgreSQL 16** | 1 主 + 1 备 | 8 vCPU / 32 GB | 16 vCPU | 64 GB | 元数据: **200 GB SSD** | 2 Gbps |
+| **GreptimeDB** | 1 主 + 1 备 | 8 vCPU / 32 GB | 16 vCPU | 64 GB | 本地缓存 200 GB + 对象存储 | 2 Gbps |
+| **负载均衡器** | **3** | **2 vCPU / 4 GB** | **6 vCPU** | **12 GB** | — | 2 Gbps |
+| **监控 (Prometheus+Grafana)** | 1 | 4 vCPU / 8 GB | 4 vCPU | 8 GB | 监控数据 200 GB | 1 Gbps |
+| **合计** | **10** | — | **62 vCPU** | **188 GB** | — | — |
+
+### 2.3 规模二：50 万连接 / 2 万 TPS（中级）
+
+#### 总吞吐量分析
+
+- 20,000 msg/s（双向总吞吐）
+- 上行 ~16,000 msg/s，下行 ~4,000 msg/s
+- 每天消息量: 20,000 × 86,400 = **~17.28 亿条/天**
+- 每天数据写入量（时序）: ~430 GB/day（原始）
+
+#### 资源分配表
+
+| 组件 | 节点数 | 单节点规格 | 合计 CPU | 合计内存 | 存储说明 | 网络带宽 |
+|------|--------|-----------|:--------:|:--------:|---------|:--------:|
+| **EMQX Enterprise** | 4 | 16 vCPU / 32 GB | 64 vCPU | 128 GB | 日志 500 GB SSD | 4 Gbps |
+| **Fleets (Go)** | **3** | **4 vCPU / 8 GB** | **12 vCPU** | **24 GB** | 无状态 | 1 Gbps |
+| **PostgreSQL 16** | 1 主 + 2 备 | 16 vCPU / 64 GB | 48 vCPU | 192 GB | 元数据: **500 GB SSD** | 4 Gbps |
+| **GreptimeDB** | 3 (1 主 + 2 备) | 16 vCPU / 64 GB | 48 vCPU | 192 GB | 本地缓存 500 GB + 对象存储 | 4 Gbps |
+| **负载均衡器** | **4** | **4 vCPU / 8 GB** | **16 vCPU** | **32 GB** | — | 4 Gbps |
+| **监控 (Prometheus+Grafana)** | 1 | 8 vCPU / 16 GB | 8 vCPU | 16 GB | 监控数据 500 GB | 2 Gbps |
+| **合计** | **15** | — | **196 vCPU** | **584 GB** | — | — |
+
+### 2.4 规模三：100 万连接 / 5 万 TPS（大型）
+
+#### 总吞吐量分析
+
+- 50,000 msg/s（双向总吞吐）
+- 上行 ~40,000 msg/s，下行 ~10,000 msg/s
+- 每天消息量: 50,000 × 86,400 = **~43.2 亿条/天**
+- 每天数据写入量（时序）: ~1.08 TB/day（原始）
+
+#### 资源分配表
+
+| 组件 | 节点数 | 单节点规格 | 合计 CPU | 合计内存 | 存储说明 | 网络带宽 |
+|------|--------|-----------|:--------:|:--------:|---------|:--------:|
+| **EMQX Enterprise** | 6 | 16 vCPU / 32 GB | 96 vCPU | 192 GB | 日志 1 TB SSD | 8 Gbps |
+| **Fleets (Go)** | **3** | **4 vCPU / 8 GB** | **12 vCPU** | **24 GB** | 无状态 | 2 Gbps |
+| **PostgreSQL 16** | 1 主 + 3 备 + 1 只读 | 32 vCPU / 128 GB | 160 vCPU | 640 GB | 元数据: **1 TB NVMe SSD** | 8 Gbps |
+| **GreptimeDB** | 5 (3 主 + 2 备) | 32 vCPU / 128 GB | 160 vCPU | 640 GB | 本地缓存 1 TB + 对象存储 | 8 Gbps |
+| **负载均衡器** | **5** | **4 vCPU / 8 GB** | **20 vCPU** | **40 GB** | — | 8 Gbps |
+| **监控 (Prometheus+Grafana)** | 1 | 16 vCPU / 32 GB | 16 vCPU | 32 GB | 监控数据 1 TB | 2 Gbps |
+| **合计** | **18** | — | **464 vCPU** | **1,568 GB** | — | — |
+
+---
+
+## 3. 场景可行性评估
+
+### 3.1 评估维度与标准
+
+| 维度 | 评级 | 标准 |
+|------|------|------|
+| 架构支持度 | ✅ / ⚠️ / ❌ | 当前代码/架构是否原生支持 |
+| 实施复杂度 | 低 / 中 / 高 | 需要多少额外开发或配置 |
+| 性能风险 | 低 / 中 / 高 | 在该规模下是否存在瓶颈 |
+
+### 3.2 功能场景评估表
+
+| 场景 | 支持度 | 实施复杂度 | 大规模性能风险 | 说明 |
+|------|--------|-----------|--------------|------|
+| **TLS 单向认证** | ✅ 原生支持 | 低 | 低 | EMQX 原生支持 MQTTS 8883 端口 |
+| **TLS 双向认证 (mTLS)** | ✅ 原生支持 | 低 | 低 | mqttDeviceAuthMode: "mtls" 原生支持 |
+| **设备注册** | ✅ 原生支持 | 低 | 低 | Thing 注册 API 完备，支持批量导入 |
+| **三元组配置查询** | ✅ 原生支持 | 低 | 低 | thing_credentials + thing_certs 表 |
+| **设备状态监控** | ✅ 原生支持 | 低 | 中 | lifecycle 事件 |
+| **数据上报存储** | ✅ 原生支持 | 低 | 中 | Shadow → GreptimeDB + PostgreSQL |
+| **指令下发** | ✅ 原生支持 | 低 | 低 | EMQX V5 REST API 无竞争下行 |
+
+### 3.3 详细场景分析
+
+#### 3.3.1 TLS 双向认证（mTLS）
+
+**架构支持**: Fleets 已有完整的 mTLS 支持链：
+
+1. EMQX 监听器配置 MQTTS 8883 端口 + \`two_way\` TLS 模式
+2. Fleets 提供 \`/api/v1/settings/emqx/listeners/mqtts/certificates\` API 自动生成/配置证书
+3. 设备登录时 EMQX 将客户端证书 CN 传给 Fleets broker-auth 回调验证
+4. \`mqttDeviceAuthMode: "mtls"\` 模式下，仅 mTLS 设备被允许连接
+
+**大规模注意事项**:
+
+| 关注点 | 影响分析 |
+|--------|---------|
+| 证书管理 | 100 万设备 × 唯一证书，Fleets 使用 \`thing_certs\` 表管理，需做好 CA 层级 |
+| TLS 握手开销 | 每连接 ~600 KB 内存，10 万连接约 **60 GB** |
+| 证书撤销 | OCSP/CRL 机制需额外配置 |
+| 证书轮换 | 建议设备证书 1 年有效期自动轮换 |
+
+#### 3.3.2 数据上报与存储
+
+**写入模型分析** (假设每台设备每 5 分钟上报一次)：
+
+| 规模 | 影子上报 TPS | 影子 PG 写入 TPS | TSDB 写入 TPS | 日增 TS 原始 |
+|------|-------------|-----------------|--------------|-------------|
+| 10万 | ~333 | 333 | ~360 | ~215 GB |
+| 50万 | ~1,667 | 1,667 | ~1,800 | ~430 GB |
+| 100万 | ~3,333 | 3,333 | ~3,600 | ~1.08 TB |
+
+---
+
+## 4. 瓶颈与风险分析
+
+### 4.1 各规模瓶颈热力图
+
+| 组件 | 10万/1万 TPS | 50万/2万 TPS | 100万/5万 TPS |
+|------|:----------:|:----------:|:----------:|
+| EMQX 连接数 (内存) | 🟢 低 | 🟡 中 | 🔴 高 |
+| EMQX 消息路由 | 🟢 低 | 🟡 中 | 🔴 高 |
+| Fleets (Go) | 🟢 极低 | 🟢 极低 | 🟢 低 |
+| PG 写入 | 🟢 低 | 🟢 低 | 🟢 低 |
+| GreptimeDB 写入 | 🟢 低 | 🟢 低 | 🟢 低 |
+| LB (TCP 透传) | 🟢 低 | 🟢 低 | 🟢 低 |
+| LB (TLS 卸载) | 🟢 低 | 🟢 低 | 🟡 中 |
+| 网络带宽 | 🟢 低 | 🟡 中 | 🔴 高 |
+
+### 4.2 负载均衡器资源分析
+
+#### 场景 A：LB 做 TCP 透传
+
+| 规模 | 总连接数 | 推荐 LB 规格 |
+|:-----|:-------:|:------------|
+| 10 万 | ~100K | 3 × **2 vCPU / 4 GB** |
+| 50 万 | ~500K | 4 × **4 vCPU / 8 GB** |
+| 100 万 | ~1M | 5 × **4 vCPU / 8 GB** |
+
+#### 场景 B：LB 做 TLS 卸载
+
+| 规模 | 总连接数 | 推荐 LB 规格 |
+|:-----|:-------:|:------------|
+| 10 万 | ~100K | 3 × **4 vCPU / 8 GB** |
+| 50 万 | ~500K | 4 × **8 vCPU / 16 GB** |
+| 100 万 | ~1M | 5 × **8 vCPU / 16 GB** |
+
+### 4.3 EMQX 最大连接数约束
+
+| 节点规格 | TCP 最大连接 | TLS 最大连接 |
+|---------|------------|------------|
+| 8 vCPU / 16 GB | ~200K | ~100K |
+| 16 vCPU / 32 GB | ~500K | ~200K |
+| 32 vCPU / 64 GB | ~1M | ~500K |
+
+---
+
+## 5. 推荐部署拓扑
+
+### 5.1 单机 / 小规模（10 万连接以下）
+
+\`\`\`
+┌─────────────────────────────────────────────┐
+│              服务器 1 (32C/128G)              │
+│  ┌────────┐ ┌──────────┐ ┌──────────┐       │
+│  │ EMQX   │ │ Fleets   │ │ PG 16    │       │
+│  │ Node 1 │ │ (2vCPU)  │ │ (主)      │       │
+│  └────────┘ └──────────┘ └──────────┘       │
+│  ┌────────────────┐ ┌──────────────────┐    │
+│  │ GreptimeDB     │ │ haproxy(L4+L7)   │    │
+│  │ (Standalone)   │ │ 4 vCPU / 8 GB    │    │
+│  └────────────────┘ └──────────────────┘    │
+└─────────────────────────────────────────────┘
+\`\`\`
+
+### 5.2 中大规模（50 万 - 100 万连接）
+
+**Kubernetes 部署推荐**：
+
+\`\`\`
+──────────────────────────────────────────────────
+  云 NLB (L4 TCP) ──→ EMQX Cluster (StatefulSet)
+      |                 6 Pods × 16 vCPU / 32 GB
+      |
+  云 ALB (L7 TLS) ───→ Fleets Cluster (Deployment)
+      |                 3 Pods × 4 vCPU / 8 GB
+      |
+  PostgreSQL (Operator)   GreptimeDB Cluster
+  主 + 备: 32C / 128 GB   3-5 节点: 32C / 128 GB
+  PVC: NVMe SSD           对象存储: S3/MinIO
+──────────────────────────────────────────────────
+\`\`\`
+
+---
+
+## 6. 总结评估
+
+### 6.1 场景支持结论
+
+| 需求 | 是否支持 | 评估等级 |
+|------|---------|---------|
+| TLS 单向认证 | ✅ 原生支持，开箱即用 | **支持** |
+| TLS 双向认证 (mTLS) | ✅ 原生支持，API 自动配置证书 | **支持** |
+| 设备注册（三元组/凭证） | ✅ 完备的管理 API + 存储 | **支持** |
+| 设备状态监控（在线/离线） | ✅ 基于 lifecycle 事件，实时准确 | **支持** |
+| 数据上报（影子 + 遥测） | ✅ Shadow + 自定义 topic 双通道 | **支持** |
+| 数据存储（PG + 时序） | ✅ PG 元数据 + GreptimeDB 时序 | **支持** |
+| 指令下发（影子/命令/作业） | ✅ EMQX V5 API 发布，无竞争 | **支持** |
+
+### 6.2 总资源汇总（场景 A - TCP 透传，推荐）
+
+| 规模 | 总物理节点 | 总 vCPU | 总 RAM | 网络带宽 |
+|:-----|:---------:|:-------:|:------:|:--------:|
+| **10 万 / 1 万 TPS** | 10 台 | **62 vCPU** | **188 GB** | 2-4 Gbps |
+| **50 万 / 2 万 TPS** | 15 台 | **196 vCPU** | **584 GB** | 4-8 Gbps |
+| **100 万 / 5 万 TPS** | 18 台 | **464 vCPU** | **1,568 GB** | 8 Gbps+ |
+
+### 6.3 建议
+
+1. **Fleets 资源无需高配** — Go 轻量服务，2-4 vCPU / 4-8 GB × 2-3 副本即可覆盖所有规模
+2. **LB 选型：先定 TLS 卸载位置，再看部署方式** — 自建场景优先 TCP 透传，公有云用 NLB+ALB/ACM
+3. **时序数据使用对象存储** — GreptimeDB 冷数据建议 S3/MinIO，节省 70%+ 存储成本
+4. **使用 Fleets API 进行 EMQX 配置** — 生产环境使用 \`POST /api/v1/settings/emqx/setup\`
+5. **100 万规模部署前通过压测验证** — EMQX 官方建议实际压测校准资源配置
+6. **大连接数下严格调优内核参数** — 文件描述符、TCP 缓冲区等必须按官方文档调整
+7. **PostgreSQL 配置** — 连接池、max_connections、shared_buffers 按规模调优；建议 PgBouncer
+`;
+
+// ─── Marked config ───
+marked.setOptions({
+  breaks: true,
+  gfm: true,
+});
+
+// ─── Render ───
+document.addEventListener('DOMContentLoaded', () => {
+  const content = document.getElementById('content');
+  content.innerHTML = marked.parse(MD_SOURCE);
+
+  // ─── Highlight code blocks ───
+  document.querySelectorAll('pre code').forEach(block => {
+    hljs.highlightElement(block);
+  });
+
+  // ─── Build TOC ───
+  const tocList = document.getElementById('tocList');
+  const headings = content.querySelectorAll('h1, h2, h3, h4');
+  headings.forEach((h, i) => {
+    const id = 'heading-' + i;
+    h.id = id;
+    const li = document.createElement('li');
+    li.className = 'toc-item ' + h.tagName.toLowerCase();
+    const a = document.createElement('a');
+    a.href = '#' + id;
+    a.textContent = h.textContent;
+    a.addEventListener('click', e => {
+      e.preventDefault();
+      h.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      // close sidebar on mobile
+      if (window.innerWidth <= 900) toggleSidebar(false);
+    });
+    li.appendChild(a);
+    tocList.appendChild(li);
+  });
+
+  // ─── Active TOC on scroll ───
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const id = entry.target.id;
+        document.querySelectorAll('.toc-item').forEach(item => {
+          item.classList.toggle('active', item.querySelector('a')?.getAttribute('href') === '#' + id);
+        });
+      }
+    });
+  }, { rootMargin: '-60px 0px -70% 0px' });
+
+  headings.forEach(h => observer.observe(h));
+
+  // ─── Back to top ───
+  const btn = document.getElementById('backToTop');
+  window.addEventListener('scroll', () => {
+    btn.style.display = window.scrollY > 400 ? 'flex' : 'none';
+  });
+  btn.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+
+  // ─── Mobile menu ───
+  const menuToggle = document.getElementById('menuToggle');
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('overlay');
+
+  function toggleSidebar(open) {
+    sidebar.classList.toggle('open', open);
+    overlay.classList.toggle('open', open);
+  }
+
+  menuToggle.addEventListener('click', () => toggleSidebar(!sidebar.classList.contains('open')));
+  overlay.addEventListener('click', () => toggleSidebar(false));
+});
+</script>
+</body>
+</html>

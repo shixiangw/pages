@@ -1,0 +1,2089 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Device Agent + Fleets 集成方案</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/atom-one-dark.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js"></script>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  :root{
+    --bg:#f4f6fa;
+    --card:#fff;
+    --primary:#1a73e8;
+    --primary-lt:#e8f0fe;
+    --green:#34a853;
+    --green-lt:#e6f4ea;
+    --orange:#f9ab00;
+    --orange-lt:#fef7e0;
+    --red:#ea4335;
+    --red-lt:#fce8e6;
+    --purple:#7b1fa2;
+    --purple-lt:#f3e5f5;
+    --teal:#00897b;
+    --text:#202124;
+    --text2:#5f6368;
+    --border:#dadce0;
+    --shadow:0 1px 3px rgba(0,0,0,.07);
+    --radius:12px;
+  }
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Noto Sans SC',PingFang SC,sans-serif;background:var(--bg);color:var(--text);line-height:1.6;padding:20px}
+  .container{max-width:1160px;margin:0 auto}
+
+  /* ===== Hero ===== */
+  .hero{
+    text-align:center;padding:36px 24px 28px;
+    background:linear-gradient(135deg,#0d47a1,#1565c0,#42a5f5);
+    border-radius:var(--radius);color:#fff;margin-bottom:20px;
+  }
+  .hero h1{font-size:1.8rem;font-weight:700}
+  .hero p{font-size:.88rem;opacity:.85;margin-top:6px}
+  .hero .tags{margin-top:10px;display:flex;justify-content:center;gap:8px;flex-wrap:wrap}
+  .hero .tags span{font-size:.7rem;padding:2px 12px;background:rgba(255,255,255,.13);border-radius:20px}
+
+  /* ===== Tabs ===== */
+  .tab-nav{display:flex;gap:0;margin-bottom:20px;background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;flex-wrap:wrap}
+  .tab-btn{flex:1;min-width:120px;padding:10px 14px;border:none;background:transparent;font-size:.82rem;font-weight:500;color:var(--text2);cursor:pointer;transition:all .15s;border-bottom:3px solid transparent;white-space:nowrap}
+  .tab-btn:hover{background:var(--primary-lt);color:var(--primary)}
+  .tab-btn.active{color:var(--primary);border-bottom-color:var(--primary);font-weight:600;background:var(--primary-lt)}
+  .tab-panel{display:none}
+  .tab-panel.active{display:block}
+
+  /* ===== Sections inside tabs ===== */
+  .section{margin-bottom:28px}
+  .section-title{font-size:1.15rem;font-weight:600;margin-bottom:8px;padding-left:10px;border-left:4px solid var(--primary);display:flex;align-items:center;gap:6px}
+  .section-desc{font-size:.8rem;color:var(--text2);margin-bottom:8px}
+
+  /* ===== SVG container ===== */
+  .arch-fig{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px;margin-bottom:10px;overflow-x:auto}
+  .arch-fig svg{display:block;width:100%;height:auto}
+
+  /* ===== Info boxes ===== */
+  .info{padding:10px 14px;border-radius:8px;font-size:.8rem;margin-bottom:10px;border-left:4px solid}
+  .info.blue{background:var(--primary-lt);border-color:var(--primary);color:#1a3a6b}
+  .info.green{background:var(--green-lt);border-color:var(--green);color:#1e4620}
+  .info.orange{background:var(--orange-lt);border-color:var(--orange);color:#5d4037}
+  .info.purple{background:var(--purple-lt);border-color:var(--purple);color:#4a148c}
+  .info code{background:rgba(0,0,0,.06);padding:1px 6px;border-radius:4px;font-size:.78rem}
+  .info strong{color:inherit}
+
+  /* ===== Cards & grids ===== */
+  .card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px 16px;margin-bottom:10px}
+  .card h3{font-size:.9rem;font-weight:600;margin-bottom:6px}
+  .card p,.card li{font-size:.8rem;color:var(--text2)}
+  .card ul{list-style:none}
+  .card li{padding:3px 0;display:flex;gap:6px}
+  .card li .dot{color:var(--primary);font-weight:700;min-width:16px}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .three{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+  .mg{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:6px 0}
+  .mg>div{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px 10px}
+  .mg h4{font-size:.78rem;margin-bottom:2px}
+  .mg p{font-size:.72rem;color:var(--text2)}
+
+  /* ===== Code block with copy button ===== */
+  pre.code{
+    background:#1e1e2e;padding:0;border-radius:8px;font-size:.68rem;
+    line-height:1.5;overflow-x:auto;margin:5px 0;position:relative
+  }
+  pre.code code{
+    display:block;padding:10px 12px;
+    font-family:'SF Mono','Fira Code',monospace;font-size:.68rem;
+    background:transparent !important
+  }
+  .hljs{background:transparent !important;padding:0 !important}
+  .copy-btn{
+    position:absolute;top:5px;right:6px;z-index:2;
+    background:rgba(255,255,255,.08);border:none;border-radius:4px;
+    padding:3px 7px;font-size:.72rem;cursor:pointer;
+    color:rgba(255,255,255,.5);line-height:1;transition:all .15s
+  }
+  .copy-btn:hover{background:rgba(255,255,255,.18);color:#fff}
+
+  /* ===== Table ===== */
+  .tbl{width:100%;border-collapse:collapse;font-size:.78rem;background:var(--card);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}
+  .tbl th{background:#f8f9fa;text-align:left;padding:8px 10px;font-weight:600;border-bottom:2px solid var(--border)}
+  .tbl td{padding:7px 10px;border-bottom:1px solid #f0f0f0}
+  .tbl tr:last-child td{border-bottom:none}
+  .tag{display:inline-block;font-size:.6rem;font-weight:600;padding:1px 8px;border-radius:20px;color:#fff;vertical-align:middle}
+  .tg-g{background:var(--green)}
+  .tg-b{background:var(--primary)}
+  .tg-o{background:var(--orange);color:#333}
+  .tg-p{background:var(--purple)}
+  .tg-r{background:var(--red)}
+  .tg-t{background:var(--teal)}
+
+  /* ===== Phase list ===== */
+  .phase{list-style:none}
+  .phase>li{padding:8px 0;border-bottom:1px solid #f0f0f0;display:flex;gap:10px;align-items:flex-start}
+  .phase>li:last-child{border-bottom:none}
+  .phase-n{width:26px;height:26px;border-radius:50%;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.7rem;flex-shrink:0}
+  .phase-c{flex:1}
+  .phase-t{font-weight:600;font-size:.84rem}
+  .phase-d{font-size:.78rem;color:var(--text2);margin-top:2px}
+
+  .footer{text-align:center;padding:20px 0 8px;color:var(--text2);font-size:.74rem}
+
+  @media(max-width:800px){.two,.three,.mg{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- ===== Hero ===== -->
+<div class="hero">
+  <h1>🧩 Device Agent + Fleets 集成方案</h1>
+  <p>Device Agent 为上层的 IoT 智能应用层，Fleets 为底层设备管理平台。<br>集成核心在 Device Agent 端：<strong>生成的设备 SDK 直接满足 Fleets 接入规范</strong>，DA 的现有功能直接适配 Fleets 协议控制设备。</p>
+  <div class="tags" role="list">
+    <span role="listitem">📦 DA 设备 SDK → Fleets 规范</span>
+    <span role="listitem">🤖 DA AI 功能适配 Fleets 协议</span>
+    <span role="listitem">🔗 同享 EMQX Broker</span>
+    <span role="listitem">🎮 双端控制 · 独立互不冲突</span>
+  </div>
+</div>
+
+<!-- ===== Tab Navigation ===== -->
+<div class="tab-nav" role="tablist" aria-label="方案章节">
+  <button class="tab-btn active" role="tab" aria-selected="true" aria-controls="tab-overview" data-tab="tab-overview">📋 总体概览</button>
+  <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-sdk" data-tab="tab-sdk">📦 SDK 生成</button>
+  <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-dataflow" data-tab="tab-dataflow">🔄 数据流</button>
+  <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-control" data-tab="tab-control">🎮 双端控制</button>
+  <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-roadmap" data-tab="tab-roadmap">🗺️ 实施路线</button>
+  <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-native" data-tab="tab-native">🏠 原生协议</button>
+  <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-abstraction" data-tab="tab-abstraction">🔌 跨平台抽象</button>
+  <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-ai-enhance" data-tab="tab-ai-enhance">🤖 AI 增强</button>
+  <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-control-plane" data-tab="tab-control-plane">⚙️ 管控面</button>
+</div>
+
+<!-- ================================================================== -->
+<!-- TAB 1: 总体概览 -->
+<!-- ================================================================== -->
+<div class="tab-panel active" id="tab-overview" role="tabpanel" aria-labelledby="tab-overview">
+
+  <div class="section">
+    <h2 class="section-title">🎯 定位与边界</h2>
+    <div class="info blue">
+      <strong>核心定位：</strong> Device Agent 是 IoT 智能应用层，Fleets 是设备管理层。两者是互补关系，不是替代关系。
+      DA 利用 Fleets 的 ThingType Schema 生成兼容的设备 SDK，同时 DA 的 AI 功能通过 Fleets 的 MQTT 主题与设备通信。
+    </div>
+
+    <div class="two">
+      <div class="card">
+        <h3>📱 Device Agent 负责</h3>
+        <ul>
+          <li><span class="dot">•</span> AI Agent 会话式设备控制</li>
+          <li><span class="dot">•</span> 生成设备 SDK（TS / C / Python）</li>
+          <li><span class="dot">•</span> NL 语义理解 → 设备命令映射</li>
+          <li><span class="dot">•</span> 设备数据分析与洞察</li>
+          <li><span class="dot">•</span> 策略规则引擎</li>
+          <li><span class="dot">•</span> Web 控制台与可视化</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>🏭 Fleets 负责</h3>
+        <ul>
+          <li><span class="dot">•</span> 设备注册与鉴权（Thing Registry）</li>
+          <li><span class="dot">•</span> 物模型定义（ThingType Schema）</li>
+          <li><span class="dot">•</span> Device Shadow 三态管理</li>
+          <li><span class="dot">•</span> 作业调度（Jobs）</li>
+          <li><span class="dot">•</span> 命令派发（Commands）</li>
+          <li><span class="dot">•</span> 设备查询与分组</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="info green">
+      <strong>集成原则 — 三不碰：</strong>
+      ① <strong>DA 不碰</strong> Fleets 的设备注册、鉴权、Shadow 持久化；
+      ② <strong>Fleets 不碰</strong> DA 的 AI 会话、SDK 生成、NL 控制；
+      ③ <strong>设备不感知</strong> 谁在下发指令 —— 所有通信通过同一套 <code>$emqx/</code> 主题。
+    </div>
+  </div>
+
+  <div class="section">
+    <h2 class="section-title">🏛️ 整体架构</h2>
+    <div class="section-desc">设备通过 EMQX Broker 与 Fleets 和 Device Agent 同时通信。Fleets 管理设备生命周期与影子状态，DA 提供 AI 智能层。两者共用同一套 MQTT 主题规范。</div>
+
+    <div class="arch-fig">
+      <svg viewBox="0 0 1100 620" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
+        <defs>
+          <marker id="arB" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10" fill="none" stroke="#1a73e8" stroke-width="1.5"/></marker>
+          <marker id="arG" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10" fill="none" stroke="#34a853" stroke-width="1.5"/></marker>
+          <marker id="arO" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10" fill="none" stroke="#f9ab00" stroke-width="1.5"/></marker>
+          <marker id="arP" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10" fill="none" stroke="#7b1fa2" stroke-width="1.5"/></marker>
+          <filter id="sh"><feDropShadow dx="0" dy="1" stdDeviation="2" flood-opacity=".1"/></filter>
+        </defs>
+        <rect x="0" y="0" width="1100" height="600" rx="8" fill="#fafbfc"/>
+
+        <!-- ===== Top: Fleets (left) and Device Agent (right) ===== -->
+        <rect x="50" y="30" width="260" height="110" rx="12" fill="#1a73e8" filter="url(#sh)"/>
+        <text x="180" y="58" text-anchor="middle" font-size="15" font-weight="700" fill="#fff">Fleets IoT Platform</text>
+        <text x="180" y="78" text-anchor="middle" font-size="10" fill="rgba(255,255,255,.8)">设备注册 · Shadow · 命令 · Jobs</text>
+        <text x="180" y="96" text-anchor="middle" font-size="10" fill="rgba(255,255,255,.8)">ThingType Schema · 设备查询</text>
+        <text x="180" y="114" text-anchor="middle" font-size="9" fill="rgba(255,255,255,.65)">Go 后端 · PostgreSQL · EMQX Tables</text>
+
+        <rect x="740" y="30" width="260" height="140" rx="12" fill="#7b1fa2" filter="url(#sh)"/>
+        <text x="870" y="58" text-anchor="middle" font-size="15" font-weight="700" fill="#fff">Device Agent</text>
+        <text x="870" y="78" text-anchor="middle" font-size="10" fill="rgba(255,255,255,.8)">AI 智能应用层</text>
+        <rect x="760" y="95" width="100" height="22" rx="4" fill="rgba(255,255,255,.15)"/>
+        <text x="810" y="110" text-anchor="middle" font-size="9" fill="#fff">FleetsAdapter</text>
+        <rect x="870" y="95" width="110" height="22" rx="4" fill="rgba(255,255,255,.15)"/>
+        <text x="925" y="110" text-anchor="middle" font-size="9" fill="#fff">AI Agent / NL 控制</text>
+        <rect x="760" y="122" width="110" height="22" rx="4" fill="rgba(255,255,255,.15)"/>
+        <text x="815" y="137" text-anchor="middle" font-size="9" fill="#fff">设备 SDK 生成器</text>
+        <rect x="880" y="122" width="100" height="22" rx="4" fill="rgba(255,255,255,.15)"/>
+        <text x="930" y="137" text-anchor="middle" font-size="9" fill="#fff">规则引擎 / 分析</text>
+        <text x="870" y="162" text-anchor="middle" font-size="9" fill="rgba(255,255,255,.65)">Bun 运行时 · TypeScript · React</text>
+
+        <!-- ===== Middle: EMQX Broker ===== -->
+        <rect x="380" y="200" width="240" height="70" rx="12" fill="#1565c0" filter="url(#sh)"/>
+        <text x="500" y="232" text-anchor="middle" font-size="15" font-weight="700" fill="#fff">EMQX Broker</text>
+        <text x="500" y="252" text-anchor="middle" font-size="10" fill="rgba(255,255,255,.8)">共享 MQTT 消息中枢 · $emqx/ 主题</text>
+
+        <rect x="380" y="300" width="240" height="36" rx="6" fill="#e8eaf6" stroke="#7986cb" stroke-width="1.5"/>
+        <text x="500" y="323" text-anchor="middle" font-size="10" font-weight="600" fill="#3949ab">EMQX Rule Engine 数据路由</text>
+
+        <!-- ===== Bottom: Device ===== -->
+        <rect x="420" y="460" width="160" height="60" rx="12" fill="#00897b" filter="url(#sh)"/>
+        <text x="500" y="490" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">Device</text>
+        <text x="500" y="508" text-anchor="middle" font-size="9" fill="rgba(255,255,255,.8)">$emqx/things/{name}/...</text>
+
+        <!-- ===== DB & API (left side, below Fleets) ===== -->
+        <rect x="50" y="200" width="260" height="40" rx="8" fill="#fce4ec" stroke="#e57373" stroke-width="1.5"/>
+        <text x="180" y="225" text-anchor="middle" font-size="10" font-weight="600" fill="#c62828">PostgreSQL + EMQX Tables</text>
+        <rect x="50" y="265" width="260" height="36" rx="8" fill="#fff3e0" stroke="#f9ab00" stroke-width="1.5"/>
+        <text x="180" y="288" text-anchor="middle" font-size="9" font-weight="600" fill="#e65100">ThingDatas API /api/v1/thing-datas/</text>
+
+        <!-- ===== Arrows: Fleets → DB ===== -->
+        <line x1="180" y1="140" x2="180" y2="200" stroke="#1a73e8" stroke-width="1.5" marker-end="url(#arB)"/>
+        <line x1="180" y1="240" x2="180" y2="265" stroke="#1a73e8" stroke-width="1.5" marker-end="url(#arB)"/>
+
+        <!-- ===== Arrows: Fleets → EMQX (downlink) ===== -->
+        <path d="M310,120 Q345,120 345,160 Q345,200 380,200" stroke="#f9ab00" stroke-width="1.8" fill="none" marker-end="url(#arO)" stroke-dasharray="6,3"/>
+        <text x="360" y="155" text-anchor="middle" font-size="9" fill="#f9ab00" font-weight="600">EMQX V5 API</text>
+
+        <!-- ===== Arrows: Device → EMQX (uplink) ===== -->
+        <path d="M500,460 L500,340" stroke="#34a853" stroke-width="1.8" fill="none" marker-end="url(#arG)"/>
+        <text x="560" y="400" text-anchor="start" font-size="9" fill="#34a853" font-weight="600">Publish: shadow/update, events,</text>
+        <text x="560" y="415" text-anchor="start" font-size="9" fill="#34a853" font-weight="600">command/response</text>
+
+        <!-- ===== Arrows: EMQX → Device (downlink) ===== -->
+        <path d="M420,270 L420,460" stroke="#f9ab00" stroke-width="1.8" fill="none" marker-end="url(#arO)" stroke-dasharray="6,3"/>
+        <text x="300" y="380" text-anchor="start" font-size="9" fill="#f9ab00" font-weight="600">Subscribe: desired, delta,</text>
+        <text x="300" y="395" text-anchor="start" font-size="9" fill="#f9ab00" font-weight="600">command/request, jobs/notify</text>
+
+        <!-- ===== Arrows: DA ↔ EMQX ===== -->
+        <path d="M740,100 L620,100 L620,200" stroke="#7b1fa2" stroke-width="1.8" fill="none" marker-end="url(#arP)"/>
+        <text x="680" y="92" text-anchor="middle" font-size="10" fill="#7b1fa2" font-weight="600">订阅设备消息 · 发布命令</text>
+
+        <path d="M620,270 L740,270 L740,170" stroke="#7b1fa2" stroke-width="1.5" fill="none" marker-end="url(#arP)" stroke-dasharray="5,3"/>
+        <text x="700" y="290" text-anchor="middle" font-size="9" fill="#7b1fa2">设备消息路由到 DA</text>
+
+        <!-- ===== Arrows: DA → Fleets API ===== -->
+        <path d="M740,60 L310,60" stroke="#7b1fa2" stroke-width="1.5" fill="none" marker-end="url(#arP)" stroke-dasharray="4,4"/>
+        <text x="525" y="52" text-anchor="middle" font-size="9" fill="#7b1fa2">拉取 ThingType Schema · 注册 Thing</text>
+
+        <!-- ===== Arrows: EMQX Rule → Fleets DB ===== -->
+        <path d="M500,336 L500,350 L180,350 L180,301" stroke="#34a853" stroke-width="1.5" fill="none" marker-end="url(#arG)" stroke-dasharray="4,3"/>
+        <text x="340" y="365" text-anchor="middle" font-size="9" fill="#34a853">Rule HTTP POST / command/response / lifecycle</text>
+
+        <path d="M620,336 L620,380 L180,380 L180,340" stroke="#34a853" stroke-width="1.5" fill="none" marker-end="url(#arG)" stroke-dasharray="4,3"/>
+        <text x="400" y="395" text-anchor="middle" font-size="9" fill="#34a853">Rule Bridge → EMQX Tables（shadow/event 时序）</text>
+
+        <!-- ===== Legend ===== -->
+        <g transform="translate(40,500)">
+          <rect x="0" y="0" width="500" height="75" rx="6" fill="#fff" stroke="#e0e0e0"/>
+          <text x="10" y="18" font-size="10" font-weight="600" fill="#333">图例</text>
+          <line x1="10" y1="34" x2="40" y2="34" stroke="#34a853" stroke-width="2"/><text x="44" y="38" font-size="9" fill="#555">设备上行</text>
+          <line x1="200" y1="34" x2="230" y2="34" stroke="#f9ab00" stroke-width="2" stroke-dasharray="6,3"/><text x="234" y="38" font-size="9" fill="#555">设备下行</text>
+          <line x1="10" y1="55" x2="40" y2="55" stroke="#7b1fa2" stroke-width="1.5"/><text x="44" y="59" font-size="9" fill="#555">Device Agent</text>
+          <line x1="200" y1="55" x2="230" y2="55" stroke="#1a73e8" stroke-width="1.5"/><text x="234" y="59" font-size="9" fill="#555">Fleets</text>
+          <line x1="350" y1="34" x2="380" y2="34" stroke="gray" stroke-width="1.5" stroke-dasharray="4,4"/><text x="384" y="38" font-size="9" fill="#555">Fleets 永不订阅 MQTT</text>
+        </g>
+      </svg>
+    </div>
+
+    <h3 style="margin-top:24px;font-size:1.05rem;color:var(--text)">🏗️ Device Agent 平台技术架构</h3>
+    <div class="section-desc">更宏观的 Device Agent 平台视角：边缘设备通过 Device Agent SDK 接入平台，平台侧由 EMQX、Device Agent（AI 能力）和 Device Management（数据管理）组成，同时支持第三方 Agent 通过 A2A 协议互通。</div>
+
+    <div class="arch-fig">
+      <svg viewBox="0 0 1100 720" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
+        <defs>
+          <marker id="arDA-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10" fill="none" stroke="#34a853" stroke-width="1.5"/></marker>
+          <marker id="arDA-purple" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10" fill="none" stroke="#7b1fa2" stroke-width="1.5"/></marker>
+          <marker id="arDA-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10" fill="none" stroke="#1a73e8" stroke-width="1.5"/></marker>
+          <marker id="arDA-orange" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10" fill="none" stroke="#f9ab00" stroke-width="1.5"/></marker>
+          <filter id="shDA"><feDropShadow dx="0" dy="1" stdDeviation="2" flood-opacity=".1"/></filter>
+        </defs>
+        <rect x="0" y="0" width="1100" height="700" rx="8" fill="#fafbfc"/>
+
+        <text x="550" y="38" text-anchor="middle" font-size="16" font-weight="700" fill="#333">Device Agent 平台技术架构</text>
+
+        <!-- Edge area -->
+        <rect x="30" y="55" width="210" height="620" rx="8" fill="#f5f5f5" stroke="#e0e0e0" stroke-width="1.5"/>
+        <text x="135" y="655" text-anchor="middle" font-size="12" font-weight="600" fill="#757575">边缘</text>
+
+        <!-- Device icons -->
+        <rect x="50" y="80" width="170" height="130" rx="10" fill="#fff" stroke="#bdbdbd" stroke-width="1.5" filter="url(#shDA)"/>
+        <text x="135" y="105" text-anchor="middle" font-size="11" font-weight="700" fill="#424242">Device</text>
+
+        <rect x="70" y="120" width="16" height="34" rx="4" fill="#e0e0e0" stroke="#9e9e9e"/>
+        <path d="M70,154 Q78,164 86,154" fill="none" stroke="#9e9e9e" stroke-width="2"/>
+        <line x1="78" y1="158" x2="78" y2="164" stroke="#9e9e9e" stroke-width="2"/>
+        <text x="78" y="172" text-anchor="middle" font-size="7" fill="#757575">语音输入</text>
+
+        <rect x="105" y="120" width="34" height="30" rx="4" fill="#e0e0e0" stroke="#9e9e9e"/>
+        <path d="M112,128 L120,128 L128,120 L128,150 L120,142 L112,142 Z" fill="#bdbdbd"/>
+        <path d="M132,126 Q140,130 132,135" fill="none" stroke="#9e9e9e" stroke-width="1.5"/>
+        <path d="M132,120 Q144,130 132,140" fill="none" stroke="#9e9e9e" stroke-width="1.5"/>
+        <text x="122" y="172" text-anchor="middle" font-size="7" fill="#757575">语音输出</text>
+
+        <circle cx="170" cy="135" r="14" fill="#e0e0e0" stroke="#9e9e9e"/>
+        <circle cx="170" cy="135" r="6" fill="#9e9e9e"/>
+        <text x="170" y="172" text-anchor="middle" font-size="7" fill="#757575">视频输入</text>
+
+        <!-- Device Agent SDK -->
+        <rect x="65" y="320" width="140" height="90" rx="10" fill="#e3f2fd" stroke="#1a73e8" stroke-width="2" filter="url(#shDA)"/>
+        <text x="135" y="348" text-anchor="middle" font-size="12" font-weight="700" fill="#1565c0">Device Agent SDK</text>
+        <text x="135" y="368" text-anchor="middle" font-size="9" fill="#5f6368">运行在所有设备上</text>
+        <text x="135" y="390" text-anchor="middle" font-size="8" fill="#1a73e8">MQTT / WebSocket</text>
+
+        <!-- Platform area -->
+        <rect x="270" y="55" width="800" height="620" rx="8" fill="#f8f9fa" stroke="#e0e0e0" stroke-width="1.5"/>
+        <text x="670" y="655" text-anchor="middle" font-size="12" font-weight="600" fill="#757575">Device Agent Platform</text>
+
+        <!-- EMQX -->
+        <rect x="460" y="90" width="180" height="80" rx="10" fill="#1565c0" stroke="#0d47a1" stroke-width="2" filter="url(#shDA)"/>
+        <text x="550" y="122" text-anchor="middle" font-size="15" font-weight="700" fill="#fff">EMQX</text>
+        <text x="550" y="142" text-anchor="middle" font-size="10" fill="rgba(255,255,255,.8)">MQTT Broker</text>
+        <text x="550" y="158" text-anchor="middle" font-size="9" fill="rgba(255,255,255,.65)">A2A over MQTT</text>
+
+        <!-- Device Agent -->
+        <rect x="360" y="250" width="220" height="150" rx="10" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="2" filter="url(#shDA)"/>
+        <text x="470" y="280" text-anchor="middle" font-size="15" font-weight="700" fill="#7b1fa2">Device Agent</text>
+        <rect x="380" y="295" width="80" height="28" rx="4" fill="#fff" stroke="#7b1fa2"/>
+        <text x="420" y="313" text-anchor="middle" font-size="9" font-weight="600" fill="#7b1fa2">LLM</text>
+        <rect x="470" y="295" width="90" height="28" rx="4" fill="#fff" stroke="#7b1fa2"/>
+        <text x="515" y="313" text-anchor="middle" font-size="9" font-weight="600" fill="#7b1fa2">ASR/TTS</text>
+        <rect x="380" y="335" width="180" height="28" rx="4" fill="#fff" stroke="#7b1fa2"/>
+        <text x="470" y="353" text-anchor="middle" font-size="9" font-weight="600" fill="#7b1fa2">HTTP API · Basic Auth</text>
+
+        <!-- Device Management -->
+        <rect x="640" y="250" width="220" height="150" rx="10" fill="#e8f5e9" stroke="#34a853" stroke-width="2" filter="url(#shDA)"/>
+        <text x="750" y="280" text-anchor="middle" font-size="15" font-weight="700" fill="#2e7d32">Device Management</text>
+        <rect x="660" y="295" width="180" height="35" rx="4" fill="#fff" stroke="#34a853"/>
+        <text x="750" y="318" text-anchor="middle" font-size="10" font-weight="600" fill="#2e7d32">Databases</text>
+
+        <!-- 3rd Party Agent -->
+        <rect x="760" y="90" width="150" height="80" rx="10" fill="#fff3e0" stroke="#f9ab00" stroke-width="2" filter="url(#shDA)"/>
+        <text x="835" y="122" text-anchor="middle" font-size="13" font-weight="700" fill="#e65100">第三方 Agent</text>
+        <text x="835" y="142" text-anchor="middle" font-size="10" fill="#5f6368">通过 A2A 协议</text>
+        <text x="835" y="158" text-anchor="middle" font-size="9" fill="#9e9e9e">与 EMQX 互通</text>
+
+        <!-- App / Web -->
+        <rect x="640" y="470" width="220" height="90" rx="10" fill="#e3f2fd" stroke="#1a73e8" stroke-width="2" filter="url(#shDA)"/>
+        <text x="750" y="500" text-anchor="middle" font-size="15" font-weight="700" fill="#1565c0">App / Web</text>
+        <text x="750" y="522" text-anchor="middle" font-size="10" fill="#5f6368">用户交互入口</text>
+        <text x="750" y="542" text-anchor="middle" font-size="9" fill="#1a73e8">HTTP / WebSocket</text>
+
+        <!-- Device → SDK -->
+        <path d="M135,210 L135,320" stroke="#9e9e9e" stroke-width="1.5" fill="none" marker-end="url(#arDA-blue)"/>
+
+        <!-- SDK → EMQX: MQTT -->
+        <path d="M205,365 L250,365 L250,135 L460,135" stroke="#34a853" stroke-width="1.8" fill="none" marker-end="url(#arDA-green)"/>
+        <text x="355" y="122" text-anchor="middle" font-size="9" fill="#34a853" font-weight="600">MQTT</text>
+
+        <!-- EMQX → Device Agent: MQTT -->
+        <path d="M460,170 L470,250" stroke="#34a853" stroke-width="1.8" fill="none" marker-end="url(#arDA-green)"/>
+        <text x="455" y="215" text-anchor="end" font-size="9" fill="#34a853" font-weight="600">MQTT</text>
+
+        <!-- EMQX → Device Management: MQTT -->
+        <path d="M640,170 L750,220 L750,250" stroke="#34a853" stroke-width="1.8" fill="none" marker-end="url(#arDA-green)"/>
+        <text x="700" y="195" text-anchor="middle" font-size="9" fill="#34a853" font-weight="600">MQTT</text>
+
+        <!-- EMQX → 3rd Party Agent: A2A -->
+        <path d="M640,135 L760,135" stroke="#f9ab00" stroke-width="1.8" fill="none" marker-end="url(#arDA-orange)"/>
+        <text x="700" y="122" text-anchor="middle" font-size="9" fill="#f9ab00" font-weight="600">A2A</text>
+
+        <!-- SDK ← Device Agent: WebSocket -->
+        <path d="M360,335 L250,335 L250,365 L205,365" stroke="#7b1fa2" stroke-width="1.5" fill="none" marker-end="url(#arDA-purple)" stroke-dasharray="5,3"/>
+        <text x="300" y="325" text-anchor="middle" font-size="9" fill="#7b1fa2" font-weight="600">WebSocket</text>
+
+        <!-- Device Agent → Device Management: HTTP -->
+        <path d="M580,335 L640,335" stroke="#1a73e8" stroke-width="1.8" fill="none" marker-end="url(#arDA-blue)"/>
+        <text x="610" y="325" text-anchor="middle" font-size="9" fill="#1a73e8" font-weight="600">HTTP</text>
+
+        <!-- App/Web → Device Agent: HTTP/WebSocket -->
+        <path d="M640,525 L470,525 L470,400" stroke="#1a73e8" stroke-width="1.5" fill="none" marker-end="url(#arDA-blue)" stroke-dasharray="5,3"/>
+        <text x="555" y="540" text-anchor="middle" font-size="9" fill="#1a73e8" font-weight="600">HTTP / WebSocket</text>
+
+        <!-- App/Web → Device Management: HTTP -->
+        <path d="M750,470 L750,400" stroke="#1a73e8" stroke-width="1.8" fill="none" marker-end="url(#arDA-blue)"/>
+        <text x="770" y="440" text-anchor="start" font-size="9" fill="#1a73e8" font-weight="600">HTTP</text>
+
+        <!-- Legend -->
+        <g transform="translate(40,560)">
+          <rect x="0" y="0" width="560" height="50" rx="6" fill="#fff" stroke="#e0e0e0"/>
+          <text x="10" y="16" font-size="10" font-weight="600" fill="#333">图例</text>
+          <line x1="10" y1="30" x2="40" y2="30" stroke="#34a853" stroke-width="2"/><text x="44" y="34" font-size="9" fill="#555">MQTT</text>
+          <line x1="120" y1="30" x2="150" y2="30" stroke="#7b1fa2" stroke-width="1.5" stroke-dasharray="5,3"/><text x="154" y="34" font-size="9" fill="#555">WebSocket</text>
+          <line x1="260" y1="30" x2="290" y2="30" stroke="#1a73e8" stroke-width="1.5"/><text x="294" y="34" font-size="9" fill="#555">HTTP</text>
+          <line x1="360" y1="30" x2="390" y2="30" stroke="#f9ab00" stroke-width="1.5"/><text x="394" y="34" font-size="9" fill="#555">A2A</text>
+          <line x1="460" y1="30" x2="490" y2="30" stroke="#1a73e8" stroke-width="1.5" stroke-dasharray="5,3"/><text x="494" y="34" font-size="9" fill="#555">HTTP / WebSocket</text>
+        </g>
+      </svg>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================== -->
+<!-- TAB 2: SDK 生成 -->
+<!-- ================================================================== -->
+<div class="tab-panel" id="tab-sdk" role="tabpanel" aria-labelledby="tab-sdk">
+
+  <div class="section">
+    <h2 class="section-title">📦 设备 SDK 生成 · 直接满足 Fleets 接入规范</h2>
+
+    <div class="info purple">
+      <strong>核心能力：</strong> Device Agent 的设备 SDK 生成器以 Fleets ThingType Schema 为输入，生成原生支持 <code>$emqx/</code> 主题和 Fleets 三态 Shadow 协议的设备 SDK。设备开发者无需理解 Fleets 协议细节。
+    </div>
+
+    <div class="arch-fig">
+      <svg viewBox="0 0 1100 240" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
+        <defs><filter id="sh2"><feDropShadow dx="0" dy="1" stdDeviation="2" flood-opacity=".08"/></filter></defs>
+        <rect x="0" y="0" width="1100" height="210" rx="8" fill="#fafbfc"/>
+
+        <rect x="30" y="30" width="180" height="75" rx="10" fill="#e3f2fd" stroke="#1a73e8" stroke-width="2" filter="url(#sh2)"/>
+        <text x="120" y="55" text-anchor="middle" font-size="11" font-weight="700" fill="#1565c0">1. 创建 ThingType</text>
+        <text x="120" y="72" text-anchor="middle" font-size="9" fill="#5f6368">在 Fleets 中定义</text>
+        <text x="120" y="88" text-anchor="middle" font-size="9" fill="#5f6368">properties/events/commands</text>
+
+        <line x1="210" y1="65" x2="248" y2="65" stroke="#5f6368" stroke-width="1.5"/>
+
+        <rect x="258" y="20" width="200" height="95" rx="10" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="2" filter="url(#sh2)"/>
+        <text x="358" y="42" text-anchor="middle" font-size="11" font-weight="700" fill="#7b1fa2">2. DA 拉取 Schema</text>
+        <text x="358" y="60" text-anchor="middle" font-size="9" fill="#5f6368">FleetsAdapter.getThingType()</text>
+        <text x="358" y="76" text-anchor="middle" font-size="9" fill="#5f6368">→ ThingType Schema JSON</text>
+        <text x="358" y="92" text-anchor="middle" font-size="9" fill="#5f6368">→ 映射到 DA 内部 Product 模型</text>
+
+        <line x1="458" y1="65" x2="496" y2="65" stroke="#5f6368" stroke-width="1.5"/>
+
+        <rect x="506" y="20" width="220" height="95" rx="10" fill="#e6f4ea" stroke="#34a853" stroke-width="2" filter="url(#sh2)"/>
+        <text x="616" y="42" text-anchor="middle" font-size="11" font-weight="700" fill="#2e7d32">3. SDK 生成器</text>
+        <text x="616" y="60" text-anchor="middle" font-size="9" fill="#5f6368">读取 Product 属性和事件/命令</text>
+        <text x="616" y="76" text-anchor="middle" font-size="9" fill="#5f6368">→ 生成 Fleets 兼容的 SDK</text>
+        <text x="616" y="92" text-anchor="middle" font-size="9" fill="#5f6368">（TS / C / Python 模板）</text>
+
+        <line x1="726" y1="65" x2="764" y2="65" stroke="#5f6368" stroke-width="1.5"/>
+
+        <rect x="774" y="30" width="210" height="75" rx="10" fill="#fff" stroke="#f9ab00" stroke-width="2" filter="url(#sh2)"/>
+        <text x="879" y="52" text-anchor="middle" font-size="11" font-weight="700" fill="#e65100">4. 输出 SDK</text>
+        <text x="879" y="70" text-anchor="middle" font-size="9" fill="#5f6368">$emqx/ 主题 · Shadow Payload</text>
+        <text x="879" y="88" text-anchor="middle" font-size="9" fill="#5f6368">Commands · Events · Jobs 协议</text>
+
+        <g transform="translate(30,140)">
+          <rect x="0" y="0" width="954" height="55" rx="6" fill="#1e1e2e"/>
+          <text x="12" y="18" font-size="9" fill="#89b4fa">// DA SDK 生成器从 Fleets ThingType Schema 自动推导出完整的设备接入代码</text>
+          <text x="12" y="34" font-size="9" fill="#cdd6f4">ThingType Schema → DA Product 模型 → SDK 模板渲染 → 设备代码（含 MQTT 连接、Shadow 同步、事件上报、命令处理）</text>
+          <text x="12" y="50" font-size="9" fill="#a6e3a1">// 输出的 SDK 直接使用 $emqx/ 前缀主题，设备上电即可接入 Fleets 平台</text>
+        </g>
+      </svg>
+    </div>
+
+    <div class="two">
+      <div class="card">
+        <h3>📋 Fleets ThingType Schema（输入）</h3>
+        <pre class="code"><code>{
+  "name": "com.example.hvac.thermostat",
+  "schema": {
+    "properties": {
+      "temperature": { "type": "float", "unit": "°C", "min": -40, "max": 85 },
+      "humidity":    { "type": "float", "unit": "%RH" },
+      "powerState":  { "type": "boolean", "writable": true },
+      "targetTemp":  { "type": "float", "unit": "°C",
+                       "min": 10, "max": 35, "writable": true }
+    },
+    "events": {
+      "info": {
+        "heartbeat": { "intervalMs": 60000 },
+        "bootup":    {}
+      },
+      "warn": {
+        "highTemperature": {
+          "payload": { "currentTemp": {"type":"float"},
+                       "threshold":  {"type":"float"} }
+        }
+      }
+    },
+    "commands": {
+      "setPower": {
+        "type": "sync", "timeoutMs": 5000,
+        "input": { "on": {"type": "boolean"} }
+      },
+      "reboot": {
+        "type": "async", "timeoutMs": 30000,
+        "input": { "delaySec": {"type": "int"} }
+      }
+    }
+  }
+}</code></pre>
+      </div>
+      <div class="card">
+        <h3>🔧 DA 生成的设备 SDK（输出）</h3>
+        <pre class="code"><code>class ThermostatDevice {
+  private client: MqttClient;
+  private thingName: string;
+
+  constructor(thingName, brokerUrl, creds) {
+    this.thingName = thingName;
+    this.client = connect(brokerUrl, creds);
+  }
+
+  // === Shadow 同步 ===
+  async reportState(state) {
+    await this.client.publish(
+      `$emqx/things/${this.thingName}/shadow/update`,
+      { state: { reported: state } }, { qos: 1 }
+    );
+  }
+
+  // === 事件上报 ===
+  async emitEvent(severity, eventType, data?) {
+    await this.client.publish(
+      `$emqx/things/${this.thingName}/events/${eventType}`,
+      { eventType, severity, data, timestamp: Date.now() }
+    );
+  }
+
+  // === 命令处理 ===
+  onCommand(handler) {
+    this.client.subscribe(
+      `$emqx/commands/things/${this.thingName}/executions/+/request`,
+      { qos: 1 }, async (topic, payload) => {
+        const result = await handler(payload);
+        const execId = /* 从 topic 提取 */;
+        await this.client.publish(
+          `$emqx/commands/things/${this.thingName}/executions/${execId}/response`,
+          { status: "SUCCEEDED", result }
+        );
+      }
+    );
+  }
+
+  // === Delta 监听 ===
+  onDelta(handler) {
+    this.client.subscribe(
+      `$emqx/things/${this.thingName}/shadow/update/delta`,
+      { qos: 1 }, handler
+    );
+  }
+}</code></pre>
+      </div>
+    </div>
+
+    <div class="info green">
+      <strong>SDK 兼容性：</strong> 生成的 SDK 同时支持 MQTT 和 HTTPS（ThingDatas API）两种接入方式。
+      SDK 内部自动处理 Shadow 三态同步、命令 request/response 匹配、Jobs 协议循环。
+    </div>
+  </div>
+
+</div>
+
+<!-- ================================================================== -->
+<!-- TAB 3: 数据流 -->
+<!-- ================================================================== -->
+<div class="tab-panel" id="tab-dataflow" role="tabpanel" aria-labelledby="tab-dataflow">
+
+  <div class="section">
+    <h2 class="section-title">🤖 DA 现有功能适配 Fleets 协议</h2>
+
+    <div class="info orange">
+      <strong>设计要点：</strong> DA 的 AI 功能（NL 控制、规则引擎、数据分析）在控制设备时，使用 <strong>Fleets 的 <code>$emqx/</code> MQTT 主题</strong> 而非 DA 自有主题。
+      设备完全无感知 —— 它只看到同一个 EMQX Broker 上的同一套协议。
+    </div>
+
+    <div class="arch-fig">
+      <svg viewBox="0 0 1100 320" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
+        <defs><filter id="sh3"><feDropShadow dx="0" dy="1" stdDeviation="2" flood-opacity=".08"/></filter></defs>
+        <rect x="0" y="0" width="1100" height="290" rx="8" fill="#fafbfc"/>
+
+        <!-- User -->
+        <rect x="40" y="30" width="180" height="50" rx="10" fill="#fff" stroke="#7b1fa2" stroke-width="2" filter="url(#sh3)"/>
+        <text x="130" y="55" text-anchor="middle" font-size="11" font-weight="700" fill="#7b1fa2">用户 / Web 控制台</text>
+
+        <!-- DA AI -->
+        <rect x="290" y="20" width="220" height="60" rx="10" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="2" filter="url(#sh3)"/>
+        <text x="400" y="42" text-anchor="middle" font-size="11" font-weight="700" fill="#7b1fa2">DA AI 功能</text>
+        <text x="400" y="60" text-anchor="middle" font-size="9" fill="#5f6368">NL 控制 · 规则引擎 · AI 分析</text>
+
+        <line x1="220" y1="55" x2="290" y2="55" stroke="#7b1fa2" stroke-width="1.5"/>
+
+        <!-- FleetsAdapter -->
+        <rect x="290" y="110" width="220" height="40" rx="8" fill="#fff" stroke="#7b1fa2" stroke-width="1.5" stroke-dasharray="5,3"/>
+        <text x="400" y="135" text-anchor="middle" font-size="10" font-weight="600" fill="#7b1fa2">FleetsAdapter</text>
+        <path d="M400,80 L400,110" stroke="#7b1fa2" stroke-width="1.5" fill="none"/>
+
+        <!-- EMQX Broker -->
+        <rect x="580" y="40" width="220" height="70" rx="12" fill="#1565c0" filter="url(#sh3)"/>
+        <text x="690" y="68" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">EMQX Broker</text>
+        <text x="690" y="90" text-anchor="middle" font-size="10" fill="rgba(255,255,255,.8)">$emqx/things/{name}/...</text>
+
+        <!-- DA → EMQX -->
+        <path d="M510,55 L580,55" stroke="#7b1fa2" stroke-width="2" fill="none"/>
+        <text x="550" y="48" text-anchor="middle" font-size="9" fill="#7b1fa2">发布 $emqx/ 命令</text>
+
+        <!-- EMQX → DA -->
+        <path d="M580,100 L510,100 L510,75" stroke="#7b1fa2" stroke-width="1.5" fill="none" stroke-dasharray="5,3"/>
+        <text x="570" y="115" text-anchor="middle" font-size="9" fill="#7b1fa2">订阅设备消息</text>
+
+        <!-- Device -->
+        <rect x="850" y="50" width="160" height="50" rx="25" fill="#00897b" filter="url(#sh3)"/>
+        <text x="930" y="73" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">Device</text>
+
+        <!-- EMQX → Device -->
+        <path d="M800,75 L850,75" stroke="#f9ab00" stroke-width="2" fill="none"/>
+        <!-- Device → EMQX -->
+        <path d="M850,100 L800,100" stroke="#34a853" stroke-width="2" fill="none"/>
+
+        <!-- Callout: no DA own topics -->
+        <rect x="580" y="180" width="340" height="36" rx="8" fill="#fce8e6" stroke="#ea4335" stroke-width="1.5"/>
+        <text x="750" y="200" text-anchor="middle" font-size="10" font-weight="600" fill="#c62828">✕ DA 不使用自有 device-agent/ 主题</text>
+
+        <!-- NL Control Example -->
+        <g transform="translate(40,180)">
+          <rect x="0" y="0" width="220" height="56" rx="6" fill="#e6f4ea" stroke="#34a853" stroke-width="1"/>
+          <text x="10" y="18" font-size="9" font-weight="600" fill="#2e7d32">NL 控制示例</text>
+          <text x="10" y="34" font-size="8" fill="#555">"把温度调到 25 度"</text>
+          <text x="10" y="48" font-size="8" fill="#555">→ DA 识别 → 发布到 $emqx/commands/.../request</text>
+        </g>
+      </svg>
+    </div>
+
+    <div class="three">
+      <div class="card">
+        <h3>💬 NL 控制</h3>
+        <pre class="code"><code>$emqx/commands/things/thermostat-001/executions/exec-001/request
+{
+  "commandId": "exec-001",
+  "action": "setPower",
+  "params": { "on": true },
+  "timestamp": 1715432400
+}
+
+// 或通过 Shadow desired：
+$emqx/things/thermostat-001/shadow/update
+{
+  "state": { "desired": { "targetTemp": 25 } },
+  "version": 3
+}</code></pre>
+      </div>
+      <div class="card">
+        <h3>📊 AI 分析</h3>
+        <pre class="code"><code>// 订阅所有设备 shadow 更新
+subscribe("$emqx/things/+/shadow/update")
+
+// 或通过 REST 读取：
+GET /api/v1/thing-datas/{thingName}/shadow
+
+// 触发分析规则后下发控制
+if (trend.isRising && trend.rate > 2) {
+  publish(
+    `$emqx/commands/things/${device}/exec/.../request`,
+    { action: "setPower", params: { on: true } }
+  );
+}</code></pre>
+      </div>
+      <div class="card">
+        <h3>🤖 规则引擎</h3>
+        <pre class="code"><code>// 设备上报事件到 Fleets 主题：
+$emqx/things/sensor-001/events/highTemperature
+{
+  "eventType": "highTemperature",
+  "severity": "warn",
+  "data": { "currentTemp": 45.0 }
+}
+
+// 规则引擎：
+rule "HighTempAlert"
+  when device.event == "highTemperature"
+    and device.event.data.currentTemp > 40
+  then
+    notify("温度过高: " + device.event.data.currentTemp);
+    device.command("setPower", { on: false });</code></pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2 class="section-title">🔄 数据流 · 上行共享 + 下行独立</h2>
+
+    <div class="info blue">
+      <strong>核心原则：</strong> <strong>上行</strong>通过 EMQX Rule Engine 分发到 Fleets 和 DA 两端，各自消费；
+      <strong>下行</strong>DA 和 Fleets 各自独立发布指令，设备通过同一套订阅接收。两端互不干扰。
+    </div>
+
+    <div class="arch-fig">
+      <svg viewBox="0 0 1100 300" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
+        <defs><filter id="sh4"><feDropShadow dx="0" dy="1" stdDeviation="2" flood-opacity=".08"/></filter></defs>
+        <rect x="0" y="0" width="1100" height="270" rx="8" fill="#fafbfc"/>
+        <text x="550" y="22" text-anchor="middle" font-size="12" font-weight="700" fill="#34a853">⬆️ 上行：设备 → EMQX → 双端分发</text>
+
+        <!-- Device -->
+        <rect x="450" y="180" width="140" height="40" rx="20" fill="#00897b" filter="url(#sh4)"/>
+        <text x="520" y="205" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">Device</text>
+
+        <!-- EMQX -->
+        <rect x="400" y="100" width="240" height="45" rx="10" fill="#1565c0" filter="url(#sh4)"/>
+        <text x="520" y="125" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">EMQX Broker + Rule Engine</text>
+
+        <path d="M520,180 L520,145" stroke="#34a853" stroke-width="1.5" fill="none"/>
+
+        <!-- Fleets Path -->
+        <rect x="60" y="40" width="200" height="55" rx="8" fill="#e3f2fd" stroke="#1a73e8" stroke-width="2" filter="url(#sh4)"/>
+        <text x="160" y="60" text-anchor="middle" font-size="11" font-weight="700" fill="#1565c0">Fleets 消费</text>
+        <text x="160" y="78" text-anchor="middle" font-size="8" fill="#5f6368">Rule Bridge → EMQX Tables + ThingDatas API → PG</text>
+        <path d="M260,65 L400,110" stroke="#1a73e8" stroke-width="1.5" fill="none"/>
+
+        <!-- DA Path -->
+        <rect x="760" y="40" width="220" height="55" rx="8" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="2" filter="url(#sh4)"/>
+        <text x="870" y="60" text-anchor="middle" font-size="11" font-weight="700" fill="#7b1fa2">DA 消费</text>
+        <text x="870" y="78" text-anchor="middle" font-size="8" fill="#5f6368">MQTT 订阅 $emqx/things/+/shadow/update, events/+</text>
+        <path d="M760,65 L640,65 L640,100" stroke="#7b1fa2" stroke-width="1.5" fill="none"/>
+
+        <!-- Callout -->
+        <rect x="100" y="230" width="850" height="26" rx="6" fill="#e6f4ea" stroke="#34a853" stroke-width="1.5"/>
+        <text x="525" y="248" text-anchor="middle" font-size="9" font-weight="600" fill="#2e7d32">✦ 上行同时到达 Fleets（持久化）和 DA（实时消费）—— 两端彼此独立 ✦</text>
+      </svg>
+    </div>
+
+    <div class="arch-fig">
+      <svg viewBox="0 0 1100 320" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
+        <defs><filter id="sh5"><feDropShadow dx="0" dy="1" stdDeviation="2" flood-opacity=".08"/></filter></defs>
+        <rect x="0" y="0" width="1100" height="290" rx="8" fill="#fafbfc"/>
+        <text x="550" y="22" text-anchor="middle" font-size="12" font-weight="700" fill="#f9ab00">⬇️ 下行：Fleets + DA 各自独立发布到同一套 $emqx/ 主题</text>
+
+        <!-- Device -->
+        <rect x="450" y="200" width="140" height="40" rx="20" fill="#00897b" filter="url(#sh5)"/>
+        <text x="520" y="225" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">Device</text>
+
+        <rect x="420" y="145" width="200" height="28" rx="5" fill="#fff3e0" stroke="#f9ab00" stroke-width="1.5"/>
+        <text x="520" y="163" text-anchor="middle" font-size="8" fill="#e65100">订阅 $emqx/things/{name}/shadow/update, commands/.../request</text>
+        <path d="M520,173 L520,200" stroke="#f9ab00" stroke-width="1.5" fill="none"/>
+
+        <!-- EMQX -->
+        <rect x="400" y="65" width="240" height="45" rx="10" fill="#1565c0" filter="url(#sh5)"/>
+        <text x="520" y="90" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">EMQX Broker</text>
+        <text x="520" y="105" text-anchor="middle" font-size="9" fill="rgba(255,255,255,.8)">同一套 $emqx/ 主题</text>
+        <path d="M520,110 L520,145" stroke="#f9ab00" stroke-width="1.5" fill="none"/>
+
+        <!-- Fleets publishing -->
+        <rect x="60" y="30" width="240" height="65" rx="10" fill="#e3f2fd" stroke="#1a73e8" stroke-width="2" filter="url(#sh5)"/>
+        <text x="180" y="52" text-anchor="middle" font-size="11" font-weight="700" fill="#1565c0">Fleets</text>
+        <text x="180" y="68" text-anchor="middle" font-size="8" fill="#5f6368">Shadow desired / Commands / Jobs</text>
+        <text x="180" y="82" text-anchor="middle" font-size="8" fill="#5f6368">EMQX V5 REST API</text>
+        <path d="M300,50 L400,80" stroke="#f9ab00" stroke-width="1.5" fill="none"/>
+
+        <!-- DA publishing -->
+        <rect x="760" y="30" width="240" height="65" rx="10" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="2" filter="url(#sh5)"/>
+        <text x="880" y="52" text-anchor="middle" font-size="11" font-weight="700" fill="#7b1fa2">Device Agent</text>
+        <text x="880" y="68" text-anchor="middle" font-size="8" fill="#5f6368">NL 控制 / 规则引擎触发</text>
+        <text x="880" y="82" text-anchor="middle" font-size="8" fill="#5f6368">MQTT 直接 publish</text>
+        <path d="M760,60 L640,60 L640,80" stroke="#7b1fa2" stroke-width="1.5" fill="none"/>
+
+        <rect x="200" y="255" width="630" height="26" rx="6" fill="#fce8e6" stroke="#ea4335" stroke-width="1.5"/>
+        <text x="515" y="273" text-anchor="middle" font-size="9" font-weight="600" fill="#c62828">✦ 两端各自独立发布 —— 设备从同一个主题接收，无需感知来源 ✦</text>
+      </svg>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2 class="section-title">📊 完整数据流对照</h2>
+    <div style="overflow-x:auto">
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th style="width:100px">数据类型</th>
+            <th style="width:60px">方向</th>
+            <th>MQTT 主题</th>
+            <th>Fleets 处理</th>
+            <th>DA 处理</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Shadow reported</td><td><span class="tag tg-g">↑</span></td><td><code>$emqx/things/{name}/shadow/update</code></td><td>Rule Bridge → EMQX Tables + ThingDatas API → PG</td><td>订阅 → 更新本地 Shadow 缓存</td></tr>
+          <tr><td>Events</td><td><span class="tag tg-g">↑</span></td><td><code>$emqx/things/{name}/events/{type}</code></td><td>Rule Bridge → EMQX Tables</td><td>订阅 → 触发规则/分析</td></tr>
+          <tr><td>Command response</td><td><span class="tag tg-g">↑</span></td><td><code>$emqx/commands/.../{id}/response</code></td><td>Rule HTTP POST → ThingDatas API → PG</td><td>订阅 → 处理响应回调</td></tr>
+          <tr><td>Shadow desired</td><td><span class="tag tg-o">↓</span></td><td><code>$emqx/things/{name}/shadow/update</code></td><td>EMQX V5 API 发布</td><td>MQTT publish</td></tr>
+          <tr><td>Command request</td><td><span class="tag tg-o">↓</span></td><td><code>$emqx/commands/.../{id}/request</code></td><td>EMQX V5 API 发布</td><td>MQTT publish</td></tr>
+          <tr><td>Jobs notify</td><td><span class="tag tg-o">↓</span></td><td><code>$emqx/things/{name}/jobs/notify</code></td><td>EMQX V5 API 发布</td><td>—</td></tr>
+          <tr><td>Lifecycle</td><td><span class="tag tg-t">⚡</span></td><td><code>$events/client_connected|disconnected</code></td><td>Rule HTTP POST → ThingDatas API → PG</td><td>可选订阅 → 更新设备在线状态</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- ================================================================== -->
+<!-- TAB 4: 双端控制 -->
+<!-- ================================================================== -->
+<div class="tab-panel" id="tab-control" role="tabpanel" aria-labelledby="tab-control">
+
+  <div class="section">
+    <h2 class="section-title">🎮 双端控制 · 独立互不冲突</h2>
+
+    <div class="info orange">
+      <strong>核心设计：</strong> DA 和 Fleets 各自拥有独立的控制逻辑。Fleets 管理 Shadow 三态同步和 Jobs 调度，DA 管理 AI 会话式控制和规则引擎触发。
+      两者在 MQTT 层面"各写各的"——通过<strong>最后写入者语义</strong>自然收敛。
+    </div>
+
+    <div class="arch-fig">
+      <svg viewBox="0 0 1100 230" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
+        <defs><filter id="sh6"><feDropShadow dx="0" dy="1" stdDeviation="2" flood-opacity=".08"/></filter></defs>
+        <rect x="0" y="0" width="1100" height="210" rx="8" fill="#fafbfc"/>
+
+        <rect x="60" y="20" width="220" height="60" rx="10" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="2" filter="url(#sh6)"/>
+        <text x="170" y="46" text-anchor="middle" font-size="12" font-weight="700" fill="#7b1fa2">Device Agent</text>
+        <text x="170" y="64" text-anchor="middle" font-size="9" fill="#5f6368">AI 会话控制 · 规则引擎</text>
+
+        <rect x="60" y="105" width="220" height="60" rx="10" fill="#e3f2fd" stroke="#1a73e8" stroke-width="2" filter="url(#sh6)"/>
+        <text x="170" y="131" text-anchor="middle" font-size="12" font-weight="700" fill="#1565c0">Fleets Platform</text>
+        <text x="170" y="149" text-anchor="middle" font-size="9" fill="#5f6368">Shadow · Commands · Jobs</text>
+
+        <rect x="400" y="52" width="240" height="60" rx="12" fill="#1565c0" filter="url(#sh6)"/>
+        <text x="520" y="78" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">EMQX Broker</text>
+        <text x="520" y="96" text-anchor="middle" font-size="9" fill="rgba(255,255,255,.8)">$emqx/things/{name}/...</text>
+
+        <path d="M280,40 L400,75" stroke="#7b1fa2" stroke-width="1.5" fill="none"/>
+        <text x="340" y="32" text-anchor="middle" font-size="9" fill="#7b1fa2">MQTT publish</text>
+
+        <path d="M280,135 L400,90" stroke="#f9ab00" stroke-width="1.5" fill="none"/>
+        <text x="340" y="145" text-anchor="middle" font-size="9" fill="#f9ab00">EMQX V5 API</text>
+
+        <rect x="760" y="30" width="180" height="50" rx="25" fill="#00897b" filter="url(#sh6)"/>
+        <text x="850" y="55" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">Device</text>
+        <text x="850" y="70" text-anchor="middle" font-size="8" fill="rgba(255,255,255,.8)">同一套订阅处理</text>
+        <path d="M640,80 L760,50" stroke="#f9ab00" stroke-width="1.5" fill="none"/>
+
+        <rect x="60" y="185" width="880" height="20" rx="5" fill="#e6f4ea" stroke="#34a853" stroke-width="1"/>
+        <text x="500" y="199" text-anchor="middle" font-size="8" font-weight="600" fill="#2e7d32">✅ 独立控制 · 各管各的 · 不需要冲突仲裁 · 最后写入自然收敛</text>
+      </svg>
+    </div>
+
+    <div class="mg">
+      <div>
+        <h4>🎯 DA 控制场景</h4>
+        <p>"把客厅温度调到 26°C" → DA AI Agent 解析意图 → 发布 Shadow desired 或 Command 到 <code>$emqx/</code> 主题 → 设备收到后执行。</p>
+      </div>
+      <div>
+        <h4>🏭 Fleets 控制场景</h4>
+        <p>批次重启 10 台设备 → Fleets 创建 Job → EMQX V5 API 发布到 <code>$emqx/</code> 主题 → 设备收到后执行并上报。</p>
+      </div>
+      <div>
+        <h4>⚡ 冲突场景：最后写入生效</h4>
+        <p>DA 设 desired.targetTemp=25，Fleets 随后设 26。设备收到两次 desired，以最后一次为准。设备上报最新 reported 后两端同步。</p>
+      </div>
+      <div>
+        <h4>📋 最终一致性</h4>
+        <p>两端的 desired 可能不同，但设备按最后收到的执行 —— 这本身就是最终一致性，不需要额外仲裁机制。</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2 class="section-title">🔌 FleetsAdapter · Device Agent 适配层</h2>
+
+    <div class="info purple">
+      <strong>适配层职责：</strong> FleetsAdapter 是 DA 中的一个内部模块，负责拉取 Fleets ThingType Schema、注册设备、配置 MQTT 主题模板，使得 SDK 生成器和 AI 功能能正确适配 Fleets 协议。
+      它不处理设备消息，也不处理 AI 逻辑。
+    </div>
+
+    <div class="arch-fig">
+      <svg viewBox="0 0 1100 200" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
+        <defs><filter id="sh7"><feDropShadow dx="0" dy="1" stdDeviation="2" flood-opacity=".08"/></filter></defs>
+        <rect x="0" y="0" width="1100" height="175" rx="8" fill="#fafbfc"/>
+
+        <g transform="translate(40,20)">
+          <rect x="0" y="0" width="280" height="130" rx="8" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="2" filter="url(#sh7)"/>
+          <text x="10" y="22" font-size="11" font-weight="700" fill="#7b1fa2">FleetsAdapter 接口</text>
+          <text x="10" y="42" font-size="8" fill="#555">connect(config) → Promise&lt;void&gt;</text>
+          <text x="10" y="58" font-size="8" fill="#555">fetchThingType(name) → ThingType</text>
+          <text x="10" y="74" font-size="8" fill="#555">registerDevice(thing) → Device</text>
+          <text x="10" y="90" font-size="8" fill="#555">generateMqttTopics(name) → Topics</text>
+          <text x="10" y="106" font-size="8" fill="#555">buildDeviceSpec(thingType) → DeviceSpec</text>
+          <text x="10" y="122" font-size="8" fill="#555">getMqttCredentials(thingId) → Credentials</text>
+        </g>
+
+        <g transform="translate(380,20)"><rect x="0" y="0" width="220" height="50" rx="6" fill="#e6f4ea" stroke="#34a853" stroke-width="1.5" filter="url(#sh7)"/><text x="110" y="20" text-anchor="middle" font-size="9" font-weight="700" fill="#2e7d32">SDK 生成器</text><text x="110" y="38" text-anchor="middle" font-size="8" fill="#5f6368">使用 DeviceSpec 生成 SDK</text></g>
+        <g transform="translate(380,85)"><rect x="0" y="0" width="220" height="50" rx="6" fill="#fce8e6" stroke="#ea4335" stroke-width="1.5" filter="url(#sh7)"/><text x="110" y="20" text-anchor="middle" font-size="9" font-weight="700" fill="#c62828">AI Agent / NL 控制</text><text x="110" y="38" text-anchor="middle" font-size="8" fill="#5f6368">使用 Topics 发送命令</text></g>
+        <g transform="translate(700,20)"><rect x="0" y="0" width="220" height="50" rx="6" fill="#fff3e0" stroke="#f9ab00" stroke-width="1.5" filter="url(#sh7)"/><text x="110" y="20" text-anchor="middle" font-size="9" font-weight="700" fill="#e65100">规则 / 分析引擎</text><text x="110" y="38" text-anchor="middle" font-size="8" fill="#5f6368">接收设备消息做出决策</text></g>
+        <g transform="translate(700,85)"><rect x="0" y="0" width="220" height="50" rx="6" fill="#e8f0fe" stroke="#1a73e8" stroke-width="1.5" filter="url(#sh7)"/><text x="110" y="20" text-anchor="middle" font-size="9" font-weight="700" fill="#1565c0">设备注册服务</text><text x="110" y="38" text-anchor="middle" font-size="8" fill="#5f6368">自动注册 Thing 到 Fleets</text></g>
+
+        <path d="M320,45 L380,45" stroke="#7b1fa2" stroke-width="1.5" fill="none"/>
+        <path d="M320,100 L380,110" stroke="#7b1fa2" stroke-width="1.5" fill="none"/>
+        <path d="M600,45 L700,45" stroke="#7b1fa2" stroke-width="1.5" fill="none"/>
+        <path d="M600,110 L700,110" stroke="#7b1fa2" stroke-width="1.5" fill="none"/>
+      </svg>
+    </div>
+
+    <div class="two">
+      <div class="card">
+        <h3>🧩 DA 配置示例</h3>
+        <pre class="code"><code>{
+  "fleets": {
+    "enabled": true,
+    "api": {
+      "baseUrl": "http://fleets:8080",
+      "auth": {
+        "type": "signkey",
+        "key": "sk-your-signkey"
+      }
+    },
+    "mqtt": {
+      "broker": "mqtt://emqx:1883",
+      "subscribeTopics": [
+        "$emqx/things/+/shadow/update",
+        "$emqx/things/+/events/+",
+        "$emqx/commands/things/+/executions/+/response"
+      ]
+    },
+    "sdk": {
+      "languages": ["typescript", "c", "python"],
+      "outputDir": "./generated-sdks"
+    },
+    "autoRegisterDevices": true
+  }
+}</code></pre>
+      </div>
+      <div class="card">
+        <h3>🚀 设备自动注册流程</h3>
+        <pre class="code"><code>// 1. 设备连接 EMQX（ClientId = mqttClientId）
+// 2. EMQX lifecycle 触发：
+//    $events/client_connected → Fleets ThingDatas API
+//    → PostgreSQL things.status = "online"
+// 3. DA 发现新设备上线（订阅 lifecycle
+//    或收到设备第一条消息后触发）
+// 4. DA 调用 FleetsAdapter.registerDevice():
+//    - 检查设备是否已在 Fleets 注册
+//    - 如未注册 → Fleets API 创建 Thing
+//    - 绑定 ThingType
+//    - 写入 DA 本地设备表
+// 5. SDK 生成器为设备提供 SDK
+//    - 内含正确的 MQTT 主题和 Payload 格式</code></pre>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ================================================================== -->
+<!-- TAB 5: 实施路线 + 决策清单 -->
+<!-- ================================================================== -->
+<div class="tab-panel" id="tab-roadmap" role="tabpanel" aria-labelledby="tab-roadmap">
+
+  <div class="section">
+    <h2 class="section-title">🗺️ 实施路线</h2>
+    <div class="section-desc">覆盖所有集成维度：平台规范库设计 → DA 初始化改造 → 物模型与 SDK 生成 → AI 能力 → 管控面 → 全量覆盖。共 5 个 Phase，P0-P1 为必须前置的基础工作。</div>
+
+    <ul class="phase">
+      <li>
+        <span class="phase-n">P0</span>
+        <div class="phase-c">
+          <div class="phase-t">PlatformSpec 接口 + DeviceSpec 模型 + DA 初始化改造</div>
+          <div class="phase-d">整个方案的基础。定义 PlatformSpec 接口，改造 DA 启动流程，使其在初始化时加载指定平台规范库。</div>
+          <div class="phase-d">• PlatformSpec 接口定义（init, fetchThingType, generateSdk, publishCommand, subscribeEvents）<br>
+          • DeviceSpec 内部模型（properties, events, commands, mqttTopics, shadow）<br>
+          • DA 启动配置增加 <code>platform: "native" | "fleets"</code> 字段<br>
+          • DA 初始化流程：读 platform → 加载对应平台规范库 → 初始化 → 启动<br>
+          • <strong>@da/platform-native</strong>：将 DA 现有 device-agent/ 和 v1/ 主题封装为第一个平台规范库<br>
+          • AI Core 解耦：从直接操作 MQTT 改为通过 PlatformSpec 接口与设备交互<br>
+          • 默认注入 @da/platform-native，启动后行为完全不变（向后兼容）</div>
+        </div>
+      </li>
+      <li>
+        <span class="phase-n">P1</span>
+        <div class="phase-c">
+          <div class="phase-t">@da/platform-fleets 实现 + SDK 生成器适配</div>
+          <div class="phase-d">第一个外部平台的规范库。Fleets 平台规范库实现完整的物模型映射和 MQTT 交互，SDK 生成器输出 $emqx/ 兼容的代码。</div>
+          <div class="phase-d">• @da/platform-fleets 全部接口实现（init, fetchThingType, generateSdk, publishCommand, subscribeEvents, generateMqttTopics）<br>
+          • Fleets GET /api/v1/thing-types/{id} 拉取 ThingType Schema → DeviceSpec<br>
+          • $emqx/ 主题模板生成 + MQTT 发布/订阅<br>
+          • ThingDatas API 调用 + 设备注册<br>
+          • SDK 模板更新：MQTT 主题改为 $emqx/ 前缀<br>
+          • Shadow/Events/Commands 格式对齐 Fleets 规范<br>
+          • TypeScript SDK 端到端测试</div>
+        </div>
+      </li>
+      <li>
+        <span class="phase-n">P2</span>
+        <div class="phase-c">
+          <div class="phase-t">DA AI 功能适配 Fleets + Fleets AI 增强 API</div>
+          <div class="phase-d">DA 的 NL 控制/规则引擎/分析能力完全适配 Fleets 主题。同时为 Fleets 提供 AI 增强 API 端点。</div>
+          <div class="phase-d">• DA AI 功能适配 Fleets MQTT 协议（NL 控制、规则引擎、数据分析）<br>
+          • DA AI API Server 完善：/ai/chat, /ai/analyze, /ai/policy<br>
+          • <strong>新增 DA AI API</strong>：/ai/query/nl（NL → Device Query DSL 翻译）<br>
+          • <strong>新增 DA AI API</strong>：/ai/anomaly/detect（设备异常检测）<br>
+          • <strong>新增 DA AI API</strong>：/ai/schema/suggest（ThingType Schema 建议）<br>
+          • <strong>Fleets 新增 API</strong>：GET /thing-datas/{name}/shadow/history（供 DA 读取时序数据）</div>
+        </div>
+      </li>
+      <li>
+        <span class="phase-n">P3</span>
+        <div class="phase-c">
+          <div class="phase-t">管控面：DA 实例生命周期 + 按需拉取设备模型</div>
+          <div class="phase-d">Fleets 对 DA 拥有控制面权限，管理 DA 实例进程。设备模型采用按需拉取（默认），导入/导出为可选规划功能。</div>
+          <div class="phase-d">• DA 实例注册 + 心跳机制（POST /da/instances + PUT .../heartbeat）<br>
+          • Fleets 进程管理 API（POST .../start|stop|restart）<br>
+          • <strong>按需拉取 thingType</strong>：DA 用 thingId 调 Fleets GET /things/{id}（拉取 metadata）+ GET /thing-types/{name}，只缓存 thingType 模型不存设备列表<br>
+          • <strong>Fleets 新增 API</strong>：POST /ai/data/batch-shadow（批量设备状态）<br>
+          • DA 对设备的控制权验证（NL 控制 + 规则引擎 + AI 分析全链路）<br>
+          • <strong>规划（可选）</strong>：设备导入/导出 API（/da/devices/import|export）+ Thing managedByDa 标记</div>
+        </div>
+      </li>
+      <li>
+        <span class="phase-n">P4</span>
+        <div class="phase-c">
+          <div class="phase-t">C / Python SDK + Web 管理面 + 监控 + 全量集成测试</div>
+          <div class="phase-d">全面覆盖语言、运维能力和质量保障。</div>
+          <div class="phase-d">• C SDK 模板适配 Fleets 规范<br>
+          • Python SDK 模板适配 Fleets 规范<br>
+          • Web 控制台：DA 实例列表 + 管理（启动/停止/重启）<br>
+          • Web 控制台：ThingType 缓存查看 +（规划）设备导入/导出操作界面<br>
+          • Web 控制台：SDK 下载入口（适配 Fleets 的 SDK）<br>
+          • 集成测试覆盖所有端到端场景<br>
+          • Prometheus 监控指标 + 告警</div>
+        </div>
+      </li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2 class="section-title">📌 关键设计决策</h2>
+    <div style="overflow-x:auto">
+      <table class="tbl">
+        <thead>
+          <tr><th style="width:160px">决策点</th><th>选择</th><th>理由</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>设备协议</td><td><span class="tag tg-b">Fleets $emqx/ 规范</span></td><td>设备只有一套 Schema、一套 MQTT 主题。DA 的一切通信也走这套协议。</td></tr>
+          <tr><td>DA 通信方式</td><td><span class="tag tg-b">$emqx/ 主题 MQTT publish</span></td><td>DA 不使用自有 device-agent/ 主题。所有操作走 Fleets 规范主题。</td></tr>
+          <tr><td>设备 SDK</td><td><span class="tag tg-p">DA 生成 · Fleets 兼容</span></td><td>从 ThingType Schema 自动生成 SDK，设备开箱即用 Fleets 协议。</td></tr>
+          <tr><td>Fleets 使用</td><td><span class="tag tg-b">EMQX V5 API 发布</span></td><td>Fleets 永不订阅 MQTT。所有下行通过 REST API 发布到 EMQX。</td></tr>
+          <tr><td>消息路由</td><td><span class="tag tg-g">EMQX Rule Engine</span></td><td>上行由规则引擎分发到 Fleets（DB）和 DA（MQTT 订阅）。</td></tr>
+          <tr><td>控制独立性</td><td><span class="tag tg-g">完全独立</span></td><td>Fleets 管 Shadow + Jobs，DA 管 AI 控制。最后写入者生效。</td></tr>
+          <tr><td>冲突仲裁</td><td><span class="tag tg-t">不需要</span></td><td>两端各自独立下发，设备自然收敛。</td></tr>
+          <tr><td>DA 设备发现</td><td><span class="tag tg-o">MQTT 消息 / Fleets API</span></td><td>设备上线后第一条消息或 lifecycle 事件触发注册。</td></tr>
+          <tr><td>DA 原有改动</td><td><span class="tag tg-r">零侵入</span></td><td>FleetsAdapter 以插件方式接入。主题模板切换即可。</td></tr>
+          <tr><td>跨平台实现方式</td><td><span class="tag tg-p">多 DA 实例</span></td><td>每个平台一个 DA 实例，初始化时指定 platform，运行时锁定。</td></tr>
+          <tr><td>状态权威源</td><td><span class="tag tg-b">Fleets Shadow</span></td><td>Fleets 是设备状态权威存储。DA 订阅 + API 读取，不做双写。</td></tr>
+          <tr><td>DA 生命周期管理</td><td><span class="tag tg-p">Fleets 进程控制</span></td><td>DA 实例注册 + 心跳 + systemd/Docker 启停管控。</td></tr>
+          <tr><td>设备模型获取</td><td><span class="tag tg-b">按 thingId 拉取 metadata</span></td><td>默认 DA 不存设备列表，运行时用 thingId 调 Fleets API 拉取 thing metadata，只缓存 thingType（DeviceSpec）模型。</td></tr>
+          <tr><td>设备导入导出</td><td><span class="tag tg-o">规划功能</span></td><td>后续可选：Fleets 通过 import/export API 主动管控 DA 的设备管理范围。</td></tr>
+          <tr><td>DA 原生协议</td><td><span class="tag tg-t">独立平台规范 @da/platform-native</span></td><td>原生协议也是独立的 DA 实例（platform: "native"），与 Fleets 实例平行、各自独立运行。</td></tr>
+          <tr><td>AI 增强 Fleets</td><td><span class="tag tg-p">DA REST API</span></td><td>Fleets 调用 DA 的 /ai/ 系列 API 获得 NL 查询/异常检测/物模型建议。</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- ================================================================== -->
+<!-- TAB 6: 原生协议适配 -->
+<!-- ================================================================== -->
+<div class="tab-panel" id="tab-native" role="tabpanel" aria-labelledby="tab-native">
+
+  <div class="section">
+    <h2 class="section-title">🏠 DA 原生协议作为一个平台规范</h2>
+
+    <div class="info purple">
+      <strong>核心设计：</strong> DA 的原生协议也是一个平台规范，与 Fleets 同等待遇。DA 初始化时指定 <code>platform: "native"</code> 则加载原生平台规范库、使用 DA 自有主题与设备通信。
+      指定 <code>platform: "fleets"</code> 则加载 Fleets 规范库、使用 $emqx/ 主题通信。两者是 <strong>独立的 DA 实例</strong>，不是同一实例的多模式。
+    </div>
+
+    <div class="arch-fig">
+      <svg viewBox="0 0 1100 250" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
+        <defs>
+          <marker id="arD" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,0 L10,5 L0,10" fill="none" stroke="#5f6368" stroke-width="1.5"/></marker>
+          <filter id="shD"><feDropShadow dx="0" dy="1" stdDeviation="2" flood-opacity=".08"/></filter>
+        </defs>
+        <rect x="0" y="0" width="1100" height="225" rx="8" fill="#fafbfc"/>
+
+        <text x="550" y="24" text-anchor="middle" font-size="13" font-weight="700" fill="#333">平台规范库对比：原生 vs Fleets — 同接口，不同实例</text>
+
+        <!-- Left: PlatformSpec interface -->
+        <rect x="40" y="45" width="240" height="65" rx="10" fill="#fff3e0" stroke="#f9ab00" stroke-width="2" filter="url(#shD)"/>
+        <text x="160" y="70" text-anchor="middle" font-size="12" font-weight="700" fill="#e65100">PlatformSpec 接口</text>
+        <text x="160" y="90" text-anchor="middle" font-size="8" fill="#5f6368">init → fetchThingType → generateSdk</text>
+        <text x="160" y="104" text-anchor="middle" font-size="8" fill="#5f6368">publishCommand → subscribeEvents</text>
+
+        <!-- Branch -->
+        <path d="M280,75 L360,55" stroke="#5f6368" stroke-width="1.5" fill="none" marker-end="url(#arD)"/>
+        <path d="M280,75 L360,95" stroke="#5f6368" stroke-width="1.5" fill="none" marker-end="url(#arD)"/>
+
+        <!-- Native instance -->
+        <rect x="370" y="30" width="320" height="60" rx="10" fill="#e3f2fd" stroke="#1a73e8" stroke-width="2" filter="url(#shD)"/>
+        <text x="530" y="52" text-anchor="middle" font-size="12" font-weight="700" fill="#1565c0">🏠 @da/platform-native</text>
+        <text x="530" y="68" text-anchor="middle" font-size="8" fill="#5f6368">DA 实例 A：platform: "native"</text>
+        <text x="530" y="82" text-anchor="middle" font-size="8" fill="#5f6368">device-agent/ 主题 · DA 自有协议</text>
+
+        <!-- Fleets instance -->
+        <rect x="370" y="105" width="320" height="60" rx="10" fill="#e6f4ea" stroke="#34a853" stroke-width="2" filter="url(#shD)"/>
+        <text x="530" y="127" text-anchor="middle" font-size="12" font-weight="700" fill="#2e7d32">🟢 @da/platform-fleets</text>
+        <text x="530" y="143" text-anchor="middle" font-size="8" fill="#5f6368">DA 实例 B：platform: "fleets"</text>
+        <text x="530" y="159" text-anchor="middle" font-size="8" fill="#5f6368">$emqx/ 主题 · Fleets 协议</text>
+
+        <!-- Separate runtime arrows -->
+        <path d="M690,55 L730,55" stroke="#5f6368" stroke-width="1.5" fill="none" marker-end="url(#arD)"/>
+        <path d="M690,130 L730,130" stroke="#5f6368" stroke-width="1.5" fill="none" marker-end="url(#arD)"/>
+
+        <!-- Devices -->
+        <rect x="740" y="35" width="280" height="45" rx="8" fill="#fff" stroke="#1a73e8" stroke-width="1.5" filter="url(#shD)"/>
+        <text x="880" y="60" text-anchor="middle" font-size="9" fill="#1565c0">原生协议设备（DA 直接管理）</text>
+
+        <rect x="740" y="115" width="280" height="45" rx="8" fill="#fff" stroke="#34a853" stroke-width="1.5" filter="url(#shD)"/>
+        <text x="880" y="140" text-anchor="middle" font-size="9" fill="#2e7d32">Fleets 设备（DA 实例 B 按 thingId 拉取 thingType）</text>
+
+        <!-- Callout -->
+        <rect x="40" y="190" width="980" height="28" rx="6" fill="#e6f4ea" stroke="#34a853" stroke-width="1"/>
+        <text x="530" y="209" text-anchor="middle" font-size="10" font-weight="600" fill="#2e7d32">✅ 同接口 · 独立实例 · 各自管理各自协议的设备 · 无 Adapter Router</text>
+      </svg>
+    </div>
+
+    <div class="info green">
+      <strong>关键变化：</strong> DA 原生协议不是另一个 Adapter 在同一个实例里切换，而是 <strong>另一个 DA 实例</strong>。
+      每个 DA 实例在初始化后就锁定了平台规范，运行时不变。
+    </div>
+  </div>
+
+  <div class="section">
+    <h2 class="section-title">📋 Native vs Fleets 平台规范对比</h2>
+
+    <table class="tbl">
+      <thead>
+        <tr>
+          <th style="width:120px">维度</th>
+          <th style="width:350px">🏠 @da/platform-native</th>
+          <th style="width:350px">🟢 @da/platform-fleets</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>DA 实例</td><td>独立 DA 实例 A</td><td>独立 DA 实例 B</td></tr>
+        <tr><td>配置</td><td><code>platform: "native"</code></td><td><code>platform: "fleets"</code></td></tr>
+        <tr><td>MQTT 主题</td><td><code>device-agent/{productId}/device/{deviceId}/in</code></td><td><code>$emqx/things/{name}/shadow/update</code></td></tr>
+        <tr><td>设备身份</td><td><code>productId + deviceId</code>（从主题解析）</td><td><code>thingName</code>（Fleets Thing Registry）</td></tr>
+        <tr><td>设备注册</td><td>DA 本地数据库</td><td>Fleets ThingDatas API</td></tr>
+        <tr><td>影子状态</td><td>DA 本地 Shadow（PG）</td><td>Fleets Device Shadow（三态）</td></tr>
+        <tr><td>SDK 生成</td><td>输出 DA 自有主题的 SDK</td><td>输出 $emqx/ 主题的 Fleets 兼容 SDK</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+<!-- ================================================================== -->
+<!-- TAB 7: 跨平台抽象 -->
+<!-- ================================================================== -->
+<div class="tab-panel" id="tab-abstraction" role="tabpanel" aria-labelledby="tab-abstraction">
+
+  <div class="section">
+    <h2 class="section-title">🔌 跨平台抽象：单实例单平台</h2>
+    <div class="section-desc">Device Agent 初始化时指定一个平台规范（如 Fleets），根据对应平台库生成物模型和 SDK。
+    每个 DA 实例运行一套平台规范，多个平台用多个 DA 实例。DA 原有功能通过平台规范库适配该平台与设备的交互。</div>
+
+    <div class="info purple">
+      <strong>核心原则：</strong> DA 启动时通过 <code>platform: "fleets"</code> 配置锁定目标平台。
+      平台规范库提供该平台的物模型映射、MQTT 主题模板、Payload 格式定义。
+      DA 的 AI Core 不感知具体平台 —— 它看到的始终是经过平台库翻译后的标准化交互接口，但 <strong>每个 DA 实例只绑定一个平台</strong>。
+    </div>
+
+    <!-- Architecture: single platform per instance -->
+    <div class="arch-fig">
+      <svg viewBox="0 0 1100 400" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
+        <defs>
+          <marker id="arX2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,0 L10,5 L0,10" fill="none" stroke="#5f6368" stroke-width="1.5"/></marker>
+          <filter id="shX2"><feDropShadow dx="0" dy="1" stdDeviation="2" flood-opacity=".08"/></filter>
+        </defs>
+        <rect x="0" y="0" width="1100" height="375" rx="8" fill="#fafbfc"/>
+
+        <!-- Top: init phase -->
+        <text x="40" y="30" font-size="13" font-weight="700" fill="#7b1fa2">初始化阶段：DA 启动时指定平台规范，生成对应物模型和 SDK</text>
+
+        <rect x="40" y="45" width="280" height="50" rx="8" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="1.5" filter="url(#shX2)"/>
+        <text x="180" y="64" text-anchor="middle" font-size="11" font-weight="700" fill="#7b1fa2">1. 指定平台规范</text>
+        <text x="180" y="82" text-anchor="middle" font-size="9" fill="#5f6368">platform: "fleets"</text>
+
+        <path d="M320,70 L360,70" stroke="#5f6368" stroke-width="1.5" fill="none" marker-end="url(#arX2)"/>
+
+        <rect x="370" y="40" width="300" height="60" rx="8" fill="#e8f0fe" stroke="#1a73e8" stroke-width="1.5" filter="url(#shX2)"/>
+        <text x="520" y="60" text-anchor="middle" font-size="11" font-weight="700" fill="#1565c0">2. 加载平台规范库</text>
+        <text x="520" y="78" text-anchor="middle" font-size="9" fill="#5f6368">@da/platform-fleets → FleetsAdapter</text>
+        <text x="520" y="92" text-anchor="middle" font-size="9" fill="#5f6368">拉取 ThingType Schema → 生成 DeviceSpec</text>
+
+        <path d="M670,70 L710,70" stroke="#5f6368" stroke-width="1.5" fill="none" marker-end="url(#arX2)"/>
+
+        <rect x="720" y="45" width="280" height="50" rx="8" fill="#e6f4ea" stroke="#34a853" stroke-width="1.5" filter="url(#shX2)"/>
+        <text x="860" y="64" text-anchor="middle" font-size="11" font-weight="700" fill="#2e7d32">3. 生成物模型 + SDK</text>
+        <text x="860" y="82" text-anchor="middle" font-size="9" fill="#5f6368">DeviceSpec + 平台 SDK 就绪</text>
+
+        <!-- Middle: runtime phase -->
+        <text x="40" y="130" font-size="13" font-weight="700" fill="#7b1fa2">运行阶段：DA 实例只加载指定平台的运行时，所有功能适配该平台规范</text>
+
+        <!-- DA AI Core -->
+        <rect x="40" y="145" width="260" height="70" rx="10" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="2" filter="url(#shX2)"/>
+        <text x="170" y="170" text-anchor="middle" font-size="12" font-weight="700" fill="#7b1fa2">DA AI Core（不变）</text>
+        <text x="170" y="190" text-anchor="middle" font-size="9" fill="#5f6368">NL 控制 · 规则引擎 · AI 分析</text>
+        <text x="170" y="206" text-anchor="middle" font-size="9" fill="#5f6368">通过平台规范库与设备交互</text>
+
+        <path d="M300,180 L370,180" stroke="#5f6368" stroke-width="1.5" fill="none" marker-end="url(#arX2)"/>
+
+        <!-- Platform runtime -->
+        <rect x="380" y="140" width="600" height="80" rx="10" fill="#fff3e0" stroke="#f9ab00" stroke-width="2" filter="url(#shX2)"/>
+        <text x="680" y="160" text-anchor="middle" font-size="12" font-weight="700" fill="#e65100">平台运行时（以 Fleets 为例）</text>
+
+        <rect x="400" y="170" width="90" height="20" rx="4" fill="#fff" stroke="#f9ab00" stroke-width="0.5"/>
+        <text x="445" y="183" text-anchor="middle" font-size="8" fill="#e65100">MQTT $emqx/</text>
+        <rect x="500" y="170" width="90" height="20" rx="4" fill="#fff" stroke="#f9ab00" stroke-width="0.5"/>
+        <text x="545" y="183" text-anchor="middle" font-size="8" fill="#e65100">Shadow 三态</text>
+        <rect x="600" y="170" width="90" height="20" rx="4" fill="#fff" stroke="#f9ab00" stroke-width="0.5"/>
+        <text x="645" y="183" text-anchor="middle" font-size="8" fill="#e65100">ThingDatas API</text>
+        <rect x="700" y="170" width="90" height="20" rx="4" fill="#fff" stroke="#f9ab00" stroke-width="0.5"/>
+        <text x="745" y="183" text-anchor="middle" font-size="8" fill="#e65100">EMQX V5 API</text>
+        <rect x="800" y="170" width="90" height="20" rx="4" fill="#fff" stroke="#f9ab00" stroke-width="0.5"/>
+        <text x="845" y="183" text-anchor="middle" font-size="8" fill="#e65100">$emqx SDK</text>
+        <text x="680" y="208" text-anchor="middle" font-size="9" fill="#5d4037">生成时确定，运行时不变 — DA 所有功能适配这套规范</text>
+
+        <!-- Bottom: multi-instance -->
+        <text x="40" y="250" font-size="13" font-weight="700" fill="#2e7d32">多平台部署：多套 DA 实例，每套绑定一个平台</text>
+
+        <rect x="40" y="265" width="260" height="80" rx="10" fill="#e3f2fd" stroke="#1a73e8" stroke-width="2" filter="url(#shX2)"/>
+        <text x="170" y="290" text-anchor="middle" font-size="12" font-weight="700" fill="#1565c0">🏠 DA 实例 A（原生）</text>
+        <text x="170" y="310" text-anchor="middle" font-size="9" fill="#5f6368">platform: "native"</text>
+        <text x="170" y="328" text-anchor="middle" font-size="9" fill="#5f6368">device-agent/ 主题</text>
+        <text x="170" y="342" text-anchor="middle" font-size="8" fill="#9e9e9e">由 Fleets 管理生命周期</text>
+
+        <rect x="370" y="265" width="260" height="80" rx="10" fill="#e6f4ea" stroke="#34a853" stroke-width="2" filter="url(#shX2)"/>
+        <text x="500" y="290" text-anchor="middle" font-size="12" font-weight="700" fill="#2e7d32">🟢 DA 实例 B（Fleets）</text>
+        <text x="500" y="310" text-anchor="middle" font-size="9" fill="#5f6368">platform: "fleets"</text>
+        <text x="500" y="328" text-anchor="middle" font-size="9" fill="#5f6368">$emqx/ 主题</text>
+        <text x="500" y="342" text-anchor="middle" font-size="8" fill="#9e9e9e">由 Fleets 管理生命周期</text>
+
+        <rect x="700" y="265" width="260" height="80" rx="10" fill="#f8f9fa" stroke="#dadce0" stroke-width="1.5" stroke-dasharray="5,3" filter="url(#shX2)"/>
+        <text x="830" y="290" text-anchor="middle" font-size="12" font-weight="700" fill="#5f6368">??? DA 实例 N（未来）</text>
+        <text x="830" y="310" text-anchor="middle" font-size="9" fill="#9e9e9e">platform: "aws-iot"</text>
+        <text x="830" y="328" text-anchor="middle" font-size="9" fill="#9e9e9e">$aws/ 主题</text>
+        <text x="830" y="342" text-anchor="middle" font-size="8" fill="#9e9e9e">新平台规范库即可</text>
+      </svg>
+    </div>
+
+    <div class="card">
+      <h3>⛓️ 保证机制详解（新方案）</h3>
+      <p style="font-size:.82rem;color:var(--text2);margin-bottom:6px">
+        <strong>1. DA AI Core 不变</strong> — NL 控制器、规则引擎、AI 分析器、SDK 生成器始终操作规范化的 DeviceSpec。AI Core 代码零改动。
+      </p>
+      <p style="font-size:.82rem;color:var(--text2);margin-bottom:6px">
+        <strong>2. 平台规范库在初始化时生成一切</strong> — DA 启动时指定 <code>platform: "fleets"</code>，平台库拉取 ThingType Schema、生成 DeviceSpec 和 MQTT 主题模板、输出 SDK。这个过程中确定的所有交互规范在运行时不变。
+      </p>
+      <p style="font-size:.82rem;color:var(--text2);margin-bottom:6px">
+        <strong>3. 单实例单平台，无路由开销</strong> — 每个 DA 实例只处理一种平台的设备。所有交互通过该平台的规范运行。不需要在运行时判断设备类型、不需要 Adapter Router。
+      </p>
+      <p style="font-size:.82rem;color:var(--text2)">
+        <strong>4. 新增平台 = 新增规范库 + 新 DA 实例</strong> — 实现该平台的规范库（PlatformSpec 接口），Fleets 启动对应的新 DA 实例并赋值 <code>platform</code> 即可。不影响已有实例。
+      </p>
+    </div>
+
+    <div class="two">
+      <div class="card">
+        <h3>🛠️ 初始化代码示例</h3>
+        <pre class="code"><code>// DA 启动配置
+{
+  "platform": "fleets",
+  "fleets": {
+    "api": { "baseUrl": "http://fleets:8080" },
+    "mqtt": { "broker": "mqtt://emqx:1883" }
+  }
+}
+
+// DA 初始化流程
+async function initDA(config) {
+  // 1. 根据 platform 加载对应规范库
+  const specLib = loadPlatformSpec(config.platform);
+  // → @da/platform-fleets 或 @da/platform-native
+
+  // 2. 规范库初始化
+  await specLib.init(config);
+
+  // 3. 生成设备物模型
+  const deviceSpec = await specLib.fetchThingType("thermostat-v1");
+  // → 包含 properties, events, commands, mqttTopics
+
+  // 4. 生成设备 SDK（如需要）
+  const sdk = specLib.generateSdk(deviceSpec, "typescript");
+
+  // 5. 注入 DA AI Core
+  const daCore = new DACore(specLib);
+  // DA 所有功能通过 specLib 与设备交互
+
+  await daCore.start();
+}</code></pre>
+      </div>
+      <div class="card">
+        <h3>🔍 关键保证点</h3>
+        <table class="tbl">
+          <thead>
+            <tr><th style="width:140px">保证项</th><th>实现方式</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>NL 控制正常执行</td><td>解析意图 → specLib.publishCommand() → 平台 MQTT</td></tr>
+            <tr><td>规则引擎触发</td><td>接收平台事件 → 匹配规则 → specLib.publishCommand()</td></tr>
+            <tr><td>AI 分析数据源</td><td>specLib 将平台消息统一为 DeviceSpec shadow 格式</td></tr>
+            <tr><td>SDK 生成兼容</td><td>从 platformSpec 推导主题模板 + Payload 格式</td></tr>
+            <tr><td>新增平台</td><td>实现 PlatformSpec 接口 → 新 DA 实例 → 自动适配</td></tr>
+          </tbody>
+        </table>
+        <div style="margin-top:6px;padding:6px 10px;background:#e6f4ea;border-radius:6px;font-size:.76rem;color:#1e4620">
+          <strong>结论：</strong> 单实例单平台。AI Core 不变。平台规范库在初始化时生成所有交互规范。
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ================================================================== -->
+<!-- TAB 8: AI 增强 -->
+<!-- ================================================================== -->
+<div class="tab-panel" id="tab-ai-enhance" role="tabpanel" aria-labelledby="tab-ai-enhance">
+
+  <div class="section">
+    <h2 class="section-title">🤖 Fleets 基于 Device Agent API 获得的 AI 增强功能</h2>
+    <div class="section-desc">Fleets 是一个功能完整的 IoT 设备管理平台，但不具备 AI 能力。Device Agent 作为 AI 应用层，通过 REST API 为 Fleets 注入 NL 控制、智能分析、异常检测等 AI 能力。以下分析基于 Fleets 现有能力 + DA 可提供的 AI API。</div>
+
+    <div class="info blue">
+      <strong>集成模式：</strong> Fleets 调用 DA 的 REST API 获得 AI 能力，DA 在需要时通过 Fleets API 或 MQTT 与设备和 Fleets 交互。
+      7 个 AI 功能中 5 个不需要 Fleets 侧新增 API，仅 2 个需要新增端点。
+    </div>
+
+    <div class="arch-fig">
+      <svg viewBox="0 0 1100 280" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
+        <defs>
+          <marker id="arA" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,0 L10,5 L0,10" fill="none" stroke="#5f6368" stroke-width="1.5"/></marker>
+          <filter id="shA"><feDropShadow dx="0" dy="1" stdDeviation="2" flood-opacity=".1"/></filter>
+        </defs>
+        <rect x="0" y="0" width="1100" height="250" rx="8" fill="#fafbfc"/>
+
+        <!-- Fleets -->
+        <rect x="40" y="30" width="320" height="100" rx="12" fill="#e3f2fd" stroke="#1a73e8" stroke-width="2" filter="url(#shA)"/>
+        <text x="200" y="58" text-anchor="middle" font-size="15" font-weight="700" fill="#1565c0">Fleets IoT Platform</text>
+        <text x="60" y="80" font-size="10" fill="#1a3a6b">• Device Query DSL</text>
+        <text x="60" y="96" font-size="10" fill="#1a3a6b">• Device Shadow + Jobs + Commands</text>
+        <text x="60" y="112" font-size="10" fill="#1a3a6b">• EMQX Tables 时序数据</text>
+        <text x="60" y="126" font-size="10" fill="#1a3a6b">• ThingType Schema · Tags · Groups</text>
+
+        <!-- Arrow -->
+        <path d="M360,80 L440,80" stroke="#7b1fa2" stroke-width="2" fill="none" marker-end="url(#arA)"/>
+        <text x="400" y="72" text-anchor="middle" font-size="9" fill="#7b1fa2" font-weight="600">调用 DA API</text>
+
+        <!-- DA AI APIs -->
+        <rect x="450" y="20" width="600" height="120" rx="12" fill="#f5f3ff" stroke="#7b1fa2" stroke-width="2" filter="url(#shA)"/>
+        <text x="750" y="46" text-anchor="middle" font-size="15" font-weight="700" fill="#7b1fa2">Device Agent AI API Server</text>
+
+        <rect x="470" y="58" width="170" height="34" rx="6" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="1"/>
+        <text x="555" y="78" text-anchor="middle" font-size="9" font-weight="600" fill="#7b1fa2">🟢 /ai/query/nl</text>
+        <text x="555" y="86" text-anchor="middle" font-size="7" fill="#5f6368">NL → DSL 翻译</text>
+
+        <rect x="650" y="58" width="170" height="34" rx="6" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="1"/>
+        <text x="735" y="78" text-anchor="middle" font-size="9" font-weight="600" fill="#7b1fa2">🟢 /ai/anomaly</text>
+        <text x="735" y="86" text-anchor="middle" font-size="7" fill="#5f6368">异常检测</text>
+
+        <rect x="830" y="58" width="200" height="34" rx="6" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="1"/>
+        <text x="930" y="78" text-anchor="middle" font-size="9" font-weight="600" fill="#7b1fa2">🟢 /ai/jobs/suggest</text>
+        <text x="930" y="86" text-anchor="middle" font-size="7" fill="#5f6368">作业调度建议</text>
+
+        <rect x="470" y="98" width="170" height="34" rx="6" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="1"/>
+        <text x="555" y="118" text-anchor="middle" font-size="9" font-weight="600" fill="#7b1fa2">🟢 /ai/schema/suggest</text>
+        <text x="555" y="126" text-anchor="middle" font-size="7" fill="#5f6368">物模型建议</text>
+
+        <rect x="650" y="98" width="170" height="34" rx="6" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="1"/>
+        <text x="735" y="118" text-anchor="middle" font-size="9" font-weight="600" fill="#7b1fa2">🔵 /ai/chat</text>
+        <text x="735" y="126" text-anchor="middle" font-size="7" fill="#5f6368">NL 控制</text>
+
+        <rect x="830" y="98" width="200" height="34" rx="6" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="1"/>
+        <text x="930" y="118" text-anchor="middle" font-size="9" font-weight="600" fill="#7b1fa2">🔵 /ai/analyze</text>
+        <text x="930" y="126" text-anchor="middle" font-size="7" fill="#5f6368">时序分析</text>
+
+        <!-- Bottom arrow: DA → Fleets back -->
+        <path d="M1050,100 L1060,100 L1060,220 L400,220 L400,175" stroke="#34a853" stroke-width="1.5" fill="none" marker-end="url(#arA)" stroke-dasharray="5,3"/>
+        <text x="730" y="215" text-anchor="middle" font-size="9" fill="#34a853">DA 通过 MQTT / Fleets API 与设备和 Fleets 交互</text>
+
+        <!-- Legend -->
+        <rect x="470" y="155" width="100" height="22" rx="4" fill="#e6f4ea" stroke="#34a853" stroke-width="1"/>
+        <text x="520" y="170" text-anchor="middle" font-size="8" font-weight="600" fill="#2e7d32">🟢 新增 API</text>
+        <rect x="590" y="155" width="100" height="22" rx="4" fill="#e3f2fd" stroke="#1a73e8" stroke-width="1"/>
+        <text x="640" y="170" text-anchor="middle" font-size="8" font-weight="600" fill="#1565c0">🔵 已有 API</text>
+      </svg>
+    </div>
+
+    <div class="info purple">
+      <strong>结果：</strong> 7 个 AI 功能中 <strong>5 个不需要 Fleets 侧新增 API</strong> —— DA 已经能通过 MQTT 直接通信或调用 Fleets 现有 API。
+      仅 2 个需要 Fleets 新增读影子历史、批量读状态端点。
+    </div>
+  </div>
+
+  <div class="section">
+    <h2 class="section-title">🟢 新增 DA API（4 个 — Fleets 专属）</h2>
+
+    <div class="two">
+      <div class="card">
+        <h3>1️⃣ NL → Device Query 翻译</h3>
+        <div style="background:#fef7e0;border-radius:6px;padding:4px 8px;font-size:.7rem;color:#5d4037;display:inline-block;margin-bottom:6px">最高优先级 · Fleets 侧零改动</div>
+        <pre class="code"><code>// Fleets 的 Device Query DSL 能力很强，但需要学习
+// DA 提供 NL 翻译层
+
+POST /api/v1/ai/query/nl
+{
+  "message": "找所有温度超过25度的在线恒温器"
+}
+
+→ DA 翻译为 Fleets DSL，调用现有 API：
+POST /api/v1/device-query/search
+{ "query": "thingTypeName:thermostat-v1
+  AND targetTemp>25 AND connected:true" }
+
+→ 返回查询结果给 Fleets 用户</code></pre>
+      </div>
+      <div class="card">
+        <h3>2️⃣ 设备异常检测</h3>
+        <div style="background:#fef7e0;border-radius:6px;padding:4px 8px;font-size:.7rem;color:#5d4037;display:inline-block;margin-bottom:6px">高价值 · 需新增 Fleets API</div>
+        <pre class="code"><code>// Fleets 的 EMQX Tables 存储了时序数据但从未分析
+// DA 读取历史数据做异常检测
+
+POST /api/v1/ai/anomaly/detect
+{
+  "thingName": "thermostat-001",
+  "field": "temperature",
+  "window": "48h"
+}
+
+→ DA 调用 Fleets 新增 API 获取数据：
+  GET /api/v1/thing-datas/{name}/shadow/history
+  ?field=temperature&from=...&to=...
+
+→ 返回异常点列表
+{
+  "anomalies": [
+    { "time": "...", "value": 52.3,
+      "severity": "high",
+      "message": "温度超出正常范围3σ" }
+  ]
+}</code></pre>
+      </div>
+      <div class="card">
+        <h3>3️⃣ 作业调度建议</h3>
+        <div style="background:#e6f4ea;border-radius:6px;padding:4px 8px;font-size:.7rem;color:#1e4620;display:inline-block;margin-bottom:6px">需新增 Fleets API</div>
+        <pre class="code"><code>// Fleets 的 Jobs 系统需要手动指定目标
+// DA 分析设备活跃模式推荐最优调度窗口
+
+POST /api/v1/ai/jobs/suggest
+{
+  "command": "reboot",
+  "params": { "delaySec": 30 },
+  "targetQuery": "thingTypeName:thermostat-v1
+                  AND connected:true"
+}
+
+→ DA 调用 Fleets 新增 API：
+  POST /api/v1/ai/data/batch-shadow
+  { "thingIds": [...], "fields": [...] }
+  分析设备活跃模式 → 推荐低负载窗口
+
+→ 返回
+{
+  "suggestedWindow": "02:00-04:00",
+  "batchSize": 5,
+  "risk": "low"
+}</code></pre>
+      </div>
+      <div class="card">
+        <h3>4️⃣ 物模型 Schema 建议</h3>
+        <div style="background:#e6f4ea;border-radius:6px;padding:4px 8px;font-size:.7rem;color:#1e4620;display:inline-block;margin-bottom:6px">Fleets 侧零改动</div>
+        <pre class="code"><code>// Fleets 的 ThingType Schema 灵活但复杂
+// 用户描述设备 → DA 生成 Schema 草稿
+
+POST /api/v1/ai/schema/suggest
+{
+  "description": "智能空调，调节温度/风速/模式，
+                  支持定时开关机，上报室内温度"
+}
+
+→ DA 返回 ThingType Schema 草稿
+{
+  "name": "com.example.hvac.ac",
+  "schema": {
+    "properties": {
+      "temperature": { "type": "float" },
+      "fanSpeed": { "type": "enum",
+        "values": ["low","mid","high"] },
+      "mode": { "type": "enum",
+        "values": ["cool","heat","fan"] }
+    },
+    "commands": {
+      "setTemp": { "type": "sync",
+        "input": { "temp": {"type":"float"} } }
+    }
+  }
+}
+
+→ 用户确认后通过 Fleets API 创建：
+  POST /api/v1/thing-types</code></pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2 class="section-title">🔵 已有 DA API（3 个 — 需完善 Fleets 适配）</h2>
+
+    <div class="info blue">
+      <strong>说明：</strong> 这 3 个 API 在原始双模架构方案中已设计（/ai/chat、/ai/analyze、/ai/policy），
+      但当时面向通用 IoT 平台。对接 Fleets 时需要补充 Fleets 专属的数据源接入路径。
+    </div>
+
+    <div class="three">
+      <div class="card">
+        <h3>💬 /ai/chat — NL 设备控制</h3>
+        <pre class="code"><code>POST /api/v1/ai/chat
+{
+  "platform": "fleets",
+  "deviceId": "thermostat-001",
+  "message": "把温度调到26度"
+}
+
+→ DA FleetsAdapter.publishCommand()
+→ 发布到 $emqx/commands/things/.../request
+   或 $emqx/things/{name}/shadow/update
+
+→ Fleets 侧改动：无
+   DA 已通过 MQTT 直接下发</code></pre>
+      </div>
+      <div class="card">
+        <h3>📊 /ai/analyze — 时序数据分析</h3>
+        <pre class="code"><code>POST /api/v1/ai/analyze
+{
+  "platform": "fleets",
+  "deviceId": "thermostat-001",
+  "query": "本周温湿度变化趋势？",
+  "timeRange": { "start": "...", "end": "..." }
+}
+
+→ DA 通过 Fleets API 获取数据：
+  GET /thing-datas/{name}/shadow/history
+  （需新增此 Fleets 端点）
+→ LLM 分析 → 返回洞察
+
+→ Fleets 侧改动：需新增
+  GET /thing-datas/{name}/shadow/history</code></pre>
+      </div>
+      <div class="card">
+        <h3>🤖 /ai/policy — 规则引擎</h3>
+        <pre class="code"><code>POST /api/v1/ai/policy
+{
+  "platform": "fleets",
+  "rule": "if temperature > 40 for 5min
+           then alert and setPower(false)",
+  "thingName": "thermostat-001",
+  "enabled": true
+}
+
+→ DA 订阅设备消息，匹配规则
+→ 触发时发布命令到 $emqx/ 主题
+→ 同时可通过 Fleets API 写入告警事件
+
+→ Fleets 侧改动：无
+   DA 独立运行规则，MQTT 下发</code></pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2 class="section-title">📋 Fleets 侧需要新增的 API</h2>
+
+    <div class="info orange">
+      <strong>结论：</strong> 7 个 AI 功能中，仅 2 个需要 Fleets 新增 API 端点，其余 5 个零改动。
+      新增工作量很小 —— 都是 pgx 读数据返回 JSON。
+    </div>
+
+    <table class="tbl">
+      <thead>
+        <tr>
+          <th style="width:160px">新增 Fleets API</th>
+          <th style="width:120px">用途</th>
+          <th>实现方式</th>
+          <th>调用方</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>GET /api/v1/thing-datas/{name}/shadow/history</code></td>
+          <td>读取时序影子历史</td>
+          <td>pgx 读 EMQX Tables <code>fleets_shadow_reported</code>，按 field/时间范围过滤</td>
+          <td>DA anomaly + analyze</td>
+        </tr>
+        <tr>
+          <td><code>POST /api/v1/ai/data/batch-shadow</code></td>
+          <td>批量读取设备状态</td>
+          <td>pgx 读 PostgreSQL <code>thing_shadows</code>，批量返回最新 reported</td>
+          <td>DA jobs/suggest</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="card" style="margin-top:8px">
+      <h3>📈 优先级排序</h3>
+      <table class="tbl">
+        <thead>
+          <tr><th style="width:40px">#</th><th style="width:140px">AI 功能</th><th style="width:70px">优先级</th><th style="width:80px">开发量</th><th>理由</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>1</td><td>NL → Device Query</td><td><span class="tag tg-p">P0</span></td><td>2 人天</td><td>价值最大，用户痛点最明显，Fleets 侧零改动</td></tr>
+          <tr><td>2</td><td>NL 设备控制 /ai/chat</td><td><span class="tag tg-p">P0</span></td><td>1 人天</td><td>已有 DA 设计，补充 Fleets MQTT 主题适配即可</td></tr>
+          <tr><td>3</td><td>异常检测 /ai/anomaly</td><td><span class="tag tg-b">P1</span></td><td>3 人天</td><td>需新增 Fleets + DA 两端 API</td></tr>
+          <tr><td>4</td><td>时序分析 /ai/analyze</td><td><span class="tag tg-b">P1</span></td><td>2 人天</td><td>依赖新增 Fleets 历史 API</td></tr>
+          <tr><td>5</td><td>物模型建议 /ai/schema/suggest</td><td><span class="tag tg-o">P2</span></td><td>1 人天</td><td>纯 LLM，无后端依赖</td></tr>
+          <tr><td>6</td><td>作业调度建议 /ai/jobs/suggest</td><td><span class="tag tg-o">P2</span></td><td>2 人天</td><td>需新增 Fleets 批量状态 API</td></tr>
+          <tr><td>7</td><td>规则引擎 /ai/policy</td><td><span class="tag tg-t">P3</span></td><td>1 人天</td><td>已有 DA 设计，补充 Fleets 主题适配</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- ================================================================== -->
+<!-- TAB 9: 管控面 -->
+<!-- ================================================================== -->
+<div class="tab-panel" id="tab-control-plane" role="tabpanel" aria-labelledby="tab-control-plane">
+
+  <div class="section">
+    <h2 class="section-title">⚙️ 控制面总览：Fleets 管控 DA 生命周期，DA 按需拉取设备模型</h2>
+    <div class="section-desc">Fleets 作为设备管理平台，对 Device Agent 拥有控制面权限：管理 DA 实例的生命周期（进程级）。
+    设备模型采用「按需拉取」模式 —— DA 不保存完整设备列表，运行时主动用 <code>thingId</code> 调 Fleets API 拉取该设备的 thing metadata，从中提取并只缓存其 thingType（即 DeviceSpec）。</div>
+
+    <div class="info purple">
+      <strong>两层控制面设计：</strong>
+      ① <strong>实例层</strong> — Fleets 管理 DA 进程生命周期（启动/停止/重启/健康监控）
+      ② <strong>控制层</strong> — DA 对 Fleets 设备拥有完整的 NL 控制/规则引擎/AI 分析权限，交互所需的 DeviceSpec 由 DA 按 <code>thingId</code> 从 Fleets 拉取 thing metadata 后提取其 thingType
+    </div>
+
+    <div class="info orange">
+      <strong>设备范围管控（规划功能）：</strong> 未来可通过导入/导出 API 让 Fleets 主动管控 DA 的设备管理范围。
+      当前默认不启用 —— DA 不维护设备列表，仅在需要与某设备交互时按 <code>thingId</code> 拉取其 thing metadata，只缓存其中的 thingType（DeviceSpec）。
+    </div>
+
+    <div class="info green">
+      <strong>DA API 认证：</strong> Device Agent 的 HTTP API 计划支持 <code>Basic Auth</code> 认证。
+      用户或外部系统可直接使用 Basic Auth 调用 DA API，无需经过 Fleets 转发。
+      Fleets 仍可保留通过服务间凭证调用 DA 控制面 API 的能力。
+    </div>
+
+    <div class="arch-fig">
+      <svg viewBox="0 0 1100 520" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
+        <defs>
+          <marker id="arL" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,0 L10,5 L0,10" fill="none" stroke="#5f6368" stroke-width="1.5"/></marker>
+          <filter id="shL"><feDropShadow dx="0" dy="1" stdDeviation="2" flood-opacity=".1"/></filter>
+        </defs>
+        <rect x="0" y="0" width="1100" height="490" rx="8" fill="#fafbfc"/>
+
+        <!-- Fleets -->
+        <rect x="40" y="20" width="340" height="160" rx="12" fill="#e3f2fd" stroke="#1a73e8" stroke-width="2" filter="url(#shL)"/>
+        <text x="210" y="48" text-anchor="middle" font-size="15" font-weight="700" fill="#1565c0">Fleets IoT Platform（管控端）</text>
+
+        <rect x="60" y="65" width="300" height="28" rx="6" fill="#fff" stroke="#1a73e8" stroke-width="1"/>
+        <text x="210" y="84" text-anchor="middle" font-size="10" font-weight="600" fill="#1565c0">🔵 DA 实例管理 /api/v1/da/instances</text>
+
+        <rect x="60" y="100" width="300" height="28" rx="6" fill="#fff" stroke="#1a73e8" stroke-width="1"/>
+        <text x="210" y="119" text-anchor="middle" font-size="10" font-weight="600" fill="#1565c0">🟢 ThingType 查询 GET /thing-types</text>
+
+        <rect x="60" y="135" width="300" height="28" rx="6" fill="#f8f9fa" stroke="#9aa0a6" stroke-width="1" stroke-dasharray="4,3"/>
+        <text x="210" y="154" text-anchor="middle" font-size="10" font-weight="600" fill="#80868b">⏳ 设备导入导出（规划）/da/devices</text>
+
+        <!-- Arrows: Fleets → DA Lifecycle -->
+        <path d="M380,50 L440,50 L440,60 L500,60 L500,70" stroke="#ea4335" stroke-width="2" fill="none" marker-end="url(#arL)"/>
+        <text x="440" y="42" text-anchor="middle" font-size="9" fill="#c62828" font-weight="600">进程控制：启动/停止/重启</text>
+
+        <!-- Arrows: Fleets ↔ DA API (bidirectional) -->
+        <path d="M380,110 L508,110" stroke="#1a73e8" stroke-width="2" fill="none" marker-end="url(#arL)"/>
+        <path d="M510,130 L382,130" stroke="#1a73e8" stroke-width="2" fill="none" marker-end="url(#arL)"/>
+        <text x="445" y="102" text-anchor="middle" font-size="9" fill="#1565c0" font-weight="600">AI 增强功能</text>
+        <text x="445" y="145" text-anchor="middle" font-size="9" fill="#1565c0" font-weight="600">thingId 查询</text>
+
+        <!-- Device Agent -->
+        <rect x="510" y="20" width="340" height="200" rx="12" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="2" filter="url(#shL)"/>
+        <text x="680" y="48" text-anchor="middle" font-size="15" font-weight="700" fill="#7b1fa2">Device Agent（受管端）</text>
+
+        <rect x="530" y="65" width="300" height="28" rx="6" fill="#fff" stroke="#7b1fa2" stroke-width="1"/>
+        <text x="680" y="84" text-anchor="middle" font-size="10" font-weight="600" fill="#7b1fa2">🔵 DA 注册 + 心跳</text>
+
+        <rect x="530" y="100" width="300" height="28" rx="6" fill="#fff" stroke="#7b1fa2" stroke-width="1"/>
+        <text x="680" y="119" text-anchor="middle" font-size="10" font-weight="600" fill="#7b1fa2">🟢 按 thingId 拉取 metadata（只存 thingType）</text>
+
+        <rect x="530" y="135" width="300" height="28" rx="6" fill="#fff" stroke="#7b1fa2" stroke-width="1"/>
+        <text x="680" y="154" text-anchor="middle" font-size="10" font-weight="600" fill="#7b1fa2">🤖 NL 控制 / 规则引擎 / AI 分析</text>
+
+        <rect x="530" y="175" width="300" height="28" rx="6" fill="#e8f5e9" stroke="#34a853" stroke-width="1"/>
+        <text x="680" y="194" text-anchor="middle" font-size="10" font-weight="600" fill="#2e7d32">🔐 HTTP API · Basic Auth 认证</text>
+
+        <!-- External caller via Basic Auth -->
+        <rect x="870" y="170" width="180" height="50" rx="10" fill="#fff3e0" stroke="#f9ab00" stroke-width="2" filter="url(#shL)"/>
+        <text x="960" y="190" text-anchor="middle" font-size="11" font-weight="700" fill="#e65100">用户 / 外部系统</text>
+        <text x="960" y="208" text-anchor="middle" font-size="9" fill="#5f6368">Authorization: Basic xxx</text>
+
+        <path d="M870,189 L850,189" stroke="#f9ab00" stroke-width="2" fill="none" marker-end="url(#arL)"/>
+        <text x="860" y="180" text-anchor="middle" font-size="8" fill="#e65100">直接调用</text>
+
+        <!-- DA → MQTT ↔ Devices -->
+        <path d="M850,120 L920,120 L920,290 L550,290 L550,220" stroke="#34a853" stroke-width="1.5" fill="none" marker-end="url(#arL)" stroke-dasharray="5,3"/>
+        <text x="735" y="285" text-anchor="middle" font-size="9" fill="#34a853">MQTT 通信：$emqx/ 主题 ↔ Fleets 设备</text>
+
+        <!-- Device area -->
+        <rect x="100" y="330" width="800" height="60" rx="12" fill="#e6f4ea" stroke="#34a853" stroke-width="2" filter="url(#shL)"/>
+        <text x="500" y="355" text-anchor="middle" font-size="13" font-weight="700" fill="#2e7d32">Fleets 已有设备（Thing Registry）</text>
+        <text x="500" y="375" text-anchor="middle" font-size="9" fill="#5f6368">DA 按 thingId 拉取 thing metadata 即可控制设备 · 无需预先导入设备列表</text>
+
+        <!-- Arrows down -->
+        <path d="M210,180 L210,330" stroke="#1a73e8" stroke-width="1.5" fill="none" marker-end="url(#arL)" stroke-dasharray="4,3"/>
+        <text x="160" y="260" text-anchor="start" font-size="8" fill="#1565c0">管理设备注册</text>
+
+        <path d="M680,220 L680,330" stroke="#7b1fa2" stroke-width="1.5" fill="none" marker-end="url(#arL)"/>
+        <text x="720" y="280" text-anchor="start" font-size="8" fill="#7b1fa2">控制设备</text>
+
+        <!-- Legend -->
+        <g transform="translate(40,420)">
+          <rect x="0" y="0" width="620" height="50" rx="6" fill="#fff" stroke="#e0e0e0"/>
+          <text x="10" y="16" font-size="10" font-weight="600" fill="#333">控制面路径</text>
+          <line x1="10" y1="30" x2="40" y2="30" stroke="#ea4335" stroke-width="2"/><text x="44" y="34" font-size="9" fill="#555">进程控制（生命周期）</text>
+          <line x1="200" y1="30" x2="230" y2="30" stroke="#1a73e8" stroke-width="1.5"/><text x="234" y="34" font-size="9" fill="#555">API 调用</text>
+          <line x1="390" y1="30" x2="420" y2="30" stroke="#f9ab00" stroke-width="1.5"/><text x="424" y="34" font-size="9" fill="#555">Basic Auth 直接调用</text>
+          <line x1="10" y1="44" x2="40" y2="44" stroke="#7b1fa2" stroke-width="1.5"/><text x="44" y="48" font-size="9" fill="#555">DA 控制路径</text>
+          <line x1="200" y1="44" x2="230" y2="44" stroke="#34a853" stroke-width="1.5" stroke-dasharray="4,3"/><text x="234" y="48" font-size="9" fill="#555">MQTT 数据路径</text>
+        </g>
+      </svg>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2 class="section-title">🔄 DA 实例生命周期管理（进程控制）</h2>
+
+    <div class="info blue">
+      <strong>方式：</strong> Fleets 通过进程控制方式管理 DA 实例的生命周期。DA 作为受管进程，在 Fleets 注册并发送心跳。
+      Fleets 通过操作系统的进程管理机制（systemd / launchd / Docker）或 SSH 远程控制 DA 实例的启停。
+    </div>
+
+    <div class="two">
+      <div class="card">
+        <h3>🟢 DA 实例注册与心跳</h3>
+        <pre class="code"><code>// DA 启动时向 Fleets 注册
+POST /api/v1/da/instances
+{
+  "instanceId": "da-thermostat-001",
+  "host": "192.168.1.100",
+  "port": 3080,
+  "version": "1.5.0",
+  "capabilities": ["nl-control", "rule-engine", "ai-analysis"],
+  "managedDevices": 0,
+  "status": "starting"
+}
+
+→ Fleets 返回：{ "id": "da-inst-001", "config": {...} }
+
+// DA 定期发送心跳（每 10s）
+PUT /api/v1/da/instances/da-inst-001/heartbeat
+{
+  "status": "running",
+  "managedDevices": 12,
+  "cpuUsage": 0.32,
+  "memUsage": 0.45,
+  "uptime": 3600
+}
+
+// Fleets 超时（30s 未收到心跳）→ 标记为 offline</code></pre>
+      </div>
+      <div class="card">
+        <h3>🔴 Fleets 管控 DA 生命周期</h3>
+        <pre class="code"><code>// Fleets 通过以下机制控制 DA 进程：
+
+// 方案 A：进程管理器（轻量）
+// Fleets 在本地启动 DA 作为子进程
+// 启动: exec("node /opt/da/agent-gateway.js")
+// 停止: process.kill(pid, SIGTERM)
+// 重启: 停止 → 启动
+// 状态: 读取进程 pid 文件
+
+// 方案 B：systemd 服务（推荐）
+// DA 注册为 systemd service
+// Fleets 通过 systemctl 控制
+// systemctl start device-agent@{instanceId}
+// systemctl stop device-agent@{instanceId}
+// systemctl restart device-agent@{instanceId}
+// systemctl status device-agent@{instanceId}
+
+// Fleets 封装为统一控制 API：
+POST /api/v1/da/instances/da-inst-001/start
+POST /api/v1/da/instances/da-inst-001/stop
+POST /api/v1/da/instances/da-inst-001/restart
+GET  /api/v1/da/instances/da-inst-001/status
+
+// 这些 API 内部映射到 OS 进程控制命令</code></pre>
+      </div>
+    </div>
+
+    <div class="info green">
+      <strong>生命周期流转：</strong>
+      starting → running → stopping → stopped（正常）
+      running → offline（心跳超时）→ running（重新上线）
+      running → failed（异常退出）→ restarting（自动恢复）→ running
+    </div>
+  </div>
+
+  <div class="section">
+    <h2 class="section-title">📦 设备模型获取：按 thingId 拉取 metadata（只存 thingType）</h2>
+
+    <div class="info green">
+      <strong>核心逻辑：</strong> DA <strong>不保存完整设备列表</strong>。当 DA 需要与某个设备交互时（NL 控制、规则触发、AI 分析），
+      主动用 <code>thingId</code> 调 Fleets API 拉取该设备的 thing metadata，从中提取并只缓存其 thingType（即 DeviceSpec），同类型设备共享一份模型，随后通过 <code>$emqx/</code> MQTT 主题直接与设备通信。
+    </div>
+
+    <div class="arch-fig">
+      <svg viewBox="0 0 1100 240" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
+        <defs><filter id="shI"><feDropShadow dx="0" dy="1" stdDeviation="2" flood-opacity=".08"/></filter></defs>
+        <rect x="0" y="0" width="1100" height="215" rx="8" fill="#fafbfc"/>
+
+        <text x="550" y="22" text-anchor="middle" font-size="13" font-weight="700" fill="#2e7d32">按需拉取流程（DA 主动，thingId 驱动）</text>
+
+        <!-- Step boxes -->
+        <rect x="30" y="40" width="190" height="65" rx="8" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="1.5" filter="url(#shI)"/>
+        <text x="125" y="60" text-anchor="middle" font-size="10" font-weight="700" fill="#7b1fa2">1. 触发交互</text>
+        <text x="125" y="78" text-anchor="middle" font-size="8" fill="#5f6368">NL 控制 / 规则 / AI 分析</text>
+        <text x="125" y="92" text-anchor="middle" font-size="8" fill="#5f6368">已知目标 thingId</text>
+
+        <path d="M220,72 L250,72" stroke="#5f6368" stroke-width="1.5" fill="none" marker-end="url(#arL)"/>
+
+        <rect x="260" y="35" width="200" height="75" rx="8" fill="#e3f2fd" stroke="#1a73e8" stroke-width="1.5" filter="url(#shI)"/>
+        <text x="360" y="55" text-anchor="middle" font-size="10" font-weight="700" fill="#1565c0">2. 按 thingId 拉取 metadata</text>
+        <text x="360" y="73" text-anchor="middle" font-size="8" fill="#5f6368">GET /things/{id} → thing metadata</text>
+        <text x="360" y="87" text-anchor="middle" font-size="8" fill="#5f6368">GET /thing-types/{name}</text>
+        <text x="360" y="101" text-anchor="middle" font-size="8" fill="#5f6368">命中缓存则跳过</text>
+
+        <path d="M460,72 L490,72" stroke="#5f6368" stroke-width="1.5" fill="none" marker-end="url(#arL)"/>
+
+        <rect x="500" y="40" width="190" height="65" rx="8" fill="#fff3e0" stroke="#f9ab00" stroke-width="1.5" filter="url(#shI)"/>
+        <text x="595" y="60" text-anchor="middle" font-size="10" font-weight="700" fill="#e65100">3. 构建/缓存 DeviceSpec</text>
+        <text x="595" y="78" text-anchor="middle" font-size="8" fill="#5f6368">ThingType → DeviceSpec</text>
+        <text x="595" y="92" text-anchor="middle" font-size="8" fill="#5f6368">只存模型，不存设备列表</text>
+
+        <path d="M690,72 L720,72" stroke="#5f6368" stroke-width="1.5" fill="none" marker-end="url(#arL)"/>
+
+        <rect x="730" y="40" width="180" height="65" rx="8" fill="#e6f4ea" stroke="#34a853" stroke-width="1.5" filter="url(#shI)"/>
+        <text x="820" y="60" text-anchor="middle" font-size="10" font-weight="700" fill="#2e7d32">4. 与设备通信</text>
+        <text x="820" y="78" text-anchor="middle" font-size="8" fill="#5f6368">$emqx/things/{name}/...</text>
+        <text x="820" y="92" text-anchor="middle" font-size="8" fill="#5f6368">下发命令 / 订阅上报</text>
+
+        <g transform="translate(30,125)">
+          <rect x="0" y="0" width="880" height="75" rx="6" fill="#fff" stroke="#e0e0e0"/>
+          <text x="12" y="20" font-size="9" font-weight="600" fill="#333">关键点</text>
+          <text x="12" y="38" font-size="8" fill="#5f6368">• DA 只缓存 thingType（DeviceSpec），同类型设备共享，无需为每个设备存储条目</text>
+          <text x="12" y="54" font-size="8" fill="#5f6368">• 设备权威列表始终在 Fleets 侧，DA 无需与 Fleets 做设备列表同步</text>
+          <text x="12" y="70" font-size="8" fill="#5f6368">• ThingType 缓存可设 TTL / 主动失效，Schema 更新后按 thingId 重新拉取</text>
+        </g>
+      </svg>
+    </div>
+
+    <div class="two">
+      <div class="card">
+        <h3>🟢 默认流程：按 thingId 拉取 metadata（只存 thingType）</h3>
+        <pre class="code"><code>// DA 需要与设备交互时（示例：NL 控制）
+async function resolveDeviceSpec(thingId) {
+  // 1. 按 thingId 拉取 thing metadata，查该设备属于哪个 ThingType
+  const thing = await fleetsApi.get(`/api/v1/things/${thingId}`);
+  const typeName = thing.thingTypeName;
+
+  // 2. ThingType 缓存命中则直接用（同类型共享）
+  if (specCache.has(typeName)) return specCache.get(typeName);
+
+  // 3. 未命中 → 拉取 ThingType Schema 构建 DeviceSpec
+  const thingType = await fleetsApi.get(
+    `/api/v1/thing-types/${typeName}`
+  );
+  const spec = buildDeviceSpec(thingType);
+
+  // 4. 只缓存 thingType（DeviceSpec）模型，不保存设备列表
+  specCache.set(typeName, spec);
+  return spec;
+}
+
+// 交互时无需预先导入设备
+async function handleNlControl(input, thingId) {
+  const spec = await resolveDeviceSpec(thingId);
+  const cmd  = parseIntent(input, spec.commands);
+  await adapter.publishCommand(thingId, cmd.name, cmd.params);
+}</code></pre>
+      </div>
+      <div class="card">
+        <h3>⏳ 规划功能：设备导入 / 导出 API</h3>
+        <div class="info orange" style="margin:0 0 8px">
+          <strong>规划中（默认不启用）：</strong> 未来可让 Fleets 主动管控 DA 的设备管理范围，
+          适用于需要 DA 预订阅设备、预热缓存或限定管理边界的场景。
+        </div>
+        <pre class="code"><code>// 【规划】POST /api/v1/da/devices/import
+// 调用方：Fleets → DA
+// 作用：Fleets 主动把一批设备纳入 DA 管理范围
+{
+  "thingIds": ["t-001", "t-002"]
+}
+// DA 预拉取 ThingType + 预订阅 $emqx/things/{name}/...
+
+// 【规划】POST /api/v1/da/devices/export
+// 作用：Fleets 通知 DA 释放设备（取消订阅 + 清缓存）
+{
+  "thingIds": ["t-001"],
+  "reason": "maintenance"
+}
+
+// 说明：
+// - 默认模式无需导入 —— DA 按 thingId 懒加载即可控制设备
+// - 导入/导出仅用于"预热 / 范围管控"等增强场景
+// - 是否落地取决于后续实际运营需求</code></pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2 class="section-title">🤖 DA 对 Fleets 已有设备的控制权</h2>
+
+    <div class="info purple">
+      <strong>核心机制：</strong> DA 按 <code>thingId</code> 拉取到设备的 thing metadata、提取其 thingType（DeviceSpec）后，即通过 <code>$emqx/</code> MQTT 主题与设备通信，
+      <strong>控制路径不经过 Fleets API</strong>，与 Fleets 完全独立、互不干扰。设备模型按需获取，无需预先导入。
+    </div>
+
+    <div class="mg">
+      <div>
+        <h4>🎯 DA 获得哪些控制权</h4>
+        <p>• 读取设备上报的 Shadow reported、Events、Command response<br>
+        • 通过 Shadow desired 设置设备属性<br>
+        • 通过 Command 下发设备指令<br>
+        • 通过规则引擎自动响应设备事件<br>
+        • 通过 AI 分析设备数据趋势</p>
+      </div>
+      <div>
+        <h4>🔒 Fleets 保留哪些控制权</h4>
+        <p>• 设备注册与注销（Thing CRUD）<br>
+        • ThingType Schema 的创建/修改<br>
+        • Jobs 作业调度（DA 不做 Jobs）<br>
+        • 设备认证凭据管理<br>
+        • 设备查询与标签分组</p>
+      </div>
+      <div>
+        <h4>⚡ 按需获取模型</h4>
+        <p>DA 不维护设备列表，运行时用 <code>thingId</code> 向 Fleets 拉取 thing metadata，提取其 thingType 构建 DeviceSpec 并只缓存该模型。
+        DA 与 Fleets 都能控制设备 —— 两者通过 <strong>最后写入者语义</strong> 自然收敛。</p>
+      </div>
+      <div>
+        <h4>📋 设备范围管控（规划）</h4>
+        <p>默认无需标记。若启用规划中的导入/导出功能，可为 Thing 增加 <code>metadata.managedByDa</code> 字段，
+        由 Fleets UI 展示并手动管控 DA 的设备管理范围。</p>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:6px">
+      <h3>📋 新增 API 汇总</h3>
+      <table class="tbl">
+        <thead>
+          <tr><th style="width:200px">API</th><th style="width:80px">方向</th><th>用途</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>POST /api/v1/da/instances</code></td><td>DA → Fleets</td><td>DA 实例注册</td></tr>
+          <tr><td><code>PUT /api/v1/da/instances/{id}/heartbeat</code></td><td>DA → Fleets</td><td>DA 实例心跳</td></tr>
+          <tr><td><code>GET /api/v1/da/instances</code></td><td>Fleets 内部</td><td>列出所有 DA 实例</td></tr>
+          <tr><td><code>POST /api/v1/da/instances/{id}/start|stop|restart</code></td><td>Fleets 内部</td><td>控制 DA 进程生命周期</td></tr>
+          <tr><td><code>GET /api/v1/things/{id}</code></td><td>DA → Fleets</td><td>按 thingId 拉取 thing metadata（默认）</td></tr>
+          <tr><td><code>GET /api/v1/thing-types/{name}</code></td><td>DA → Fleets</td><td>拉取 ThingType Schema 构建 DeviceSpec（默认）</td></tr>
+          <tr><td><code>POST /api/v1/da/devices/import</code></td><td>Fleets → DA</td><td><span class="tag tg-o">规划</span> 导入设备到 DA 管理范围</td></tr>
+          <tr><td><code>POST /api/v1/da/devices/export</code></td><td>Fleets → DA</td><td><span class="tag tg-o">规划</span> 从 DA 导出/释放设备</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<div class="footer">
+  Device Agent + Fleets 集成方案 · 2026-07-06
+</div>
+
+</div><!-- /container -->
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // === Tab switching ===
+  window.switchTab = function(tabId) {
+    document.querySelectorAll('.tab-btn').forEach(function(b) {
+      b.classList.remove('active');
+      b.setAttribute('aria-selected', 'false');
+    });
+    document.querySelectorAll('.tab-panel').forEach(function(p) {
+      p.classList.remove('active');
+    });
+    var btn = document.querySelector('.tab-btn[data-tab="' + tabId + '"]');
+    if (btn) {
+      btn.classList.add('active');
+      btn.setAttribute('aria-selected', 'true');
+    }
+    document.getElementById(tabId).classList.add('active');
+  };
+
+  document.querySelectorAll('.tab-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var tabId = this.dataset.tab;
+      document.querySelectorAll('.tab-btn').forEach(function(b) {
+        b.classList.remove('active');
+        b.setAttribute('aria-selected', 'false');
+      });
+      document.querySelectorAll('.tab-panel').forEach(function(p) {
+        p.classList.remove('active');
+      });
+      this.classList.add('active');
+      this.setAttribute('aria-selected', 'true');
+      document.getElementById(tabId).classList.add('active');
+    });
+  });
+
+  // === highlight.js init ===
+  document.querySelectorAll('pre.code').forEach(function(block) {
+    if (block.querySelector('code')) return;
+    var code = document.createElement('code');
+    code.innerHTML = block.innerHTML;
+    block.innerHTML = '';
+    block.appendChild(code);
+  });
+  hljs.highlightAll();
+
+  // === Copy buttons ===
+  document.querySelectorAll('pre.code').forEach(function(block) {
+    var btn = document.createElement('button');
+    btn.className = 'copy-btn';
+    btn.textContent = '📋';
+    btn.setAttribute('aria-label', '复制代码');
+    btn.title = '复制代码';
+    btn.onclick = function() {
+      var code = block.querySelector('code') || block;
+      navigator.clipboard.writeText(code.textContent).then(function() {
+        btn.textContent = '✅';
+        setTimeout(function() { btn.textContent = '📋'; }, 1500);
+      });
+    };
+    block.appendChild(btn);
+  });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>ECP 超时参数体系</title>
+<style>
+  :root {
+    --bg: #f8f9fa;
+    --card-bg: #ffffff;
+    --border: #dee2e6;
+    --text: #212529;
+    --muted: #6c757d;
+    --primary: #2563eb;
+    --green: #059669;
+    --amber: #d97706;
+    --red: #dc2626;
+    --purple: #7c3aed;
+    --blue-lite: #eff6ff;
+    --green-lite: #ecfdf5;
+    --amber-lite: #fffbeb;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    padding: 2rem 1.5rem;
+  }
+  .container { max-width: 1100px; margin: 0 auto; }
+  h1 { font-size: 2rem; margin-bottom: 0.5rem; }
+  h2 { font-size: 1.4rem; margin: 2.5rem 0 1rem; padding-bottom: 0.4rem; border-bottom: 2px solid var(--border); }
+  h3 { font-size: 1.1rem; margin: 1.5rem 0 0.6rem; }
+  .meta { color: var(--muted); font-size: 0.9rem; margin-bottom: 2rem; }
+  .card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  }
+  .card h3 { margin-top: 0; color: var(--primary); }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+  }
+  th, td {
+    padding: 0.7rem 0.8rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.92rem;
+  }
+  th { background: #f1f5f9; font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+  .badge {
+    display: inline-block;
+    padding: 0.15em 0.6em;
+    border-radius: 12px;
+    font-size: 0.78rem;
+    font-weight: 600;
+  }
+  .badge-context  { background: var(--blue-lite);  color: var(--primary); }
+  .badge-transport { background: var(--green-lite); color: var(--green); }
+  .badge-db       { background: var(--amber-lite); color: var(--amber); }
+  .badge-jwt      { background: #f3e8ff;           color: var(--purple); }
+  .badge-client   { background: #fef2f2;           color: var(--red); }
+  .note {
+    background: #fffbeb;
+    border-left: 4px solid var(--amber);
+    padding: 0.7rem 1rem;
+    margin: 1rem 0;
+    border-radius: 0 4px 4px 0;
+    font-size: 0.9rem;
+  }
+  .note.info { background: #eff6ff; border-left-color: var(--primary); }
+  .note.green { background: #ecfdf5; border-left-color: var(--green); }
+  svg { display: block; margin: 1rem auto; max-width: 100%; }
+  .legend { display: flex; gap: 1.5rem; flex-wrap: wrap; margin-top: 0.5rem; }
+  .legend span { display: flex; align-items: center; gap: 0.35rem; font-size: 0.85rem; }
+  .legend .dot { width: 12px; height: 12px; border-radius: 3px; }
+  code { background: #f1f5f9; padding: 0.15em 0.4em; border-radius: 3px; font-size: 0.9em; }
+  .path-label { font-size: 0.78rem; font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>ECP 超时参数体系</h1>
+<p class="meta">PR #1253 — 涵盖边缘代理 (edge_tunnel)、Dashboard 代理 (http_proxy)、数据库连接池、JWT Token 管理中所有 timeout 参数及其作用域与关联关系。</p>
+
+<!-- ============================================================ -->
+<h2>1. 请求路径总览</h2>
+<p>下图展示两条代理路径中，各超时参数在哪一层生效以及它们如何联动。</p>
+
+<svg viewBox="0 0 1050 720" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#64748b"/></marker>
+    <marker id="arrowBlue" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#2563eb"/></marker>
+    <marker id="arrowGreen" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#059669"/></marker>
+    <marker id="arrowAmber" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#d97706"/></marker>
+    <filter id="shadow" x="-4%" y="-4%" width="108%" height="108%"><feDropShadow dx="0" dy="1" stdDeviation="2" flood-opacity="0.08"/></filter>
+  </defs>
+
+  <!-- Client -->
+  <rect x="40" y="50" width="140" height="44" rx="6" fill="#e2e8f0" stroke="#94a3b8" filter="url(#shadow)"/>
+  <text x="110" y="77" text-anchor="middle" font-size="14" font-weight="600" fill="#334155">Client</text>
+
+  <!-- Edge Tunnel path label -->
+  <text x="430" y="65" font-size="11" fill="#2563eb" font-weight="600">路径 A: 边缘设备代理</text>
+
+  <!-- Dashboard Tunnel path label -->
+  <text x="430" y="130" font-size="11" fill="#059669" font-weight="600">路径 B: Dashboard 代理</text>
+
+  <!-- edge_tunnel.go block -->
+  <rect x="200" y="30" width="180" height="54" rx="6" fill="#dbeafe" stroke="#93c5fd" filter="url(#shadow)"/>
+  <text x="290" y="50" text-anchor="middle" font-size="12" font-weight="700" fill="#1e40af">edge_tunnel.go</text>
+  <rect x="210" y="57" width="160" height="20" rx="4" fill="#bfdbfe"/>
+  <text x="290" y="71" text-anchor="middle" font-size="10" fill="#1e40af">X-ECP-Timeout → 60s / 300s max</text>
+
+  <!-- Arrow Client → edge_tunnel -->
+  <line x1="180" y1="57" x2="198" y2="57" stroke="#2563eb" stroke-width="1.5" marker-end="url(#arrowBlue)"/>
+
+  <!-- http_proxy.go block -->
+  <rect x="200" y="105" width="180" height="54" rx="6" fill="#d1fae5" stroke="#6ee7b7" filter="url(#shadow)"/>
+  <text x="290" y="125" text-anchor="middle" font-size="12" font-weight="700" fill="#065f46">http_proxy.go</text>
+  <rect x="210" y="132" width="160" height="20" rx="4" fill="#a7f3d0"/>
+  <text x="290" y="146" text-anchor="middle" font-size="10" fill="#065f46">Client.Timeout = 30s</text>
+
+  <!-- Arrow Client → http_proxy -->
+  <line x1="180" y1="68" x2="198" y2="132" stroke="#059669" stroke-width="1.5" marker-end="url(#arrowGreen)"/>
+
+  <!-- --- Direct Mode (Path A) --- -->
+  <rect x="440" y="20" width="190" height="74" rx="6" fill="#f0f9ff" stroke="#7dd3fc" filter="url(#shadow)"/>
+  <text x="535" y="42" text-anchor="middle" font-size="11" font-weight="600" fill="#0369a1">直连模式 (Direct)</text>
+  <line x1="450" y1="50" x2="620" y2="50" stroke="#bae6fd" stroke-width="1"/>
+  <text x="460" y="66" font-size="10" fill="#0c4a6e">timeoutCtx = context.WithTimeout(</text>
+  <text x="468" y="80" font-size="10" fill="#0c4a6e" font-weight="600">ctx, timeout)  ← X-ECP-Timeout</text>
+
+  <line x1="380" y1="50" x2="438" y2="50" stroke="#2563eb" stroke-width="1.5" marker-end="url(#arrowBlue)"/>
+
+  <!-- --- Proxy MQTT path (Path A) --- -->
+  <rect x="440" y="110" width="190" height="44" rx="6" fill="#fefce8" stroke="#fde68a" filter="url(#shadow)"/>
+  <text x="535" y="130" text-anchor="middle" font-size="11" font-weight="600" fill="#92400e">MQTT 代理模式</text>
+  <text x="535" y="146" text-anchor="middle" font-size="10" fill="#92400e">timeoutCtx → Pub / Sub / Chan</text>
+
+  <line x1="380" y1="65" x2="438" y2="132" stroke="#2563eb" stroke-width="1.5" marker-end="url(#arrowBlue)"/>
+
+  <!-- utils.Request + GetClient -->
+  <rect x="680" y="20" width="210" height="74" rx="6" fill="#eef2ff" stroke="#a5b4fc" filter="url(#shadow)"/>
+  <text x="785" y="42" text-anchor="middle" font-size="11" font-weight="600" fill="#4338ca">utils.GetClient() + Request()</text>
+  <line x1="690" y1="50" x2="880" y2="50" stroke="#c7d2fe" stroke-width="1"/>
+  <text x="700" y="66" font-size="10" fill="#3730a3">http.NewRequestWithContext(</text>
+  <text x="708" y="80" font-size="10" fill="#3730a3" font-weight="600">timeoutCtx, …) → client.Do(req)</text>
+
+  <line x1="630" y1="50" x2="678" y2="50" stroke="#2563eb" stroke-width="1.5" marker-end="url(#arrowBlue)"/>
+
+  <!-- Transport layer inside client -->
+  <rect x="680" y="120" width="210" height="100" rx="6" fill="#f5f3ff" stroke="#c4b5fd" filter="url(#shadow)"/>
+  <text x="785" y="142" text-anchor="middle" font-size="11" font-weight="600" fill="#6d28d9">http.Transport 层级</text>
+  <line x1="690" y1="150" x2="880" y2="150" stroke="#ddd6fe" stroke-width="1"/>
+  <text x="700" y="166" font-size="10" fill="#5b21b6">DialContext.Timeout = 5s</text>
+  <text x="700" y="182" font-size="10" fill="#5b21b6">MaxIdleConns = 1024</text>
+  <text x="700" y="198" font-size="10" fill="#5b21b6">MaxConnsPerHost = 100</text>
+  <text x="700" y="214" font-size="10" fill="#5b21b6">IdleConnTimeout = 600s</text>
+
+  <!-- fabricHttpProxy block -->
+  <rect x="440" y="180" width="190" height="60" rx="6" fill="#d1fae5" stroke="#6ee7b7" filter="url(#shadow)"/>
+  <text x="535" y="200" text-anchor="middle" font-size="11" font-weight="600" fill="#065f46">fabricHttpProxy.Proxy()</text>
+  <text x="535" y="216" text-anchor="middle" font-size="10" fill="#065f46">p.cli.Do(req)</text>
+  <text x="535" y="232" text-anchor="middle" font-size="10" fill="#065f46" font-weight="600">Client.Timeout = 30s</text>
+
+  <line x1="380" y1="135" x2="438" y2="210" stroke="#059669" stroke-width="1.5" marker-end="url(#arrowGreen)"/>
+
+  <!-- proxyTransport for fabricHttpProxy -->
+  <rect x="680" y="240" width="210" height="80" rx="6" fill="#f0fdf4" stroke="#86efac" filter="url(#shadow)"/>
+  <text x="785" y="262" text-anchor="middle" font-size="11" font-weight="600" fill="#166534">proxyTransport</text>
+  <line x1="690" y1="270" x2="880" y2="270" stroke="#bbf7d0" stroke-width="1"/>
+  <text x="700" y="286" font-size="10" fill="#14532d">DialContext.Timeout = 5s</text>
+  <text x="700" y="302" font-size="10" fill="#14532d">MaxIdleConnsPerHost = 32, MaxConnsPerHost = 50</text>
+  <text x="700" y="318" font-size="10" fill="#14532d">IdleConnTimeout = 90s</text>
+
+  <line x1="630" y1="210" x2="678" y2="270" stroke="#059669" stroke-width="1.5" marker-end="url(#arrowGreen)"/>
+
+  <!-- Backend -->
+  <rect x="930" y="30" width="100" height="40" rx="6" fill="#e2e8f0" stroke="#94a3b8" filter="url(#shadow)"/>
+  <text x="980" y="55" text-anchor="middle" font-size="12" font-weight="600" fill="#334155">Neuron</text>
+
+  <line x1="890" y1="50" x2="928" y2="50" stroke="#2563eb" stroke-width="1.5" marker-end="url(#arrowBlue)"/>
+
+  <rect x="930" y="250" width="100" height="40" rx="6" fill="#e2e8f0" stroke="#94a3b8" filter="url(#shadow)"/>
+  <text x="980" y="275" text-anchor="middle" font-size="12" font-weight="600" fill="#334155">Neuron</text>
+
+  <line x1="890" y1="275" x2="928" y2="275" stroke="#059669" stroke-width="1.5" marker-end="url(#arrowGreen)"/>
+
+  <!-- Legend -->
+  <rect x="40" y="380" width="1030" height="26" rx="4" fill="#f8fafc" stroke="#e2e8f0"/>
+  <circle cx="60" cy="393" r="5" fill="#2563eb"/><text x="72" y="398" font-size="11" fill="#475569">路径 A: 边缘设备代理</text>
+  <circle cx="220" cy="393" r="5" fill="#059669"/><text x="232" y="398" font-size="11" fill="#475569">路径 B: Dashboard 代理</text>
+  <text x="370" y="398" font-size="11" fill="#64748b">⚠ 两条路径使用完全独立的 HTTP Client，超时参数互不干扰</text>
+
+  <!-- JWT Cleanup -->
+  <rect x="40" y="430" width="280" height="80" rx="6" fill="#f3e8ff" stroke="#d8b4fe" filter="url(#shadow)"/>
+  <text x="180" y="450" text-anchor="middle" font-size="12" font-weight="700" fill="#7c3aed">JWT Token 管理</text>
+  <line x1="50" y1="458" x2="310" y2="458" stroke="#e9d5ff" stroke-width="1"/>
+  <text x="60" y="474" font-size="10" fill="#6b21a8">tokenMaxAgeSec = 24h（Token 有效期）</text>
+  <text x="60" y="490" font-size="10" fill="#6b21a8">tokenMinValidSec = 1h（最小有效窗口）</text>
+  <text x="60" y="506" font-size="10" fill="#6b21a8">cleanupInterval = 1h（过期清理周期）</text>
+
+  <!-- DB -->
+  <rect x="360" y="430" width="280" height="80" rx="6" fill="#fffbeb" stroke="#fde68a" filter="url(#shadow)"/>
+  <text x="500" y="450" text-anchor="middle" font-size="12" font-weight="700" fill="#d97706">数据库连接池 (dal/db.go)</text>
+  <line x1="370" y1="458" x2="630" y2="458" stroke="#fef3c7" stroke-width="1"/>
+  <text x="380" y="474" font-size="10" fill="#92400e">MaxOpenConns = 50</text>
+  <text x="380" y="490" font-size="10" fill="#92400e">MaxIdleConns = 25</text>
+  <text x="380" y="506" font-size="10" fill="#92400e">ConnMaxLifetime = 15min / ConnMaxIdleTime = 5min</text>
+
+  <!-- Timeout Stack Summary -->
+  <rect x="680" y="430" width="290" height="120" rx="6" fill="#f8fafc" stroke="#e2e8f0" filter="url(#shadow)"/>
+  <text x="825" y="450" text-anchor="middle" font-size="12" font-weight="700" fill="#475569">超时堆栈优先级</text>
+  <line x1="690" y1="458" x2="960" y2="458" stroke="#e2e8f0" stroke-width="1"/>
+  <text x="700" y="476" font-size="10" fill="#64748b">1. min(X-ECP-Timeout, 300s)  →  请求级 context</text>
+  <text x="700" y="494" font-size="10" fill="#64748b">2. Client.Timeout 30s  →  Client 级（仅路径 B）</text>
+  <text x="700" y="512" font-size="10" fill="#64748b">3. DialContext.Timeout 5s  →  TCP 建连</text>
+  <text x="700" y="530" font-size="10" fill="#64748b">4. IdleConnTimeout  —  空闲连接回收</text>
+
+  <text x="700" y="546" font-size="9" fill="#94a3b8">规则：context deadline 与 Client.Timeout 取最小值</text>
+</svg>
+
+<div class="note info">
+  <strong>关键结论：</strong>路径 A (<code>edge_tunnel</code>) 使用的 <code>utils.GetClient()</code> <strong>没有设置 Client.Timeout</strong>，因此 <code>X-ECP-Timeout=200</code> 设置的 200s context 超时不会被截断。路径 B (<code>fabricHttpProxy</code>) 的 <code>Client.Timeout=30s</code> 和路径 A 完全独立。
+</div>
+
+<!-- ============================================================ -->
+<h2>2. 路径 A: edge_tunnel 超时链路详解</h2>
+
+<svg viewBox="0 0 1000 480" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arr" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto"><path d="M0,0 L7,2.5 L0,5 Z" fill="#64748b"/></marker>
+    <marker id="arrAct" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto"><path d="M0,0 L7,2.5 L0,5 Z" fill="#dc2626"/></marker>
+  </defs>
+
+  <!-- Step 1: Request Header -->
+  <rect x="30" y="30" width="280" height="65" rx="6" fill="#fef2f2" stroke="#fca5a5" filter="url(#shadow)"/>
+  <text x="170" y="52" text-anchor="middle" font-size="12" font-weight="700" fill="#991b1b">① Header 解析</text>
+  <text x="50" y="70" font-size="10" fill="#7f1d1d">X-ECP-Timeout: 200  →  timeout = 200s</text>
+  <text x="50" y="86" font-size="10" fill="#7f1d1d">最大值上限: maxTunnelTimeout = 300s</text>
+
+  <line x1="310" y1="62" x2="380" y2="62" stroke="#64748b" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- Step 2: Context -->
+  <rect x="385" y="30" width="280" height="65" rx="6" fill="#fff7ed" stroke="#fdba74" filter="url(#shadow)"/>
+  <text x="525" y="52" text-anchor="middle" font-size="12" font-weight="700" fill="#9a3412">② Context 创建</text>
+  <text x="405" y="70" font-size="10" fill="#7c2d12">timeoutCtx, cancel = context.WithTimeout(</text>
+  <text x="423" y="86" font-size="10" fill="#7c2d12" font-weight="600">c.Request.Context(), 200s)</text>
+
+  <line x1="665" y1="62" x2="730" y2="62" stroke="#64748b" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- Step 3: Request -->
+  <rect x="735" y="30" width="235" height="65" rx="6" fill="#eff6ff" stroke="#93c5fd" filter="url(#shadow)"/>
+  <text x="852" y="52" text-anchor="middle" font-size="12" font-weight="700" fill="#1e40af">③ 发起 HTTP 请求</text>
+  <text x="755" y="70" font-size="10" fill="#1e3a5f">http.NewRequestWithContext(</text>
+  <text x="763" y="86" font-size="10" fill="#1e3a5f" font-weight="600">timeoutCtx, ...)</text>
+
+  <line x1="852" y1="95" x2="852" y2="140" stroke="#64748b" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- Step 4: Client.Do -->
+  <rect x="600" y="145" width="504" height="80" rx="6" fill="#f0fdf4" stroke="#86efac" filter="url(#shadow)"/>
+  <text x="852" y="168" text-anchor="middle" font-size="12" font-weight="700" fill="#166534">④ client.Do(req) — utils.GetClient() 全局单例</text>
+  <line x1="610" y1="178" x2="1094" y2="178" stroke="#bbf7d0" stroke-width="1"/>
+
+  <!-- Transport sub-box -->
+  <rect x="610" y="185" width="240" height="32" rx="4" fill="#dcfce7"/>
+  <text x="730" y="200" text-anchor="middle" font-size="10" fill="#14532d">DialContext.Timeout = 5s</text>
+  <text x="730" y="214" text-anchor="middle" font-size="9" fill="#64748b">← TCP 三次握手，独立计时</text>
+
+  <rect x="864" y="185" width="230" height="32" rx="4" fill="#dcfce7"/>
+  <text x="979" y="200" text-anchor="middle" font-size="10" fill="#14532d">IdleConnTimeout = 600s</text>
+  <text x="979" y="214" text-anchor="middle" font-size="9" fill="#64748b">← 空闲连接回收，不影响请求</text>
+
+  <!-- Warning -->
+  <rect x="30" y="265" width="940" height="30" rx="4" fill="#fef2f2" stroke="#fca5a5"/>
+  <text x="500" y="285" text-anchor="middle" font-size="11" fill="#991b1b">⚠ 全局 Client 未设置 Client.Timeout，超时完全由 timeoutCtx 控制 → X-ECP-Timeout=200s 完全生效</text>
+
+  <line x1="500" y1="295" x2="500" y2="340" stroke="#dc2626" stroke-width="1.5" marker-end="url(#arrAct)"/>
+
+  <!-- Step 5: Response -->
+  <rect x="300" y="345" width="400" height="55" rx="6" fill="#f5f3ff" stroke="#c4b5fd" filter="url(#shadow)"/>
+  <text x="500" y="367" text-anchor="middle" font-size="12" font-weight="700" fill="#6d28d9">⑤ 结果</text>
+  <text x="500" y="385" text-anchor="middle" font-size="11" fill="#5b21b6">timeoutCtx 到期前正常返回；到期则 ctx.Err() ≠ nil → 502</text>
+
+  <rect x="30" y="425" width="940" height="45" rx="6" fill="#eff6ff" stroke="#93c5fd"/>
+  <text x="500" y="446" text-anchor="middle" font-size="11" fill="#1e40af">总结：DialContext.Timeout (5s) ⊆ 请求总耗时 ⊆ timeoutCtx (X-ECP-Timeout, 默认 60s, 最大 300s)</text>
+  <text x="500" y="463" text-anchor="middle" font-size="10" fill="#64748b">三者是嵌套关系：TCP 建连 ≤ 请求总耗时 ≤ Context 超时；任一超时都会触发错误返回</text>
+</svg>
+
+<div class="note">
+  <strong>MQTT 代理模式：</strong>timeoutCtx 同时用于 MQTT Pub Topic、Sub Topic 和响应 Channel 等待。三者共享同一个 timeoutCtx，任一环节超时都会返回 502。
+</div>
+
+<!-- ============================================================ -->
+<h2>3. 路径 B: Dashboard 代理超时链路</h2>
+
+<svg viewBox="0 0 1000 340" xmlns="http://www.w3.org/2000/svg">
+  <!-- Step 1 -->
+  <rect x="30" y="20" width="260" height="50" rx="6" fill="#d1fae5" stroke="#6ee7b7" filter="url(#shadow)"/>
+  <text x="160" y="42" text-anchor="middle" font-size="12" font-weight="700" fill="#065f46">① NewTunnel(dest)</text>
+  <text x="160" y="58" text-anchor="middle" font-size="10" fill="#065f46">cli = http.Client{Timeout: 30s}</text>
+
+  <line x1="290" y1="45" x2="360" y2="45" stroke="#64748b" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- Step 2 -->
+  <rect x="365" y="20" width="260" height="50" rx="6" fill="#d1fae5" stroke="#6ee7b7" filter="url(#shadow)"/>
+  <text x="495" y="42" text-anchor="middle" font-size="12" font-weight="700" fill="#065f46">② p.cli.Do(req)</text>
+  <text x="495" y="58" text-anchor="middle" font-size="10" fill="#065f46">Client.Timeout = 30s 生效</text>
+
+  <line x1="495" y1="70" x2="495" y2="115" stroke="#64748b" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- Transport -->
+  <rect x="310" y="120" width="380" height="80" rx="6" fill="#f0fdf4" stroke="#86efac" filter="url(#shadow)"/>
+  <text x="500" y="142" text-anchor="middle" font-size="11" font-weight="600" fill="#166534">proxyTransport（全局共享，与 utils 独立）</text>
+  <line x1="320" y1="150" x2="680" y2="150" stroke="#bbf7d0" stroke-width="1"/>
+  <text x="340" y="168" font-size="10" fill="#14532d">DialContext.Timeout = 5s</text>
+  <text x="340" y="184" font-size="10" fill="#14532d">MaxIdleConnsPerHost = 32, MaxConnsPerHost = 50</text>
+  <text x="340" y="200" font-size="9" fill="#64748b">IdleConnTimeout = 90s</text>
+
+  <line x1="500" y1="200" x2="500" y2="245" stroke="#dc2626" stroke-width="1.5" marker-end="url(#arrAct)"/>
+
+  <!-- Conclusion -->
+  <rect x="250" y="250" width="500" height="40" rx="6" fill="#fef2f2" stroke="#fca5a5"/>
+  <text x="500" y="275" text-anchor="middle" font-size="12" fill="#991b1b" font-weight="600">总耗时 = min(Client.Timeout, 网络耗时) ≤ 30s</text>
+
+  <rect x="30" y="300" width="940" height="30" rx="4" fill="#f1f5f9" stroke="#e2e8f0"/>
+  <text x="500" y="320" text-anchor="middle" font-size="10" fill="#64748b">注意：fabricHttpProxy 不支持 X-ECP-Timeout header，30s 是硬上限</text>
+</svg>
+
+<!-- ============================================================ -->
+<h2>4. 全量超时参数一览</h2>
+
+<table>
+  <thead>
+    <tr><th>层级</th><th>参数</th><th>值</th><th>作用域</th><th>所属文件</th><th>类型</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td rowspan="2"><span class="badge badge-context">请求级</span></td>
+      <td>X-ECP-Timeout → timeoutCtx</td>
+      <td>默认 60s / 最大 300s</td>
+      <td>路径 A 全程（直连 + MQTT）</td>
+      <td><code>server/proxy/edge_tunnel.go:89</code></td>
+      <td><span class="badge badge-context">context</span></td>
+    </tr>
+    <tr>
+      <td>Client.Timeout</td>
+      <td>30s</td>
+      <td>路径 B 单次 HTTP 往返</td>
+      <td><code>logic/proxy/http_proxy.go:47</code></td>
+      <td><span class="badge badge-client">client</span></td>
+    </tr>
+    <tr>
+      <td rowspan="3"><span class="badge badge-transport">Transport</span></td>
+      <td>DialContext.Timeout</td>
+      <td>5s</td>
+      <td>TCP 建连</td>
+      <td><code>utils/http.go:27</code> + <code>http_proxy.go:31</code></td>
+      <td><span class="badge badge-transport">transport</span></td>
+    </tr>
+    <tr>
+      <td>IdleConnTimeout</td>
+      <td>600s / 90s</td>
+      <td>空闲连接存活</td>
+      <td><code>utils/http.go:32</code> / <code>http_proxy.go:38</code></td>
+      <td><span class="badge badge-transport">transport</span></td>
+    </tr>
+    <tr>
+      <td>MaxConnsPerHost</td>
+      <td>100 / 50</td>
+      <td>单 host 最大并发</td>
+      <td><code>utils/http.go:31</code> / <code>http_proxy.go:37</code></td>
+      <td><span class="badge badge-transport">transport</span></td>
+    </tr>
+    <tr>
+      <td rowspan="3"><span class="badge badge-db">数据库</span></td>
+      <td>ConnMaxLifetime</td>
+      <td>15 min</td>
+      <td>连接最大存活</td>
+      <td><code>dal/db.go:46</code></td>
+      <td><span class="badge badge-db">db</span></td>
+    </tr>
+    <tr>
+      <td>ConnMaxIdleTime</td>
+      <td>5 min</td>
+      <td>空闲连接最大空闲</td>
+      <td><code>dal/db.go:47</code></td>
+      <td><span class="badge badge-db">db</span></td>
+    </tr>
+    <tr>
+      <td>MaxOpenConns / MaxIdleConns</td>
+      <td>50 / 25</td>
+      <td>连接池上限</td>
+      <td><code>dal/db.go:44-45</code></td>
+      <td><span class="badge badge-db">db</span></td>
+    </tr>
+    <tr>
+      <td rowspan="3"><span class="badge badge-jwt">JWT</span></td>
+      <td>tokenMaxAgeSec</td>
+      <td>24h (86400s)</td>
+      <td>Token 有效期</td>
+      <td><code>internal/pkg/jwt/edge_service.go:24</code></td>
+      <td><span class="badge badge-jwt">jwt</span></td>
+    </tr>
+    <tr>
+      <td>tokenMinValidSec</td>
+      <td>1h (3600s)</td>
+      <td>最小有效窗口</td>
+      <td><code>internal/pkg/jwt/edge_service.go:25</code></td>
+      <td><span class="badge badge-jwt">jwt</span></td>
+    </tr>
+    <tr>
+      <td>cleanupInterval</td>
+      <td>1h</td>
+      <td>过期 Token 清理</td>
+      <td><code>internal/pkg/jwt/edge_service.go:26</code></td>
+      <td><span class="badge badge-jwt">jwt</span></td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ============================================================ -->
+<h2>5. 超时优先级关系</h2>
+
+<svg viewBox="0 0 1000 340" xmlns="http://www.w3.org/2000/svg">
+  <!-- Timeline -->
+  <rect x="30" y="40" width="940" height="30" rx="4" fill="#f1f5f9" stroke="#cbd5e1"/>
+  <text x="50" y="60" font-size="11" fill="#475569" font-weight="600">请求时间线 →</text>
+
+  <!-- TCP dial phase -->
+  <rect x="30" y="90" width="110" height="28" rx="4" fill="#dbeafe" stroke="#93c5fd"/>
+  <text x="85" y="109" text-anchor="middle" font-size="10" fill="#1e40af" font-weight="600">TCP 建连</text>
+
+  <line x1="140" y1="104" x2="180" y2="104" stroke="#64748b" stroke-width="1"/>
+
+  <!-- Request body -->
+  <rect x="180" y="90" width="150" height="28" rx="4" fill="#d1fae5" stroke="#6ee7b7"/>
+  <text x="255" y="109" text-anchor="middle" font-size="10" fill="#065f46" font-weight="600">Request 读写</text>
+
+  <line x1="330" y1="104" x2="370" y2="104" stroke="#64748b" stroke-width="1"/>
+
+  <!-- Response body -->
+  <rect x="370" y="90" width="160" height="28" rx="4" fill="#fef3c7" stroke="#fcd34d"/>
+  <text x="450" y="109" text-anchor="middle" font-size="10" fill="#92400e" font-weight="600">Response 读写</text>
+
+  <line x1="530" y1="104" x2="570" y2="104" stroke="#64748b" stroke-width="1"/>
+
+  <!-- Remainder -->
+  <rect x="570" y="90" width="400" height="28" rx="4" fill="#f1f5f9" stroke="#e2e8f0" stroke-dasharray="4,2"/>
+  <text x="770" y="109" text-anchor="middle" font-size="10" fill="#94a3b8">... idle（timeoutCtx 剩余时间）</text>
+
+  <!-- Annotations -->
+  <!-- DialContext 5s -->
+  <line x1="85" y1="118" x2="85" y2="155" stroke="#2563eb" stroke-width="1" stroke-dasharray="4,2"/>
+  <text x="85" y="172" text-anchor="middle" font-size="9" fill="#2563eb">≤ 5s</text>
+  <text x="85" y="184" text-anchor="middle" font-size="9" fill="#2563eb">DialContext</text>
+
+  <!-- Client.Timeout 30s (only Path B) -->
+  <line x1="255" y1="118" x2="255" y2="155" stroke="#dc2626" stroke-width="1" stroke-dasharray="4,2"/>
+  <text x="255" y="172" text-anchor="middle" font-size="9" fill="#dc2626">≤ 30s（仅路径B）</text>
+  <text x="255" y="184" text-anchor="middle" font-size="9" fill="#dc2626">Client.Timeout</text>
+
+  <!-- Context timeout -->
+  <rect x="30" y="200" width="940" height="18" rx="3" fill="#eff6ff" stroke="#93c5fd" stroke-dasharray="6,3"/>
+  <text x="500" y="213" text-anchor="middle" font-size="10" fill="#1e40af" font-weight="600">Context Timeout (X-ECP-Timeout: 60~300s) — 整体请求 deadline，覆盖建连+读写+等待</text>
+
+  <!-- Max tunnel timeout -->
+  <rect x="30" y="225" width="940" height="18" rx="3" fill="#fef2f2" stroke="#fca5a5" stroke-dasharray="6,3"/>
+  <text x="500" y="238" text-anchor="middle" font-size="10" fill="#991b1b" font-weight="600">maxTunnelTimeout = 300s — X-ECP-Timeout 硬上限</text>
+
+  <!-- Conclusion box -->
+  <rect x="30" y="265" width="940" height="65" rx="6" fill="#f8fafc" stroke="#e2e8f0"/>
+  <text x="500" y="287" text-anchor="middle" font-size="11" fill="#334155" font-weight="600">超时控制优先级</text>
+  <text x="500" y="305" text-anchor="middle" font-size="11" fill="#64748b">最先触发的超时生效 → min(Context deadline, Client.Timeout) 且 DialContext.Timeout ⊆ Request Time ⊆ Context deadline</text>
+  <text x="500" y="323" text-anchor="middle" font-size="10" fill="#94a3b8">注意：DialContext 只控制建连阶段，建连成功后由上层超时接管</text>
+</svg>
+
+<div class="note green">
+  <strong>路径 A（edge_tunnel）：</strong><code>X-ECP-Timeout=200</code> → Context deadline = 200s，Client 无 Timeout → <strong>200s 完全生效</strong>。<br/>
+  <strong>路径 B（http_proxy）：</strong>无 X-ECP-Timeout，Client.Timeout = 30s → <strong>30s 硬上限</strong>。两条路径互不干扰。
+</div>
+
+<!-- ============================================================ -->
+<h2>6. 常见问题</h2>
+
+<div class="card">
+  <h3>Q: X-ECP-Timeout=200 会被 Client.Timeout 截断吗？</h3>
+  <p><strong>A: 不会。</strong><code>edge_tunnel.go</code> 路径使用 <code>utils.GetClient()</code>，该 Client <strong>没有设置 Timeout</strong>。超时通过 <code>context.WithTimeout(c.Request.Context(), 200s)</code> 控制，全程 200s 有效。</p>
+</div>
+
+<div class="card">
+  <h3>Q: Client.Timeout=30s 和 Context deadline 冲突时谁生效？</h3>
+  <p><strong>A: 两者取最小值。</strong>Go 的 <code>http.Client.Do()</code> 会将 Client.Timeout 也写入 request context，最终 deadline = min(Client.Timeout, context deadline)。路径 A 没有 Client.Timeout，所以 context deadline 唯一生效。</p>
+</div>
+
+<div class="card">
+  <h3>Q: DialContext=5s 是什么意思？</h3>
+  <p><strong>A: TCP 三次握手的超时。</strong>只控制从 <code>connect()</code> 调用到连接建立成功的阶段。连接建立后，数据传输超时由上层 context 或 Client.Timeout 控制。因此即使 <code>X-ECP-Timeout=200</code>，TCP 建连仍必须在 5s 内完成，否则报错。</p>
+</div>
+
+<div class="card">
+  <h3>Q: MQTT 代理模式超时如何工作？</h3>
+  <p><strong>A:</strong> timeoutCtx 同时用于 Pub Topic 发送、Sub Topic 订阅和 Channel 等待，三者共享同一个 context。200s 的 deadline 从 Tunnel 入口开始计时，任一环节超时返回 502。</p>
+</div>
+
+<p class="meta" style="margin-top:2rem;">文档生成时间: 2026-07-07 | 对应 PR: #1253 (fix/ecp-proxy-timeout-connpool) | 基于 HEAD 9bea4a6</p>
+
+</div>
+</body>
+</html>
