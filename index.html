@@ -293,6 +293,19 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
     .state-wrap.error { color: #dc2626; }
+    .retry-btn {
+      margin-top: .75rem;
+      padding: .45rem 1.1rem;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      background: var(--surface);
+      color: var(--primary);
+      font-size: .85rem;
+      font-family: var(--font);
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .retry-btn:hover { background: var(--primary-bg); border-color: var(--primary); }
     .hidden { display: none !important; }
 
     /* ─── Match highlight ─── */
@@ -374,6 +387,7 @@
       <!-- Error -->
       <div class="state-wrap hidden error" id="errorState">
         <p id="errorMsg"></p>
+        <button class="retry-btn" id="retryBtn">重试</button>
       </div>
 
       <!-- Empty -->
@@ -410,6 +424,7 @@
       const elLoading   = $('#loadingState');
       const elError     = $('#errorState');
       const elErrorMsg  = $('#errorMsg');
+      const elRetry     = $('#retryBtn');
       const elEmpty     = $('#emptyState');
       const elHeader    = $('#headerInfo');
       const elStats     = $('#statsBadge');
@@ -726,6 +741,11 @@
           refresh();
           elSearch.blur();
         }
+      });
+
+      // Retry button
+      elRetry.addEventListener('click', () => {
+        init();
       });
 
       // Go
