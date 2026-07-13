@@ -441,6 +441,7 @@
 
       /* ─── helpers ─── */
       function getExt(name) {
+        if (typeof name !== 'string' || name.length === 0) return '';
         const i = name.lastIndexOf('.');
         return i === -1 ? '' : name.slice(i).toLowerCase();
       }
@@ -460,6 +461,7 @@
       function buildTree(files) {
         const root = { children: {}, files: [] };
         for (const f of files) {
+          if (!f || typeof f.path !== 'string' || f.path.length === 0) continue; // 跳过脏数据
           const parts = f.path.split('/');
           let node = root;
           for (let i = 0; i < parts.length - 1; i++) {
@@ -656,43 +658,52 @@
       async function init() {
         showState('loading');
 
+        // 阶段 1: 拉取清单（失败才显示错误态）
+        let data;
         try {
           const res = await fetch('./filelist.json', { cache: 'no-cache' });
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          const data = await res.json();
+          data = await res.json();
           if (!data.tree || !Array.isArray(data.tree)) throw new Error('数据结构异常');
-
-          allFiles = data.tree;
-          htmlFiles = allFiles.filter(f => {
-            const e = getExt(f.path);
-            return e === '.html' || e === '.htm';
-          });
-          mdFiles = allFiles.filter(f => {
-            const e = getExt(f.path);
-            return e === '.md' || e === '.markdown';
-          });
-
-          // Update counts
-          elCountAll.textContent  = `(${htmlFiles.length + mdFiles.length})`;
-          elCountHtml.textContent = `(${htmlFiles.length})`;
-          elCountMd.textContent   = `(${mdFiles.length})`;
-          elStats.textContent = `📄 ${htmlFiles.length + mdFiles.length} 个文件`;
-
-          // Footer time
-          if (data.generatedAt) {
-            const d = new Date(data.generatedAt);
-            elFooterTime.textContent = `清单生成于 ${d.toLocaleString('zh-CN')}`;
-          }
-
-          // Render — 强制隐藏所有非 tree 状态，确保不会残留 error/loading
-          showState('tree');
-          refresh();
-
         } catch (err) {
-          console.error(err);
+          console.error('filelist.json 加载失败:', err);
           showState('error');
           elErrorMsg.textContent = '无法加载 filelist.json（' + err.message + '）。请确认已运行 `node generate-filelist.js` 并重新部署。';
           elStats.textContent = '加载失败';
+          return;
+        }
+
+        // 阶段 2: 解析 + 分类（仅在数据有脏条目时降级，跳过它们）
+        allFiles = data.tree.filter(f => f && typeof f.path === 'string' && f.path.length > 0);
+        htmlFiles = allFiles.filter(f => {
+          const e = getExt(f.path);
+          return e === '.html' || e === '.htm';
+        });
+        mdFiles = allFiles.filter(f => {
+          const e = getExt(f.path);
+          return e === '.md' || e === '.markdown';
+        });
+
+        // Update counts
+        elCountAll.textContent  = `(${htmlFiles.length + mdFiles.length})`;
+        elCountHtml.textContent = `(${htmlFiles.length})`;
+        elCountMd.textContent   = `(${mdFiles.length})`;
+        elStats.textContent = `📄 ${htmlFiles.length + mdFiles.length} 个文件`;
+
+        // Footer time
+        if (data.generatedAt) {
+          const d = new Date(data.generatedAt);
+          elFooterTime.textContent = `清单生成于 ${d.toLocaleString('zh-CN')}`;
+        }
+
+        // 阶段 3: 渲染（render 失败不回退到 error 态，保持 tree 态）
+        try {
+          refresh();
+          showState('tree');
+        } catch (err) {
+          console.error('渲染失败:', err);
+          // 不切换到 error 态 — 至少数据已经加载，counts 已经显示
+          elHeader.textContent = '渲染失败：' + err.message;
         }
       }
 
