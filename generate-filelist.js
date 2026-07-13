@@ -9,6 +9,8 @@ const path = require('path');
 const ROOT = __dirname;
 const OUTPUT = path.join(ROOT, 'filelist.json');
 const EXTENSIONS = new Set(['.html', '.htm', '.md', '.markdown']);
+// 基础设施文件 — 不出现在目录树中
+const EXCLUDE_FILES = new Set(['filelist.json', 'viewer.html', 'index.html']);
 
 function getExt(name) {
   const idx = name.lastIndexOf('.');
@@ -30,7 +32,7 @@ function walk(dir, base, acc) {
       if (entry.name === '.git' || entry.name === '.workbuddy' || entry.name.startsWith('.')) continue;
       walk(abs, rel, acc);
     } else if (entry.isFile()) {
-      if (entry.name === 'filelist.json') continue; // 不要把清单本身列进去
+      if (EXCLUDE_FILES.has(entry.name)) continue; // 隐藏基础设施文件
       const ext = getExt(entry.name);
       if (!EXTENSIONS.has(ext)) continue;
       let size = 0;

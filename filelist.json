@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-13T10:07:40.044Z",
+  "generatedAt": "2026-07-13T10:21:55.502Z",
   "tree": [
     {
       "path": "device-agent/device-agent-fleets-integration.html",
@@ -47,18 +47,8 @@
       "type": "blob"
     },
     {
-      "path": "index.html",
-      "size": 23203,
-      "type": "blob"
-    },
-    {
       "path": "misc/filco-bluetooth-guide.html",
       "size": 10174,
-      "type": "blob"
-    },
-    {
-      "path": "viewer.html",
-      "size": 9896,
       "type": "blob"
     }
   ]

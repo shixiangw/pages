@@ -263,10 +263,11 @@
       // Decode path
       filePath = decodeURIComponent(filePath);
       elFilename.textContent = filePath;
-      elRawLink.href = `https://github.com/shixiangw/pages/blob/main/${filePath}`;
+      // 原始文件：同源直链，不依赖 GitHub API
+      elRawLink.href = `./${filePath}`;
 
-      // Construct fetch URL
-      const rawUrl = `https://raw.githubusercontent.com/shixiangw/pages/main/${filePath}`;
+      // 从同源加载 Markdown 内容（纯静态，不调 api.github.com / raw.githubusercontent.com）
+      const rawUrl = `./${filePath}`;
 
       // --- Configure marked ---
       marked.setOptions({
@@ -304,17 +305,16 @@
           const html = marked.parse(text);
           elBody.innerHTML = html;
 
-          // Resolve relative image paths to raw.githubusercontent.com
+          // 同源解析 MD 中的相对图片路径（纯静态，不调 GitHub）
           const mdDir = filePath.includes('/')
             ? filePath.substring(0, filePath.lastIndexOf('/') + 1)
             : '';
-          const imgBase = `https://raw.githubusercontent.com/shixiangw/pages/main/${mdDir}`;
           elBody.querySelectorAll('img').forEach(img => {
             const src = img.getAttribute('src');
             if (src && !src.startsWith('http://') && !src.startsWith('https://') && !src.startsWith('data:')) {
-              // Resolve relative path: strip leading ./ and combine with base
+              // 相对于 MD 文件所在目录解析图片路径
               const clean = src.replace(/^\.\//, '');
-              img.src = imgBase + clean;
+              img.src = './' + mdDir + clean;
             }
           });
 
