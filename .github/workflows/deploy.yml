@@ -1,16 +1,8 @@
-name: Build & Deploy
+name: Validate
 
-# 纯静态站点：每次 push 到 main 时生成 filelist.json 并 commit 回 main。
-# Cloudflare Pages 跟踪 main 分支自动部署，站点完全不调用 api.github.com。
-#
-# 鉴权：使用 GitHub App installation token（actions/create-github-app-token），
-# 权限收敛、可撤销、短期有效。
-# 需要仓库 Secrets：APP_ID、APP_PRIVATE_KEY（GitHub App 私钥 PEM）。
-#
-# 防循环：
-#   1) generate-filelist.js 仅在文件树变化时才重写 filelist.json，
-#      未变则不写文件 → git 无 diff → commit 步骤跳过。
-#   2) commit message 含 [skip ci]，push 不会再次触发本 workflow。
+# 纯静态站点：每次 push 到 main 时校验文件清单生成和页面静态化程度。
+# 真正的构建/部署由 Cloudflare Pages 完成（跟踪 main 分支，构建命令 node generate-filelist.js）。
+# 站点运行时完全不调用 api.github.com / raw.githubusercontent.com。
 
 on:
   push:
@@ -21,104 +13,100 @@ permissions:
   contents: read
 
 concurrency:
-  group: build-deploy
+  group: validate
   cancel-in-progress: true
 
 jobs:
-  build:
+  validate:
     runs-on: ubuntu-latest
     steps:
-      # ── 1. 检出仓库 ──
       - name: Checkout
         uses: actions/checkout@v4
 
-      # ── 2. 生成 token ──
-      - name: Generate GitHub App token
-        id: token
-        uses: actions/create-github-app-token@v1
-        with:
-          app-id: ${{ secrets.APP_ID }}
-          private-key: ${{ secrets.APP_PRIVATE_KEY }}
-
-      # ── 3. 设置 Node ──
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
 
-      # ── 4. 生成静态文件清单 ──
       - name: Generate filelist.json
-        id: filelist
         run: node generate-filelist.js
 
-      # ── 5. 校验 filelist.json ──
-      - name: Validate filelist.json
+      - name: Validate generated output
         run: |
+          set -e
+
+          # --- 文件存在性 ---
           if [ ! -f filelist.json ]; then
-            echo "❌ filelist.json 未生成"
+            echo "::error::filelist.json 未生成"
             exit 1
           fi
 
-          # 验证 JSON 语法
-          node -e "
-            const fs = require('fs');
-            const data = JSON.parse(fs.readFileSync('filelist.json', 'utf8'));
-            if (!data.tree || !Array.isArray(data.tree)) throw new Error('缺少 tree 数组');
-            if (!data.generatedAt) throw new Error('缺少 generatedAt 字段');
-            // 确认基础设施文件已被排除
-            const infraFiles = data.tree.filter(f => ['viewer.html','index.html','filelist.json'].includes(f.path));
-            if (infraFiles.length > 0) {
-              console.error('❌ 基础设施文件不应出现在 tree 中:', infraFiles.map(f=>f.path).join(', '));
-              process.exit(1);
-            }
-            const htmlCount = data.tree.filter(f => f.path.endsWith('.html')||f.path.endsWith('.htm')).length;
-            const mdCount = data.tree.filter(f => f.path.endsWith('.md')||f.path.endsWith('.markdown')).length;
-            console.log('✅ filelist.json 校验通过 (%d 个文件: %d HTML + %d MD)', data.tree.length, htmlCount, mdCount);
-          " || exit 1
+          # --- JSON 合法性 + 内容校验 ---
+          node <<'NODESCRIPT'
+          const fs = require('fs');
+          const data = JSON.parse(fs.readFileSync('filelist.json', 'utf8'));
 
-          # 验证 viewer.html 不再引用外部 GitHub 资源
-          if grep -q 'raw.githubusercontent.com' viewer.html 2>/dev/null; then
-            echo "❌ viewer.html 仍引用 raw.githubusercontent.com"
+          let ok = true;
+          if (!data.tree || !Array.isArray(data.tree)) {
+            console.error('::error::filelist.json 缺少 tree 数组');
+            ok = false;
+          }
+          if (!data.generatedAt) {
+            console.error('::error::filelist.json 缺少 generatedAt 字段');
+            ok = false;
+          }
+
+          // 基础设施文件不应出现在目录树中
+          const EXCLUDE = ['viewer.html', 'index.html', 'filelist.json'];
+          const leaked = data.tree.filter(f => EXCLUDE.includes(f.path));
+          if (leaked.length > 0) {
+            console.error('::error::基础设施文件出现在 tree 中: ' + leaked.map(f => f.path).join(', '));
+            ok = false;
+          }
+
+          // 计算统计
+          const html = data.tree.filter(f => f.path.endsWith('.html') || f.path.endsWith('.htm')).length;
+          const md   = data.tree.filter(f => f.path.endsWith('.md') || f.path.endsWith('.markdown')).length;
+          console.log('filelist.json: ' + data.tree.length + ' 个文件 (' + html + ' HTML, ' + md + ' MD)');
+
+          if (!ok) process.exit(1);
+          NODESCRIPT
+
+          # --- viewer.html 无外部 GitHub 依赖 ---
+          if grep -qF 'raw.githubusercontent.com' viewer.html 2>/dev/null; then
+            echo "::error::viewer.html 引用 raw.githubusercontent.com"
             exit 1
           fi
-          echo "✅ viewer.html 无外部 GitHub 依赖"
+          if grep -qF 'api.github.com' viewer.html 2>/dev/null; then
+            echo "::error::viewer.html 引用 api.github.com"
+            exit 1
+          fi
+          echo "✅ viewer.html 零外部 GitHub API 依赖"
 
-      # ── 6. 确保 CNAME 存在 ──
       - name: Verify CNAME
         run: |
           if [ -f CNAME ]; then
-            echo "✅ CNAME: $(cat CNAME)"
+            echo "CNAME: $(cat CNAME)"
           else
-            echo "⚠️ CNAME 文件不存在，Cloudflare Pages 自定义域名可能失效"
+            echo "::warning::CNAME 文件缺失，Cloudflare Pages 自定义域名可能失效"
           fi
 
-      # ── 7. 提交 filelist.json 回 main ──
-      - name: Commit filelist.json
-        env:
-          TOKEN: ${{ steps.token.outputs.token }}
+      - name: Check filelist.json is tracked
         run: |
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git remote set-url origin "https://x-access-token:${TOKEN}@github.com/shixiangw/pages.git"
-
-          git add filelist.json
-
-          if git diff --cached --quiet; then
-            echo "✅ filelist.json 无变化，跳过提交"
+          if git ls-files --error-unmatch filelist.json >/dev/null 2>&1; then
+            echo "✅ filelist.json 已被 Git 跟踪（Cloudflare Pages 构建时会重新生成）"
           else
-            git commit -m "chore: 自动更新 filelist.json [skip ci]"
-            git push origin HEAD:main
-            echo "✅ filelist.json 已提交并推送到 main，Cloudflare Pages 将自动部署"
+            echo "::warning::filelist.json 未被 Git 跟踪"
           fi
 
-      # ── 8. 部署摘要 ──
-      - name: Deployment summary
+      - name: Summary
         run: |
           echo ""
           echo "═══════════════════════════════════════"
-          echo "  部署完成"
+          echo "  校验通过"
           echo "═══════════════════════════════════════"
-          echo "  站点: https://pages.daowsx.workers.dev"
-          echo "  清单: $(node -e "const d=require('./filelist.json');console.log(d.tree.length+' 文件')")"
-          echo "  架构: 纯静态（无 api.github.com 调用）"
+          echo "  站点 : https://pages.daowsx.workers.dev"
+          echo "  构建 : Cloudflare Pages (跟踪 main)"
+          echo "  清单 : node generate-filelist.js"
+          echo "  架构 : 纯静态 · 零 GitHub API 调用"
           echo "═══════════════════════════════════════"
