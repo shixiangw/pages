@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ProviderRuntimeService 架构与原理</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --card: #161b22;
+    --border: #30363d;
+    --text: #c9d1d9;
+    --dim: #8b949e;
+    --accent: #f78166;
+    --green: #3fb950;
+    --blue: #58a6ff;
+    --purple: #bc8cff;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    line-height: 1.6;
+  }
+  header {
+    padding: 48px 32px 32px;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(180deg, #1a1f2e 0%, var(--bg) 100%);
+  }
+  header h1 { font-size: 2em; font-weight: 700; margin-bottom: 8px; }
+  header p { color: var(--dim); font-size: 1.05em; max-width: 680px; margin: 0 auto; }
+  hr { border: none; border-top: 1px solid var(--border); margin: 0; }
+
+  section {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 48px 24px;
+  }
+  section + hr { margin: 0 24px; }
+  .section-title {
+    font-size: 1.5em;
+    font-weight: 700;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .section-desc { color: var(--dim); margin-bottom: 28px; font-size: 0.95em; }
+  .num {
+    display: inline-flex;
+    align-items:center; justify-content:center;
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    background: var(--accent);
+    color: #0d1117;
+    font-weight: 800;
+    font-size: 0.85em;
+  }
+  svg { display: block; width: 100%; height: auto; border-radius: 10px; }
+  .svg-wrap { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: #0b0f16; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
+  th, td { padding: 10px 14px; border: 1px solid var(--border); text-align: left; }
+  th { background: var(--card); font-weight: 600; }
+  tr:nth-child(even) { background: #0d1117; }
+  td.green { color: var(--green); }
+  td.accent { color: var(--accent); }
+  td code, th code { background: #1a1f2e; padding: 2px 6px; border-radius: 4px; font-size: 0.92em; }
+
+  .file-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
+  .file-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+  .file-card h4 { margin: 0 0 6px; font-size: 0.95em; }
+  .file-card code { font-size: 0.82em; color: var(--dim); word-break: break-all; }
+  .file-card p { font-size: 0.88em; color: var(--dim); margin-top: 4px; }
+
+  .legend { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 16px; font-size: 0.85em; }
+  .legend-dot { width: 12px; height: 12px; border-radius: 3px; display: inline-block; margin-right: 6px; vertical-align: middle; }
+  footer { text-align: center; padding: 32px; color: var(--dim); font-size: 0.8em; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>ProviderRuntimeService 架构与原理</h1>
+  <p>多后端 IoT 平台适配层 — Facade 模式下的 Default 与 Fleets 双后端交互全景</p>
+</header>
+<hr>
+
+<!-- 1. 总体定位 -->
+<section>
+  <div class="section-title"><span class="num">1</span> 在 agent-gateway 中的定位</div>
+  <p class="section-desc">ProviderRuntimeService 是 agent-gateway 与外部 IoT 平台之间的<strong>统一抽象层</strong>。它同时被 AgentRouter、WorkflowRunner、HTTP API 三个模块消费，根据产品的 <code>iotPlatformProviderId</code> 动态路由到不同的后端实现。</p>
+  <div class="svg-wrap">
+<svg viewBox="0 0 1060 680" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="glow"><feGaussianBlur stdDeviation="3" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <marker id="arr" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="8" markerHeight="6" orient="auto"><path d="M0,0 L10,4 L0,8Z" fill="#58a6ff"/></marker>
+    <marker id="arr-g" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="8" markerHeight="6" orient="auto"><path d="M0,0 L10,4 L0,8Z" fill="#3fb950"/></marker>
+    <marker id="arr-o" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="8" markerHeight="6" orient="auto"><path d="M0,0 L10,4 L0,8Z" fill="#f78166"/></marker>
+  </defs>
+
+  <!-- External inputs -->
+  <rect x="40" y="20" width="140" height="36" rx="6" fill="#1a1f2e" stroke="#30363d"/>
+  <text x="110" y="43" text-anchor="middle" fill="#8b949e" font-size="12" font-family="sans-serif">User / Web UI</text>
+
+  <rect x="200" y="20" width="140" height="36" rx="6" fill="#1a1f2e" stroke="#30363d"/>
+  <text x="270" y="43" text-anchor="middle" fill="#8b949e" font-size="12" font-family="sans-serif">Devices (MQTT)</text>
+
+  <rect x="360" y="20" width="140" height="36" rx="6" fill="#1a1f2e" stroke="#30363d"/>
+  <text x="430" y="43" text-anchor="middle" fill="#8b949e" font-size="12" font-family="sans-serif">Fleets Cloud</text>
+
+  <!-- Channels -->
+  <rect x="40" y="90" width="140" height="50" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1.5"/>
+  <text x="110" y="112" text-anchor="middle" fill="#c9d1d9" font-size="13" font-weight="600" font-family="sans-serif">HTTP Channel</text>
+  <text x="110" y="128" text-anchor="middle" fill="#8b949e" font-size="10" font-family="sans-serif">:3000</text>
+
+  <rect x="200" y="90" width="140" height="50" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1.5"/>
+  <text x="270" y="112" text-anchor="middle" fill="#c9d1d9" font-size="13" font-weight="600" font-family="sans-serif">MQTT Channel</text>
+  <text x="270" y="128" text-anchor="middle" fill="#8b949e" font-size="10" font-family="sans-serif">MqttTransport</text>
+
+  <line x1="110" y1="56" x2="110" y2="88" stroke="#30363d" stroke-width="1.5" marker-end="url(#arr)"/>
+  <line x1="270" y1="56" x2="270" y2="88" stroke="#30363d" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- MessageBus -->
+  <rect x="80" y="170" width="340" height="50" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1.5"/>
+  <text x="250" y="194" text-anchor="middle" fill="#58a6ff" font-size="14" font-weight="700" font-family="sans-serif">MessageBus</text>
+  <text x="250" y="210" text-anchor="middle" fill="#8b949e" font-size="10" font-family="sans-serif">Inbound Queue ⇄ Outbound Queue (Pub/Sub)</text>
+
+  <line x1="110" y1="140" x2="150" y2="168" stroke="#30363d" stroke-width="1.5" marker-end="url(#arr)"/>
+  <line x1="270" y1="140" x2="250" y2="168" stroke="#30363d" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- AgentRouter -->
+  <rect x="80" y="250" width="340" height="50" rx="8" fill="#161b22" stroke="#f78166" stroke-width="1.5"/>
+  <text x="250" y="274" text-anchor="middle" fill="#f78166" font-size="14" font-weight="700" font-family="sans-serif">AgentRouter</text>
+  <text x="250" y="290" text-anchor="middle" fill="#8b949e" font-size="10" font-family="sans-serif">per‑session AgentSession · Tool 构建 &amp; 权限</text>
+
+  <line x1="250" y1="220" x2="250" y2="248" stroke="#58a6ff" stroke-width="2" marker-end="url(#arr)"/>
+
+  <!-- WorkflowRunner -->
+  <rect x="440" y="250" width="180" height="50" rx="8" fill="#161b22" stroke="#3fb950" stroke-width="1.5"/>
+  <text x="530" y="274" text-anchor="middle" fill="#3fb950" font-size="13" font-weight="700" font-family="sans-serif">WorkflowRunner</text>
+  <text x="530" y="290" text-anchor="middle" fill="#8b949e" font-size="10" font-family="sans-serif">事件匹配 · runExecution</text>
+
+  <!-- HTTP API -->
+  <rect x="640" y="250" width="180" height="50" rx="8" fill="#161b22" stroke="#bc8cff" stroke-width="1.5"/>
+  <text x="730" y="274" text-anchor="middle" fill="#bc8cff" font-size="13" font-weight="700" font-family="sans-serif">HTTP API Routes</text>
+  <text x="730" y="290" text-anchor="middle" fill="#8b949e" font-size="10" font-family="sans-serif">CRUD · Config · Workflows</text>
+
+  <!-- ★ ProviderRuntimeService (central) -->
+  <rect x="280" y="340" width="500" height="60" rx="10" fill="#2a1a12" stroke="#f78166" stroke-width="2.5" filter="url(#glow)"/>
+  <text x="530" y="365" text-anchor="middle" fill="#f78166" font-size="16" font-weight="800" font-family="sans-serif">ProviderRuntimeService (Facade)</text>
+  <text x="530" y="385" text-anchor="middle" fill="#8b949e" font-size="11" font-family="sans-serif">根据 product.iotPlatformProviderId 路由到对应 Backend</text>
+
+  <line x1="250" y1="300" x2="350" y2="338" stroke="#f78166" stroke-width="2" marker-end="url(#arr-o)"/>
+  <line x1="530" y1="300" x2="520" y2="338" stroke="#3fb950" stroke-width="2" marker-end="url(#arr-g)"/>
+  <line x1="730" y1="300" x2="640" y2="338" stroke="#bc8cff" stroke-width="2" marker-end="url(#arr)"/>
+
+  <!-- ★ Two Backends -->
+  <rect x="120" y="440" width="220" height="80" rx="8" fill="#0d1a14" stroke="#3fb950" stroke-width="1.5"/>
+  <text x="230" y="466" text-anchor="middle" fill="#3fb950" font-size="14" font-weight="700" font-family="sans-serif">FleetsProviderBackend</text>
+  <text x="230" y="484" text-anchor="middle" fill="#8b949e" font-size="11" font-family="sans-serif">cloud-backed</text>
+  <text x="230" y="502" text-anchor="middle" fill="#8b949e" font-size="10" font-family="sans-serif">FleetsClient (HTTP) + Mirror MQTT</text>
+
+  <rect x="380" width="220" height="80" rx="8" fill="#0d131a" stroke="#58a6ff" stroke-width="1.5"/>
+  <text x="490" y="466" text-anchor="middle" fill="#58a6ff" font-size="14" font-weight="700" font-family="sans-serif">DefaultProviderBackend</text>
+  <text x="490" y="484" text-anchor="middle" fill="#8b949e" font-size="11" font-family="sans-serif">local-only</text>
+  <text x="490" y="502" text-anchor="middle" fill="#8b949e" font-size="10" font-family="sans-serif">Local Command Bus · SQLite</text>
+
+  <line x1="350" y1="400" x2="230" y2="438" stroke="#3fb950" stroke-width="2" marker-end="url(#arr-g)"/>
+  <line x1="480" y1="400" x2="490" y2="438" stroke="#58a6ff" stroke-width="2" marker-end="url(#arr)"/>
+
+  <!-- DeviceService -->
+  <rect x="640" y="440" width="180" height="50" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1.5"/>
+  <text x="730" y="462" text-anchor="middle" fill="#c9d1d9" font-size="13" font-weight="600" font-family="sans-serif">DeviceService</text>
+  <text x="730" y="478" text-anchor="middle" fill="#8b949e" font-size="10" font-family="sans-serif">SQLite · 产品/设备 CRUD</text>
+
+  <!-- DeviceStore Adapter -->
+  <rect x="640" y="510" width="180" height="40" rx="6" fill="#1a1f2e" stroke="#30363d" stroke-width="1"/>
+  <text x="730" y="528" text-anchor="middle" fill="#8b949e" font-size="11" font-family="sans-serif">DeviceStore Adapter</text>
+  <text x="730" y="542" text-anchor="middle" fill="#8b949e" font-size="9" font-family="sans-serif">DeviceService → ProviderIface</text>
+
+  <line x1="230" y1="520" x2="638" y2="520" stroke="#30363d" stroke-width="2" marker-end="url(#arr)"/>
+  <line x1="600" y1="480" x2="638" y2="465" stroke="#30363d" stroke-width="1.5" marker-end="url(#arr)"/>
+  <line x1="730" y1="490" x2="730" y2="508" stroke="#30363d" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- External: Fleets Cloud -->
+  <rect x="840" y="400" width="160" height="50" rx="8" fill="#0d1a14" stroke="#3fb950" stroke-width="1"/>
+  <text x="920" y="422" text-anchor="middle" fill="#3fb950" font-size="12" font-weight="600" font-family="sans-serif">Fleets Cloud</text>
+  <text x="920" y="438" text-anchor="middle" fill="#8b949e" font-size="10" font-family="sans-serif">HTTP REST API</text>
+
+  <line x1="340" y1="460" x2="838" y2="420" stroke="#3fb950" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arr-g)"/>
+
+  <!-- External: Fleets MQTT -->
+  <rect x="840" y="480" width="160" height="50" rx="8" fill="#0d1a14" stroke="#3fb950" stroke-width="1"/>
+  <text x="920" y="502" text-anchor="middle" fill="#3fb950" font-size="12" font-weight="600" font-family="sans-serif">Fleets MQTT</text>
+  <text x="920" y="518" text-anchor="middle" fill="#8b949e" font-size="10" font-family="sans-serif">$emqx/... topics</text>
+
+  <line x1="340" y1="500" x2="838" y2="500" stroke="#3fb950" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arr-g)"/>
+
+  <!-- External: SQLite -->
+  <rect x="840" y="560" width="160" height="36" rx="6" fill="#1a1f2e" stroke="#30363d"/>
+  <text x="920" y="583" text-anchor="middle" fill="#8b949e" font-size="12" font-family="sans-serif">SQLite (.device_agent/)</text>
+
+  <line x1="820" y1="520" x2="920" y2="558" stroke="#30363d" stroke-width="1" stroke-dasharray="4,3"/>
+
+  <!-- Labels -->
+  <text x="20" y="375" fill="#8b949e" font-size="11" font-weight="600" font-family="sans-serif">消费者</text>
+  <line x1="20" y1="380" x2="70" y2="380" stroke="#f78166" stroke-width="1"/>
+
+  <text x="20" y="500" fill="#8b949e" font-size="11" font-weight="600" font-family="sans-serif">后端</text>
+  <line x1="20" y1="505" x2="70" y2="505" stroke="#3fb950" stroke-width="1"/>
+
+  <!-- Legend -->
+  <rect x="40" y="600" width="12" height="12" rx="2" fill="#f78166"/>
+  <text x="58" y="611" fill="#8b949e" font-size="11" font-family="sans-serif">核心 Facade</text>
+  <rect x="170" y="600" width="12" height="12" rx="2" fill="#3fb950"/>
+  <text x="188" y="611" fill="#8b949e" font-size="11" font-family="sans-serif">Fleets Backend</text>
+  <rect x="310" y="600" width="12" height="12" rx="2" fill="#58a6ff"/>
+  <text x="328" y="611" fill="#8b949e" font-size="11" font-family="sans-serif">Default Backend</text>
+  <rect x="460" y="600" width="12" height="12" rx="2" fill="#bc8cff"/>
+  <text x="478" y="611" fill="#8b949e" font-size="11" font-family="sans-serif">HTTP API</text>
+</svg>
+  </div>
+</section>
+<hr>
+
+<!-- 2. Facade 模式 -->
+<section>
+  <div class="section-title"><span class="num">2</span> Facade 模式：多后端路由原理</div>
+  <p class="section-desc">ProviderRuntimeService 维护一张 <code>Record&lt;providerId, ProviderBackend&gt;</code> 的 Map，所有公开方法都通过 <code>getBackend(product)</code> 根据产品的 <code>iotPlatformProviderId</code> 动态分发到对应的后端实例。</p>
+  <div class="svg-wrap">
+<svg viewBox="0 0 1060 560" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="a2" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="7" markerHeight="5" orient="auto"><path d="M0,0 L10,4 L0,8Z" fill="#f78166"/></marker>
+    <marker id="a2g" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="7" markerHeight="5" orient="auto"><path d="M0,0 L10,4 L0,8Z" fill="#3fb950"/></marker>
+    <marker id="a2b" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="7" markerHeight="5" orient="auto"><path d="M0,0 L10,4 L0,8Z" fill="#58a6ff"/></marker>
+  </defs>
+
+  <!-- Title -->
+  <text x="530" y="30" text-anchor="middle" fill="#c9d1d9" font-size="15" font-weight="700" font-family="sans-serif">调用链路：以 executeCommand 为例</text>
+
+  <!-- Step 1: Consumer -->
+  <rect x="60" y="60" width="200" height="70" rx="8" fill="#161b22" stroke="#30363d"/>
+  <text x="160" y="84" text-anchor="middle" fill="#c9d1d9" font-size="12" font-weight="600" font-family="sans-serif">Consumer (AgentRouter /</text>
+  <text x="160" y="100" text-anchor="middle" fill="#c9d1d9" font-size="12" font-weight="600" font-family="sans-serif">HTTP API / WorkflowRunner)</text>
+  <text x="160" y="118" text-anchor="middle" fill="#8b949e" font-size="10" font-family="sans-serif">providerService.executeCommand(input)</text>
+
+  <line x1="260" y1="95" x2="330" y2="95" stroke="#f78166" stroke-width="2" marker-end="url(#a2)"/>
+
+  <!-- Step 2: Facade -->
+  <rect x="340" y="60" width="380" height="70" rx="8" fill="#2a1a12" stroke="#f78166" stroke-width="2"/>
+  <text x="530" y="84" text-anchor="middle" fill="#f78166" font-size="12" font-weight="700" font-family="sans-serif">ProviderRuntimeService.executeCommand(input)</text>
+  <text x="530" y="100" text-anchor="middle" fill="#8b949e" font-size="10" font-family="sans-serif">  1. validateIotPlatformRuntimeSchema() 验证输入</text>
+  <text x="530" y="116" text-anchor="middle" fill="#8b949e" font-size="10" font-family="sans-serif">  2. getBackend(input.product) → 查找对应 Backend</text>
+
+  <line x1="530" y1="130" x2="530" y2="165" stroke="#f78166" stroke-width="2" marker-end="url(#a2)"/>
+
+  <!-- Step 3: Decision -->
+  <polygon points="530,175 500,195 530,215 560,195" fill="#1a1f2e" stroke="#f78166" stroke-width="1.5"/>
+  <text x="530" y="199" text-anchor="middle" fill="#f78166" font-size="10" font-weight="700" font-family="sans-serif">providerId?</text>
+
+  <!-- Branch: Default -->
+  <line x1="500" y1="195" x2="250" y2="240" stroke="#58a6ff" stroke-width="2" marker-end="url(#a2b)"/>
+  <text x="350" y="214" text-anchor="middle" fill="#8b949e" font-size="10" font-family="sans-serif">"default"</text>
+
+  <rect x="120" y="245" width="260" height="80" rx="8" fill="#0d131a" stroke="#58a6ff" stroke-width="1.5"/>
+  <text x="250" y="270" text-anchor="middle" fill="#58a6ff" font-size="13" font-weight="700" font-family="sans-serif">DefaultProviderBackend</text>
+  <text x="250" y="290" text-anchor="middle" fill="#8b949e" font-size="10" font-family="sans-serif">localCommandBus.executeCommand()</text>
+  <text x="250" y="306" text-anchor="middle" fill="#8b949e" font-size="10" font-family="sans-serif">→ DeviceService → MQTT pub → 等待设备响应</text>
+
+  <!-- Branch: Fleets -->
+  <line x1="560" y1="195" x2="800" y2="240" stroke="#3fb950" stroke-width="2" marker-end="url(#a2g)"/>
+  <text x="700" y="214" text-anchor="middle" fill="#8b949e" font-size="10" font-family="sans-serif">"fleets"</text>
+
+  <rect x="670" y="245" width="320" height="80" rx="8" fill="#0d1a14" stroke="#3fb950" stroke-width="1.5"/>
+  <text x="830" y="270" text-anchor="middle" fill="#3fb950" font-size="13" font-weight="700" font-family="sans-serif">FleetsProviderBackend</text>
+  <text x="830" y="290" text-anchor="middle" fill="#8b949e" font-size="10" font-family="sans-serif">FleetsClient.dispatchCommand() → poll</text>
+  <text x="830" y="306" text-anchor="middle" fill="#8b949e" font-size="10" font-family="sans-serif">→ Fleets Cloud HTTP API</text>
+
+  <!-- Support check inset -->
+  <rect x="100" y="370" width="860" height="80" rx="8" fill="#1a1f2e" stroke="#30363d" stroke-width="1" stroke-dasharray="6,3"/>
+  <text x="530" y="395" text-anchor="middle" fill="#8b949e" font-size="12" font-weight="600" font-family="sans-serif">supportsTool(product, toolName) — 4 个 Tool 层面的能力检查</text>
+
+  <rect x="160" y="410" width="160" height="28" rx="4" fill="#0d131a" stroke="#58a6ff" stroke-width="0.8"/>
+  <text x="240" y="429" text-anchor="middle" fill="#58a6ff" font-size="11" font-family="sans-serif" font-weight="600">use_command</text>
+
+  <rect x="340" y="410" width="180" height="28" rx="4" fill="#0d131a" stroke="#58a6ff" stroke-width="0.8"/>
+  <text x="430" y="429" text-anchor="middle" fill="#58a6ff" font-size="11" font-family="sans-serif" font-weight="600">update_device_state</text>
+
+  <rect x="540" y="410" width="160" height="28" rx="4" fill="#0d131a" stroke="#58a6ff" stroke-width="0.8"/>
+  <text x="620" y="429" text-anchor="middle" fill="#58a6ff" font-size="11" font-family="sans-serif" font-weight="600">inspect_device</text>
+
+  <rect x="720" y="410" width="170" height="28" rx="4" fill="#0d131a" stroke="#58a6ff" stroke-width="0.8"/>
+  <text x="805" y="429" text-anchor="middle" fill="#58a6ff" font-size="11" font-family="sans-serif" font-weight="600">use_device_job</text>
+
+  <text x="530" y="445" text-anchor="middle" fill="#8b949e" font-size="10" font-family="sans-serif">其余 8 个方法 (provisionProduct, deleteProduct, listDevices, getDevice, registerDevice, 等) 不暴露为 AI Tool，仅内部使用</text>
+
+  <!-- Code snippet area -->
+  <rect x="100" y="475" width="860" height="70" rx="6" fill="#0d1117" stroke="#30363d" stroke-width="0.5"/>
+  <text x="120" y="495" fill="#58a6ff" font-size="11" font-family="monospace" font-weight="600">function backendSupportsTool(backend, toolName) {</text>
+  <text x="140" y="513" fill="#c9d1d9" font-size="11" font-family="monospace">  switch (toolName) {</text>
+  <text x="160" y="531" fill="#c9d1d9" font-size="11" font-family="monospace">    case "use_command": return typeof backend.executeCommand === "function";</text>
+  <text x="140" y="531" fill="#8b949e" font-size="11" font-family="monospace">    ... }</text>
+</svg>
+  </div>
+</section>
+<hr>
+
+<!-- 3. 上行数据流 -->
+<section>
+  <div class="section-title"><span class="num">3</span> 上行数据流：Mirror Ingest → WorkflowRunner</div>
+  <p class="section-desc">Fleets Backend 创建独立的 MQTT 连接订阅 <code>$emqx/things/+/shadow/update</code>、<code>$emqx/things/+/events/+</code> 等 topic。设备属性/事件通过 <code>DeviceStore Adapter</code> 写入 SQLite，并通过 <code>onRealtimeEvent</code> 回调驱动 WorkflowRunner。</p>
+  <div class="svg-wrap">
+<svg viewBox="0 0 1060 520" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="a3" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="7" markerHeight="5" orient="auto"><path d="M0,0 L10,4 L0,8Z" fill="#3fb950"/></marker>
+    <marker id="a3o" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="7" markerHeight="5" orient="auto"><path d="M0,0 L10,4 L0,8Z" fill="#f78166"/></marker>
+    <marker id="a3b" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="7" markerHeight="5" orient="auto"><path d="M0,0 L10,4 L0,8Z" fill="#58a6ff"/></marker>
+  </defs>
+
+  <!-- Source: Fleets MQTT Broker -->
+  <rect x="30" y="40" width="190" height="60" rx="8" fill="#0d1a14" stroke="#3fb950" stroke-width="1.5"/>
+  <text x="125" y="65" text-anchor="middle" fill="#3fb950" font-size="13" font-weight="700" font-family="sans-serif">Fleets MQTT Broker</text>
+  <text x="125" y="83" text-anchor="middle" fill="#8b949e" font-size="10" font-family="sans-serif">$emqx/things/+/shadow/update</text>
+
+  <line x1="220" y1="70" x2="290" y2="70" stroke="#3fb950" stroke-width="2" marker-end="url(#a3)"/>
+
+  <!-- Mirror MQTT Client -->
+  <rect x="300" y="30" width="220" height="80" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1.5"/>
+  <text x="410" y="55" text-anchor="middle" fill="#c9d1d9" font-size="13" font-weight="600" font-family="sans-serif">Fleets Mirror</text>
+  <text x="410" y="72" text-anchor="middle" fill="#c9d1d9" font-size="13" font-weight="600" font-family="sans-serif">MQTT Client</text>
+  <text x="410" y="92" text-anchor="middle" fill="#8b949e" font-size="10" font-family="sans-serif">bindMirrorIngest() 建立</text>
+  <text x="410" y="105" text-anchor="middle" fill="#8b949e" font-size="10" font-family="sans-serif">自动重连 · QoS 1</text>
+
+  <line x1="410" y1="110" x2="410" y2="150" stroke="#3fb950" stroke-width="2" marker-end="url(#a3)"/>
+
+  <!-- mirror-ingest.ts -->
+  <rect x="290" y="160" width="240" height="60" rx="8" fill="#0d1a14" stroke="#3fb950" stroke-width="1.5"/>
+  <text x="410" y="184" text-anchor="middle" fill="#3fb950" font-size="13" font-weight="700" font-family="sans-serif">mirror-ingest.ts</text>
+  <text x="410" y="204" text-anchor="middle" fill="#8b949e" font-size="10" font-family="sans-serif">handleFleetsMirrorMessage(topic, payload)</text>
+
+  <!-- Branch: Shadow update -->
+  <line x1="290" y1="190" x2="200" y2="240" stroke="#3fb950" stroke-width="1.5" marker-end="url(#a3)"/>
+
+  <rect x="60" y="245" width="220" height="55" rx="6" fill="#1a1f2e" stroke="#30363d"/>
+  <text x="170" y="268" text-anchor="middle" fill="#c9d1d9" font-size="11" font-weight="600" font-family="sans-serif">DeviceStore Adapter</text>
+  <text x="170" y="286" text-anchor="middle" fill="#8b949e" font-size="9" font-family="sans-serif">mergeDeviceShadow(name, patch)</text>
+  <text x="170" y="298" text-anchor="middle" fill="#8b949e" font-size="9" font-family="sans-serif">logEvent(name, eventType, payload)</text>
+
+  <line x1="170" y1="300" x2="170" y2="340" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#a3b)"/>
+
+  <rect x="60" y="345" width="220" height="40" rx="6" fill="#0d131a" stroke="#58a6ff" stroke-width="1"/>
+  <text x="170" y="364" text-anchor="middle" fill="#58a6ff" font-size="11" font-weight="600" font-family="sans-serif">DeviceService → SQLite</text>
+  <text x="170" y="378" text-anchor="middle" fill="#8b949e" font-size="9" font-family="sans-serif">shadow JSON merge · event INSERT</text>
+
+  <!-- Branch: Event → onRealtimeEvent -->
+  <line x1="530" y1="190" x2="620" y2="240" stroke="#f78166" stroke-width="2" marker-end="url(#a3o)"/>
+
+  <rect x="560" y="245" width="210" height="55" rx="8" fill="#2a1a12" stroke="#f78166" stroke-width="1.5"/>
+  <text x="665" y="268" text-anchor="middle" fill="#f78166" font-size="12" font-weight="700" font-family="sans-serif">onRealtimeEvent 回调</text>
+  <text x="665" y="286" text-anchor="middle" fill="#8b949e" font-size="10" font-family="sans-serif">包装为 DeviceRealtimeEvent</text>
+
+  <line x1="665" y1="300" x2="665" y2="340" stroke="#f78166" stroke-width="2" marker-end="url(#a3o)"/>
+
+  <rect x="560" y="345" width="210" height="55" rx="8" fill="#161b22" stroke="#3fb950" stroke-width="1.5"/>
+  <text x="665" y="368" text-anchor="middle" fill="#3fb950" font-size="12" font-weight="700" font-family="sans-serif">WorkflowRunner</text>
+  <text x="665" y="386" text-anchor="middle" fill="#8b949e" font-size="10" font-family="sans-serif">evaluateDeviceEventWorkflows()</text>
+
+  <!-- Branch: Command response -->
+  <rect x="300" y="240" width="170" height="30" rx="4" fill="#1a1f2e" stroke="#30363d" stroke-width="0.5"/>
+  <text x="385" y="259" text-anchor="middle" fill="#8b949e" font-size="9" font-family="sans-serif">$emqx/commands/.../response</text>
+
+  <line x1="385" y1="270" x2="385" y2="345" stroke="#30363d" stroke-width="1" stroke-dasharray="3,2" marker-end="url(#a3)"/>
+
+  <rect x="300" y="345" width="170" height="30" rx="4" fill="#1a1f2e" stroke="#30363d" stroke-width="0.5"/>
+  <text x="385" y="364" text-anchor="middle" fill="#8b949e" font-size="9" font-family="sans-serif">logEvent → SQLite</text>
+
+  <!-- Annotations -->
+  <rect x="800" y="40" width="220" height="340" rx="8" fill="#1a1f2e" stroke="#30363d"/>
+  <text x="910" y="68" text-anchor="middle" fill="#f78166" font-size="12" font-weight="700" font-family="sans-serif">Topic 路由规则</text>
+  <line x1="820" y1="78" x2="1000" y2="78" stroke="#30363d"/>
+
+  <text x="820" y="105" fill="#3fb950" font-size="10" font-family="monospace">shadow/update</text>
+  <text x="980" y="105" text-anchor="end" fill="#8b949e" font-size="9" font-family="sans-serif">mirrorShadow()</text>
+
+  <text x="820" y="125" fill="#3fb950" font-size="10" font-family="monospace">shadow/update/delta</text>
+  <text x="980" y="125" text-anchor="end" fill="#8b949e" font-size="9" font-family="sans-serif">mirrorShadow(delta)</text>
+
+  <text x="820" y="145" fill="#3fb950" font-size="10" font-family="monospace">events/{type}</text>
+  <text x="980" y="145" text-anchor="end" fill="#8b949e" font-size="9" font-family="sans-serif">logEvent + realtimeEvent</text>
+
+  <text x="820" y="165" fill="#3fb950" font-size="10" font-family="monospace">jobs/</text>
+  <text x="980" y="165" text-anchor="end" fill="#8b949e" font-size="9" font-family="sans-serif">logEvent</text>
+
+  <text x="820" y="185" fill="#3fb950" font-size="10" font-family="monospace">commands/.../request</text>
+  <text x="980" y="185" text-anchor="end" fill="#8b949e" font-size="9" font-family="sans-serif">logEvent</text>
+
+  <text x="820" y="205" fill="#3fb950" font-size="10" font-family="monospace">commands/.../response</text>
+  <text x="980" y="205" text-anchor="end" fill="#8b949e" font-size="9" font-family="sans-serif">logEvent</text>
+
+  <line x1="820" y1="220" x2="1000" y2="220" stroke="#30363d"/>
+  <text x="820" y="245" fill="#f78166" font-size="10" font-family="sans-serif">关键链路</text>
+  <text x="820" y="270" fill="#8b949e" font-size="9" font-family="sans-serif">Shadow → SQLite merge 影响</text>
+  <text x="820" y="285" fill="#8b949e" font-size="9" font-family="sans-serif">AgentRouter 后续读取的</text>
+  <text x="820" y="300" fill="#8b949e" font-size="9" font-family="sans-serif">设备属性 (reported/desired)</text>
+
+  <text x="820" y="330" fill="#8b949e" font-size="9" font-family="sans-serif">Event → onRealtimeEvent</text>
+  <text x="820" y="345" fill="#8b949e" font-size="9" font-family="sans-serif">→ WorkflowRunner 是设备</text>
+  <text x="820" y="360" fill="#8b949e" font-size="9" font-family="sans-serif">事件驱动的核心入口</text>
+
+  <!-- Flow arrows -->
+  <rect x="210" y="400" width="28" height="18" rx="3" fill="#3fb950" opacity="0.15" stroke="#3fb950" stroke-width="0.5"/>
+  <text x="224" y="413" text-anchor="middle" fill="#3fb950" font-size="9" font-family="sans-serif">①</text>
+  <rect x="390" y="400" width="28" height="18" rx="3" fill="#3fb950" opacity="0.15" stroke="#3fb950" stroke-width="0.5"/>
+  <text x="404" y="413" text-anchor="middle" fill="#3fb950" font-size="9" font-family="sans-serif">②</text>
+  <rect x="495" y="400" width="28" height="18" rx="3" fill="#f78166" opacity="0.15" stroke="#f78166" stroke-width="0.5"/>
+  <text x="509" y="413" text-anchor="middle" fill="#f78166" font-size="9" font-family="sans-serif">③</text>
+
+  <text x="240" y="413" fill="#8b949e" font-size="9" font-family="sans-serif">MQTT → mirror-ingest</text>
+  <text x="420" y="413" fill="#8b949e" font-size="9" font-family="sans-serif">→ DeviceStore</text>
+  <text x="525" y="413" fill="#8b949e" font-size="9" font-family="sans-serif">→ WorkflowRunner</text>
+</svg>
+  </div>
+</section>
+<hr>
+
+<!-- 4. 下行数据流 -->
+<section>
+  <div class="section-title"><span class="num">4</span> 下行数据流：命令执行与操作</div>
+  <p class="section-desc">网关通过 ProviderRuntimeService 执行设备的命令、影子更新、巡检、注册等操作。Fleets 后端走云端 HTTP API，Default 后端走本地 MQTT。</p>
+  <div class="svg-wrap">
+<svg viewBox="0 0 1060 540" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="a4f" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="7" markerHeight="5" orient="auto"><path d="M0,0 L10,4 L0,8Z" fill="#f78166"/></marker>
+    <marker id="a4g" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="7" markerHeight="5" orient="auto"><path d="M0,0 L10,4 L0,8Z" fill="#3fb950"/></marker>
+    <marker id="a4b" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="7" markerHeight="5" orient="auto"><path d="M0,0 L10,4 L0,8Z" fill="#58a6ff"/></marker>
+  </defs>
+
+  <!-- Service in center -->
+  <rect x="380" y="20" width="300" height="50" rx="8" fill="#2a1a12" stroke="#f78166" stroke-width="2"/>
+  <text x="530" y="42" text-anchor="middle" fill="#f78166" font-size="14" font-weight="700" font-family="sans-serif">ProviderRuntimeService</text>
+  <text x="530" y="58" text-anchor="middle" fill="#8b949e" font-size="10" font-family="sans-serif">getBackend(product) → 路由到对应后端</text>
+
+  <!-- 4 paths -->
+  <!-- path 1: executeCommand -->
+  <rect x="40" y="110" width="220" height="50" rx="8" fill="#161b22" stroke="#30363d"/>
+  <text x="150" y="132" text-anchor="middle" fill="#c9d1d9" font-size="11" font-family="sans-serif">executeCommand(input)</text>
+  <text x="150" y="148" text-anchor="middle" fill="#8b949e" font-size="9" font-family="sans-serif">执行设备命令</text>
+
+  <rect x="40" y="180" width="220" height="50" rx="8" fill="#161b22" stroke="#30363d"/>
+  <text x="150" y="202" text-anchor="middle" fill="#c9d1d9" font-size="11" font-family="sans-serif">updateDeviceState(input)</text>
+  <text x="150" y="218" text-anchor="middle" fill="#8b949e" font-size="9" font-family="sans-serif">更新设备影子 desired</text>
+
+  <rect x="40" y="250" width="220" height="50" rx="8" fill="#161b22" stroke="#30363d"/>
+  <text x="150" y="272" text-anchor="middle" fill="#c9d1d9" font-size="11" font-family="sans-serif">inspectDevice(input)</text>
+  <text x="150" y="288" text-anchor="middle" fill="#8b949e" font-size="9" font-family="sans-serif">设备巡检</text>
+
+  <rect x="40" y="320" width="220" height="50" rx="8" fill="#161b22" stroke="#30363d"/>
+  <text x="150" y="342" text-anchor="middle" fill="#c9d1d9" font-size="11" font-family="sans-serif">registerDevice(input)</text>
+  <text x="150" y="358" text-anchor="middle" fill="#8b949e" font-size="9" font-family="sans-serif">注册新设备</text>
+
+  <line x1="260" y1="135" x2="378" y2="45" stroke="#f78166" stroke-width="1.5" marker-end="url(#a4f)"/>
+  <line x1="260" y1="205" x2="378" y2="55" stroke="#f78166" stroke-width="1.5" marker-end="url(#a4f)"/>
+  <line x1="260" y1="275" x2="378" y2="65" stroke="#f78166" stroke-width="1.5" marker-end="url(#a4f)"/>
+  <line x1="260" y1="345" x2="378" y2="75" stroke="#f78166" stroke-width="1.5" marker-end="url(#a4f)"/>
+
+  <!-- Divider -->
+  <line x1="530" y1="70" x2="530" y2="120" stroke="#f78166" stroke-width="2" marker-end="url(#a4f)"/>
+
+  <!-- ★ Decision node -->
+  <polygon points="530,130 500,150 530,170 560,150" fill="#1a1f2e" stroke="#f78166" stroke-width="1.5"/>
+  <text x="530" y="154" text-anchor="middle" fill="#f78166" font-size="9" font-weight="700" font-family="sans-serif">providerId?</text>
+
+  <!-- ★ Fleets path -->
+  <line x1="560" y1="150" x2="680" y2="150" stroke="#3fb950" stroke-width="2" marker-end="url(#a4g)"/>
+  <text x="620" y="142" text-anchor="middle" fill="#3fb950" font-size="9" font-family="sans-serif">"fleets"</text>
+
+  <rect x="690" y="110" width="320" height="80" rx="8" fill="#0d1a14" stroke="#3fb950" stroke-width="1.5"/>
+  <text x="850" y="135" text-anchor="middle" fill="#3fb950" font-size="13" font-weight="700" font-family="sans-serif">FleetsProviderBackend</text>
+  <text x="850" y="155" text-anchor="middle" fill="#8b949e" font-size="10" font-family="sans-serif">executeCommand: dispatchCommand() + poll</text>
+  <text x="850" y="170" text-anchor="middle" fill="#8b949e" font-size="10" font-family="sans-serif">updateDeviceState: FleetsClient.updateShadow()</text>
+  <text x="850" y="185" text-anchor="middle" fill="#8b949e" font-size="10" font-family="sans-serif">inspectDevice: FleetsClient.getThing() + getShadow()</text>
+
+  <line x1="850" y1="190" x2="850" y2="240" stroke="#3fb950" stroke-width="1.5" marker-end="url(#a4g)"/>
+
+  <rect x="740" y="245" width="220" height="40" rx="6" fill="#0d1a14" stroke="#3fb950" stroke-width="1"/>
+  <text x="850" y="264" text-anchor="middle" fill="#3fb950" font-size="11" font-family="sans-serif">FleetsClient (HTTP REST)</text>
+  <text x="850" y="278" text-anchor="middle" fill="#8b949e" font-size="9" font-family="sans-serif">apiUrl · credentials</text>
+
+  <line x1="850" y1="285" x2="850" y2="320" stroke="#3fb950" stroke-width="1" marker-end="url(#a4g)"/>
+
+  <rect x="740" y="325" width="220" height="40" rx="6" fill="#1a1f2e" stroke="#30363d"/>
+  <text x="850" y="344" text-anchor="middle" fill="#8b949e" font-size="11" font-family="sans-serif">Fleets Cloud API</text>
+  <text x="850" y="358" text-anchor="middle" fill="#8b949e" font-size="9" font-family="sans-serif">Things · Shadow · Commands</text>
+
+  <!-- ★ Default path -->
+  <line x1="500" y1="150" x2="380" y2="150" stroke="#58a6ff" stroke-width="2" marker-end="url(#a4b)"/>
+  <text x="440" y="142" text-anchor="middle" fill="#58a6ff" font-size="9" font-family="sans-serif">"default"</text>
+
+  <rect x="110" y="400" width="430" height="60" rx="8" fill="#0d131a" stroke="#58a6ff" stroke-width="1.5"/>
+  <text x="325" y="424" text-anchor="middle" fill="#58a6ff" font-size="13" font-weight="700" font-family="sans-serif">DefaultProviderBackend</text>
+  <text x="325" y="444" text-anchor="middle" fill="#8b949e" font-size="10" font-family="sans-serif">executeCommand: localCommandBus → DeviceService → MQTT pub → await response</text>
+  <text x="325" y="458" text-anchor="middle" fill="#8b949e" font-size="10" font-family="sans-serif">updateDeviceState / inspectDevice: DeviceStore (SQLite 查询)</text>
+
+  <line x1="380" y1="155" x2="380" y2="398" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#a4b)"/>
+
+  <!-- Device connection -->
+  <rect x="110" y="490" width="430" height="40" rx="6" fill="#1a1f2e" stroke="#30363d"/>
+  <text x="325" y="509" text-anchor="middle" fill="#8b949e" font-size="10" font-family="sans-serif">DeviceService → MqttTransport → 设备 MQTT</text>
+  <text x="325" y="523" text-anchor="middle" fill="#8b949e" font-size="10" font-family="sans-serif">(Gateway 主 MQTT 连接，非 Fleets mirror)</text>
+
+  <line x1="325" y1="460" x2="325" y2="488" stroke="#58a6ff" stroke-width="1" marker-end="url(#a4b)"/>
+
+  <!-- Usage annotation -->
+  <rect x="690" y="400" width="320" height="95" rx="8" fill="#1a1f2e" stroke="#30363d"/>
+  <text x="850" y="425" text-anchor="middle" fill="#f78166" font-size="11" font-weight="600" font-family="sans-serif">谁在调用？</text>
+  <text x="850" y="448" text-anchor="middle" fill="#8b949e" font-size="10" font-family="sans-serif">AgentRouter — Agent Tool handler</text>
+  <text x="850" y="463" text-anchor="middle" fill="#8b949e" font-size="10" font-family="sans-serif">HTTP API — /api/products 路由</text>
+  <text x="850" y="478" text-anchor="middle" fill="#8b949e" font-size="10" font-family="sans-serif">WorkflowRunner — use_command action</text>
+</svg>
+  </div>
+</section>
+<hr>
+
+<!-- 5. SupportsTool 映射 -->
+<section>
+  <div class="section-title"><span class="num">5</span> supportsTool 与 Backend 方法映射</div>
+  <p class="section-desc">只有 4 个 ProviderRuntimeService 方法暴露为 AI tool，对应的 capability 检查已放在 AgentRouter 构建 tools 集的逻辑中。其余方法只由内部模块调用，不会出现在 AI 的 function call 列表中。</p>
+
+  <div class="svg-wrap" style="margin-bottom:24px">
+<svg viewBox="0 0 1060 280" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="a5o" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="7" markerHeight="5" orient="auto"><path d="M0,0 L10,4 L0,8Z" fill="#f78166"/></marker>
+    <marker id="a5g" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="7" markerHeight="5" orient="auto"><path d="M0,0 L10,4 L0,8Z" fill="#3fb950"/></marker>
+    <marker id="a5b" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="7" markerHeight="5" orient="auto"><path d="M0,0 L10,4 L0,8Z" fill="#58a6ff"/></marker>
+  </defs>
+
+  <!-- Left: Methods (12) -->
+  <rect x="20" y="10" width="320" height="260" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1.5"/>
+  <text x="180" y="38" text-anchor="middle" fill="#c9d1d9" font-size="13" font-weight="700" font-family="sans-serif">ProviderRuntimeService 方法</text>
+
+  <!-- Internal-only -->
+  <rect x="35" y="55" width="290" height="22" rx="4" fill="#1a1f2e" stroke="#30363d" stroke-width="0.5"/>
+  <text x="180" y="70" text-anchor="middle" fill="#8b949e" font-size="10" font-family="sans-serif">provisionProduct / deleteProduct</text>
+
+  <rect x="35" y="82" width="290" height="22" rx="4" fill="#1a1f2e" stroke="#30363d" stroke-width="0.5"/>
+  <text x="180" y="97" text-anchor="middle" fill="#8b949e" font-size="10" font-family="sans-serif">listDevices / getDevice</text>
+
+  <rect x="35" y="109" width="290" height="22" rx="4" fill="#1a1f2e" stroke="#30363d" stroke-width="0.5"/>
+  <text x="180" y="124" text-anchor="middle" fill="#8b949e" font-size="10" font-family="sans-serif">registerDevice / deleteDevice</text>
+
+  <rect x="35" y="136" width="290" height="22" rx="4" fill="#1a1f2e" stroke="#30363d" stroke-width="0.5"/>
+  <text x="180" y="151" text-anchor="middle" fill="#8b949e" font-size="10" font-family="sans-serif">resolveToolkitMqttDefaults / bindMirrorIngest</text>
+
+  <!-- Tool-exposed -->
+  <rect x="35" y="165" width="290" height="22" rx="4" fill="#2a1a12" stroke="#f78166" stroke-width="0.8"/>
+  <text x="180" y="180" text-anchor="middle" fill="#f78166" font-size="10" font-weight="600" font-family="sans-serif">executeCommand</text>
+
+  <rect x="35" y="192" width="290" height="22" rx="4" fill="#2a1a12" stroke="#f78166" stroke-width="0.8"/>
+  <text x="180" y="207" text-anchor="middle" fill="#f78166" font-size="10" font-weight="600" font-family="sans-serif">updateDeviceState</text>
+
+  <rect x="35" y="219" width="290" height="22" rx="4" fill="#2a1a12" stroke="#f78166" stroke-width="0.8"/>
+  <text x="180" y="234" text-anchor="middle" fill="#f78166" font-size="10" font-weight="600" font-family="sans-serif">inspectDevice / executeJob</text>
+
+  <text x="180" y="258" text-anchor="middle" fill="#8b949e" font-size="9" font-family="sans-serif">+ 6 more internal-only methods</text>
+
+  <!-- Connector -->
+  <rect x="370" y="95" width="40" height="70" rx="6" fill="#1a1f2e" stroke="#f78166" stroke-width="1"/>
+  <text x="390" y="112" text-anchor="middle" fill="#f78166" font-size="10" font-weight="700" font-family="sans-serif">map</text>
+  <text x="390" y="128" text-anchor="middle" fill="#f78166" font-size="16" font-weight="700" font-family="sans-serif">→</text>
+  <text x="390" y="146" text-anchor="middle" fill="#f78166" font-size="10" font-family="sans-serif">4 tools</text>
+
+  <line x1="340" y1="173" x2="368" y2="110" stroke="#f78166" stroke-width="1"/>
+  <line x1="340" y1="200" x2="368" y2="120" stroke="#f78166" stroke-width="1"/>
+  <line x1="340" y1="227" x2="368" y2="130" stroke="#f78166" stroke-width="1"/>
+  <line x1="340" y1="235" x2="368" y2="140" stroke="#f78166" stroke-width="1"/>
+
+  <line x1="412" y1="130" x2="440" y2="130" stroke="#f78166" stroke-width="1"/>
+
+  <!-- Right: 4 Tools -->
+  <rect x="450" y="10" width="580" height="260" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1.5"/>
+  <text x="740" y="38" text-anchor="middle" fill="#c9d1d9" font-size="13" font-weight="700" font-family="sans-serif">backendSupportsTool(toolName)</text>
+
+  <!-- Tool 1 -->
+  <rect x="470" y="60" width="540" height="32" rx="6" fill="#0d1a14" stroke="#3fb950" stroke-width="0.8"/>
+  <text x="490" y="80" fill="#3fb950" font-size="11" font-weight="600" font-family="monospace">use_command</text>
+  <text x="620" y="80" fill="#8b949e" font-size="10" font-family="monospace">→ backend.executeCommand === "function"</text>
+  <text x="880" y="80" fill="#8b949e" font-size="10" font-family="sans-serif">✓ Fleets, ✓ Default</text>
+
+  <!-- Tool 2 -->
+  <rect x="470" y="100" width="540" height="32" rx="6" fill="#0d1a14" stroke="#3fb950" stroke-width="0.8"/>
+  <text x="490" y="120" fill="#3fb950" font-size="11" font-weight="600" font-family="monospace">update_device_state</text>
+  <text x="680" y="120" fill="#8b949e" font-size="10" font-family="monospace">→ backend.updateDeviceState === "function"</text>
+  <text x="980" y="120" text-anchor="end" fill="#8b949e" font-size="10" font-family="sans-serif">✓ Fleets, ✓ Default</text>
+
+  <!-- Tool 3 -->
+  <rect x="470" y="140" width="540" height="32" rx="6" fill="#0d1a14" stroke="#3fb950" stroke-width="0.8"/>
+  <text x="490" y="160" fill="#3fb950" font-size="11" font-weight="600" font-family="monospace">inspect_device</text>
+  <text x="640" y="160" fill="#8b949e" font-size="10" font-family="monospace">→ backend.inspectDevice === "function"</text>
+  <text x="900" y="160" fill="#8b949e" font-size="10" font-family="sans-serif">✓ Fleets, ✓ Default(sqlite)</text>
+
+  <!-- Tool 4 -->
+  <rect x="470" y="180" width="540" height="32" rx="6" fill="#0d131a" stroke="#58a6ff" stroke-width="0.8"/>
+  <text x="490" y="200" fill="#58a6ff" font-size="11" font-weight="600" font-family="monospace">use_device_job</text>
+  <text x="640" y="200" fill="#8b949e" font-size="10" font-family="monospace">→ backend.executeJob === "function"</text>
+  <text x="890" y="200" fill="#8b949e" font-size="10" font-family="sans-serif">✓ Fleets, ✗ Default</text>
+
+  <!-- Others -->
+  <rect x="470" y="225" width="540" height="30" rx="6" fill="#1a1f2e" stroke="#30363d" stroke-width="0.5"/>
+  <text x="740" y="244" text-anchor="middle" fill="#8b949e" font-size="10" font-family="sans-serif">其余 8 个方法不暴露为 Tool — 不由 supportsTool 管理，内部调用走 ProviderRuntimeService 方法直接分发</text>
+</svg>
+  </div>
+</section>
+<hr>
+
+<!-- 6. 关键文件 -->
+<section>
+  <div class="section-title"><span class="num">6</span> 关键文件索引</div>
+  <p class="section-desc">ProviderRuntimeService 涉及跨 packages 的协作，核心文件分布在 gateway 和 iot-platform 两个 package 中。</p>
+  <div class="file-grid">
+    <div class="file-card">
+      <h4>Facade 入口</h4>
+      <code>apps/agent-gateway/src/iot-platform-runtime/runtime-service.ts</code>
+      <p>ProviderRuntimeService 类 + createProviderRuntimeService 工厂 + backendSupportsTool 映射</p>
+    </div>
+    <div class="file-card">
+      <h4>Adapter 层</h4>
+      <code>apps/agent-gateway/src/iot-platform-runtime/device-store-adapter.ts</code>
+      <p>DeviceService → ProviderDeviceStore / ProviderLocalCommandBus 接口适配</p>
+    </div>
+    <div class="file-card">
+      <h4>Fleets 后端</h4>
+      <code>packages/iot-platform/src/providers/fleets/backend.ts</code>
+      <p>FleetsProviderBackend — 实现全部 ProviderBackend 接口 (CRUD / executeCommand / mirror)</p>
+    </div>
+    <div class="file-card">
+      <h4>Fleets HTTP Client</h4>
+      <code>packages/iot-platform/src/providers/fleets/client.ts</code>
+      <p>FleetsClient — Fleets Cloud HTTP API 调用 (Thing / Shadow / Command / Job)</p>
+    </div>
+    <div class="file-card">
+      <h4>Mirror Ingest</h4>
+      <code>packages/iot-platform/src/providers/fleets/mirror-ingest.ts</code>
+      <p>MQTT 订阅 · 消息路由 · onRealtimeEvent → 驱动 WorkflowRunner</p>
+    </div>
+    <div class="file-card">
+      <h4>设备同步</h4>
+      <code>packages/iot-platform/src/providers/fleets/device-sync.ts</code>
+      <p>Fleets things → 本地 DeviceService 同步 · 解析 credentials</p>
+    </div>
+    <div class="file-card">
+      <h4>Fleets 配置</h4>
+      <code>packages/iot-platform/src/providers/fleets/config.ts</code>
+      <p>配置解析 (env vars: FLEETS_API_URL, FLEETS_MQTT_BROKER_URL ...)</p>
+    </div>
+    <div class="file-card">
+      <h4>Fleets Manifest</h4>
+      <code>packages/iot-platform/src/providers/fleets/manifest.json</code>
+      <p>ThingType schema · Topic 模板 · 生成规则 · 语义规则</p>
+    </div>
+    <div class="file-card">
+      <h4>Default 后端</h4>
+      <code>packages/iot-platform/src/providers/default/backend.ts</code>
+      <p>DefaultProviderBackend — 纯本地后端 (SQLite + MQTT)</p>
+    </div>
+    <div class="file-card">
+      <h4>工厂注册</h4>
+      <code>packages/iot-platform/src/providers/backend-factories.ts</code>
+      <p>registerIotPlatformProviderBackendFactory → 注册 default + fleets 工厂</p>
+    </div>
+    <div class="file-card">
+      <h4>Fleets Types</h4>
+      <code>packages/iot-platform/src/providers/fleets/types.ts</code>
+      <p>FleetsConfig · FleetsThing · FleetsShadow · FleetsCommandDispatch</p>
+    </div>
+    <div class="file-card">
+      <h4>Gateway main.ts</h4>
+      <code>apps/agent-gateway/src/main.ts</code>
+      <p>providersService 创建 · 注入 AgentRouter / WorkflowRunner · bindMirrorIngest</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  agent-gateway — ProviderRuntimeService Architecture &amp; Principles · Generated for analysis
+</footer>
+
+</body>
+</html>
