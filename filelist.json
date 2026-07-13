@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-13T09:13:15.438Z",
+  "generatedAt": "2026-07-13T09:35:21.084Z",
   "tree": [
     {
       "path": "device-agent/device-agent-fleets-integration.html",
@@ -27,31 +27,6 @@
       "type": "blob"
     },
     {
-      "path": "fleets/device-agent-fleets-bridge-agent.html",
-      "size": 59029,
-      "type": "blob"
-    },
-    {
-      "path": "fleets/device-agent-fleets-bridge-agent.md",
-      "size": 67450,
-      "type": "blob"
-    },
-    {
-      "path": "fleets/device-agent-fleets-bridge-architecture.html",
-      "size": 33806,
-      "type": "blob"
-    },
-    {
-      "path": "fleets/device-agent-fleets-integration.html",
-      "size": 48054,
-      "type": "blob"
-    },
-    {
-      "path": "fleets/device-agent-fleets-integration.md",
-      "size": 61992,
-      "type": "blob"
-    },
-    {
       "path": "fleets/fleets-intro-blog.md",
       "size": 9488,
       "type": "blob"
@@ -68,7 +43,7 @@
     },
     {
       "path": "index.html",
-      "size": 22599,
+      "size": 23203,
       "type": "blob"
     },
     {
