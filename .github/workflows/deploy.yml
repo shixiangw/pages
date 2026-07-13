@@ -1,15 +1,16 @@
 name: Update filelist
 
 # 每次 push 到 main 时，自动重新生成 filelist.json 并 commit 回 main 分支。
-# Cloudflare Pages（跟踪 main）和 GitHub Pages（source 设为 main）都能直接拿到最新清单，
-# 不再依赖 gh-pages 分支，避免 force_orphan 导致 webhook 漏触发的问题。
+# Cloudflare Pages（跟踪 main）和 GitHub Pages（source 设为 main）都能直接拿到最新清单。
+# 注意：main 是受保护分支，GITHUB_TOKEN 无法直接 push，需使用仓库 Secret PAT_TOKEN
+#        （一个有 repo 权限、且属于可绕过分支保护规则的用户的 Personal Access Token）。
 on:
   push:
     branches: [main]
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: update-filelist
@@ -21,6 +22,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PAT_TOKEN }}
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -31,6 +34,8 @@ jobs:
         run: node generate-filelist.js
 
       - name: Commit filelist.json back to main
+        env:
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -39,5 +44,5 @@ jobs:
             echo "filelist.json 无变化，跳过提交"
           else
             git commit -m "chore: 自动更新 filelist.json [skip ci]"
-            git push
+            git push https://x-access-token:${PAT_TOKEN}@github.com/shixiangw/pages.git HEAD:main
           fi
