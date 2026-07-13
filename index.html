@@ -662,7 +662,7 @@
         // 阶段 1: 拉取清单（失败才显示错误态）
         let data;
         try {
-          const res = await fetch('./filelist.json', { cache: 'no-cache' });
+          const res = await fetch('./filelist.json?v=' + Date.now(), { cache: 'no-store' });
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
           data = await res.json();
           if (!data.tree || !Array.isArray(data.tree)) throw new Error('数据结构异常');
