@@ -1,0 +1,8 @@
+# Cloudflare Pages 缓存策略
+# 防止 index.html 和 filelist.json 被缓存导致更新不及时
+
+/index.html
+  Cache-Control: no-cache, must-revalidate
+
+/filelist.json
+  Cache-Control: no-cache, must-revalidate
