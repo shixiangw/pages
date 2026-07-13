@@ -3,18 +3,16 @@ name: Update filelist
 # 每次 push 到 main 时，自动重新生成 filelist.json 并 commit 回 main 分支。
 # Cloudflare Pages（跟踪 main）和 GitHub Pages 都能直接拿到最新清单。
 #
-# 鉴权方式：使用 GitHub App 的 installation token（由 actions/create-github-app-token 生成），
-# 比长期有效的 PAT 更安全（短期、可细粒度、可撤销、不过期）。
-# 需要仓库 Secrets：APP_ID、APP_PRIVATE_KEY（GitHub App 的私钥 PEM）。
-# 同时需在 main 分支保护规则(ruleset)的 bypass actors 中加入该 GitHub App，
-# 否则无法 push 到受保护分支。
+# 鉴权：使用内置 GITHUB_TOKEN（workflow 授予 contents: write 权限即可 push）。
+# 前提是 main 分支不再强制要求 PR（已改为可直接 push）。
+# commit message 带 [skip ci]，避免触发自身无限递归。
 on:
   push:
     branches: [main]
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: update-filelist
@@ -27,13 +25,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Generate GitHub App token
-        id: app-token
-        uses: actions/create-github-app-token@v2
-        with:
-          app-id: ${{ secrets.APP_ID }}
-          private-key: ${{ secrets.APP_PRIVATE_KEY }}
-
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -43,16 +34,13 @@ jobs:
         run: node generate-filelist.js
 
       - name: Commit filelist.json back to main
-        env:
-          TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git remote set-url origin https://x-access-token:${TOKEN}@github.com/shixiangw/pages.git
           git add filelist.json
           if git diff --cached --quiet; then
             echo "filelist.json 无变化，跳过提交"
           else
             git commit -m "chore: 自动更新 filelist.json [skip ci]"
-            git push origin HEAD:main
+            git push
           fi
