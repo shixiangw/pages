@@ -1,23 +1,22 @@
-name: Build filelist & Deploy to Pages
+name: Update filelist
 
+# 每次 push 到 main 时，自动重新生成 filelist.json 并 commit 回 main 分支。
+# Cloudflare Pages（跟踪 main）和 GitHub Pages（source 设为 main）都能直接拿到最新清单，
+# 不再依赖 gh-pages 分支，避免 force_orphan 导致 webhook 漏触发的问题。
 on:
   push:
     branches: [main]
-
-  # 允许从 Actions 页手动触发
   workflow_dispatch:
 
 permissions:
   contents: write
-  pages: write
-  id-token: write
 
 concurrency:
-  group: pages
+  group: update-filelist
   cancel-in-progress: true
 
 jobs:
-  deploy:
+  update:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -31,10 +30,14 @@ jobs:
       - name: Generate filelist.json
         run: node generate-filelist.js
 
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./
-          publish_branch: gh-pages
-          commit_message: 'chore: deploy site with updated filelist [skip ci]'
+      - name: Commit filelist.json back to main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add filelist.json
+          if git diff --cached --quiet; then
+            echo "filelist.json 无变化，跳过提交"
+          else
+            git commit -m "chore: 自动更新 filelist.json [skip ci]"
+            git push
+          fi
