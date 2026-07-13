@@ -615,8 +615,11 @@
 
         // Show/hide empty state
         const hasContent = elTreeRoot.children.length > 0;
-        elEmpty.classList.toggle('hidden', hasContent);
-        elTreeContent.classList.toggle('hidden', !hasContent);
+        if (!hasContent) {
+          showState('empty');
+        } else {
+          showState('tree');
+        }
 
         // Update header
         const total = allFiles.filter(f => fileMatchesFilter(f) && (!searchQuery || f.path.toLowerCase().includes(searchQuery))).length;
@@ -625,8 +628,19 @@
           : `共 ${elTreeRoot.querySelectorAll('.file').length} 个文件 · ${Object.keys(root.children).length} 个目录`;
       }
 
+      /* ─── state helpers ─── */
+      function showState(which) {
+        // which: 'loading' | 'error' | 'empty' | 'tree'
+        elLoading.classList.toggle('hidden', which !== 'loading');
+        elError.classList.toggle('hidden',   which !== 'error');
+        elEmpty.classList.toggle('hidden',   which !== 'empty');
+        elTreeContent.classList.toggle('hidden', which !== 'tree');
+      }
+
       /* ─── fetch data ─── */
       async function init() {
+        showState('loading');
+
         try {
           const res = await fetch('./filelist.json', { cache: 'no-cache' });
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -655,16 +669,14 @@
             elFooterTime.textContent = `清单生成于 ${d.toLocaleString('zh-CN')}`;
           }
 
-          // Render
-          elLoading.classList.add('hidden');
-          elTreeContent.classList.remove('hidden');
+          // Render — 强制隐藏所有非 tree 状态，确保不会残留 error/loading
+          showState('tree');
           refresh();
 
         } catch (err) {
           console.error(err);
-          elLoading.classList.add('hidden');
-          elError.classList.remove('hidden');
-          elErrorMsg.textContent = '无法加载 filelist.json。请先运行 `node generate-filelist.js` 生成清单，或检查文件是否存在。';
+          showState('error');
+          elErrorMsg.textContent = '无法加载 filelist.json（' + err.message + '）。请确认已运行 `node generate-filelist.js` 并重新部署。';
           elStats.textContent = '加载失败';
         }
       }
