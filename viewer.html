@@ -266,7 +266,7 @@
       // 原始文件：同源直链，不依赖 GitHub API
       elRawLink.href = `./${filePath}`;
 
-      // 从同源加载 Markdown 内容（纯静态，不调 api.github.com / raw.githubusercontent.com）
+      // 从同源加载 Markdown 内容（纯静态，零外部 GitHub 依赖）
       const rawUrl = `./${filePath}`;
 
       // --- Configure marked ---

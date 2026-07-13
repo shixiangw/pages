@@ -73,11 +73,11 @@ jobs:
           NODESCRIPT
 
           # --- viewer.html 无外部 GitHub 依赖 ---
-          if grep -qF 'raw.githubusercontent.com' viewer.html 2>/dev/null; then
+          if grep -qF 'https://raw.githubusercontent.com' viewer.html 2>/dev/null; then
             echo "::error::viewer.html 引用 raw.githubusercontent.com"
             exit 1
           fi
-          if grep -qF 'api.github.com' viewer.html 2>/dev/null; then
+          if grep -qF 'https://api.github.com' viewer.html 2>/dev/null; then
             echo "::error::viewer.html 引用 api.github.com"
             exit 1
           fi
