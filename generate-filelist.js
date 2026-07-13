@@ -43,6 +43,17 @@ function walk(dir, base, acc) {
 
 const tree = walk(ROOT, '', []).sort((a, b) => a.path.localeCompare(b.path));
 
+// 更新检查：若文件树（忽略 generatedAt）未变化，则不重写文件，
+// 这样 git 无 diff，Action 会跳过提交，避免产生无意义 commit / 循环触发。
+let existing = null;
+try { existing = JSON.parse(fs.readFileSync(OUTPUT, 'utf8')); } catch { /* 文件不存在 */ }
+const treeChanged = !existing || JSON.stringify(existing.tree) !== JSON.stringify(tree);
+
+if (!treeChanged) {
+  console.log(`✅ filelist.json 无变化（${tree.length} 个文件），跳过写入`);
+  process.exit(0);
+}
+
 const out = {
   generatedAt: new Date().toISOString(),
   tree,
