@@ -174,12 +174,13 @@ tr:nth-child(even) td { background: rgba(0,0,0,.01); }
 .instance-card-footer { display: flex; gap: 8px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--color-border-light); }
 
 /* ========== Toggle Switch ========== */
-.toggle { position: relative; display: inline-block; width: 44px; height: 24px; }
+.toggle { position: relative; display: inline-block; width: 40px; height: 22px; }
 .toggle input { opacity: 0; width: 0; height: 0; }
-.toggle-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background: #d1d5db; border-radius: 12px; transition: var(--transition); }
-.toggle-slider::before { content: ''; position: absolute; height: 18px; width: 18px; left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: var(--transition); box-shadow: var(--shadow-sm); }
+.toggle-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background: #d1d5db; border-radius: 11px; transition: var(--transition); }
+.toggle-slider::before { content: ''; position: absolute; height: 16px; width: 16px; left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: var(--transition); box-shadow: var(--shadow-sm); }
 .toggle input:checked + .toggle-slider { background: var(--color-primary); }
-.toggle input:checked + .toggle-slider::before { transform: translateX(20px); }
+.toggle input:checked + .toggle-slider::before { transform: translateX(18px); }
+.toggle.disabled { opacity: .45; pointer-events: none; }
 
 /* ========== Floating Chat Button ========== */
 .chat-fab { position: fixed; bottom: 24px; right: 24px; width: 56px; height: 56px; border-radius: 50%; background: var(--color-primary); color: #fff; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 20px rgba(94,78,255,.35); cursor: pointer; z-index: 1000; transition: all var(--transition); border: none; }
@@ -382,7 +383,7 @@ tr:nth-child(even) td { background: rgba(0,0,0,.01); }
           </div>
           <div class="stat-card">
             <div class="stat-icon blue">🔗</div>
-            <div><div class="stat-value">3</div><div class="stat-label">Agent-managed</div></div>
+            <div><div class="stat-value" id="agent-managed-count">3</div><div class="stat-label">Agent-managed</div></div>
           </div>
         </div>
 
@@ -405,7 +406,7 @@ tr:nth-child(even) td { background: rgba(0,0,0,.01); }
                 <td>TemperatureSensor</td>
                 <td style="text-align:center"><span class="badge badge-online"><span class="status-dot"></span>Online</span></td>
                 <td><span style="font-size:11px;color:var(--color-text-tertiary)">floor-1, hvac</span></td>
-                <td><span class="badge badge-running"><span class="status-dot"></span>Yes</span></td>
+                <td style="text-align:center"><label class="toggle"><input type="checkbox" checked onchange="toggleAgentManaged(this, 'temp-sensor-01')"><span class="toggle-slider"></span></label></td>
                 <td style="text-align:right;color:var(--color-text-tertiary)">2025-07-10 14:22</td>
                 <td style="text-align:center"><button class="btn btn-ghost btn-sm">⋮</button></td>
               </tr>
@@ -415,7 +416,7 @@ tr:nth-child(even) td { background: rgba(0,0,0,.01); }
                 <td>Gateway</td>
                 <td style="text-align:center"><span class="badge badge-online"><span class="status-dot"></span>Online</span></td>
                 <td><span style="font-size:11px;color:var(--color-text-tertiary)">building-A, edge</span></td>
-                <td><span class="badge badge-running"><span class="status-dot"></span>Yes</span></td>
+                <td style="text-align:center"><label class="toggle"><input type="checkbox" checked onchange="toggleAgentManaged(this, 'smart-gateway-east')"><span class="toggle-slider"></span></label></td>
                 <td style="text-align:right;color:var(--color-text-tertiary)">2025-07-08 09:15</td>
                 <td style="text-align:center"><button class="btn btn-ghost btn-sm">⋮</button></td>
               </tr>
@@ -425,7 +426,7 @@ tr:nth-child(even) td { background: rgba(0,0,0,.01); }
                 <td>HumiditySensor</td>
                 <td style="text-align:center"><span class="badge badge-online"><span class="status-dot"></span>Online</span></td>
                 <td><span style="font-size:11px;color:var(--color-text-tertiary)">floor-2</span></td>
-                <td><span class="badge badge-running"><span class="status-dot"></span>Yes</span></td>
+                <td style="text-align:center"><label class="toggle"><input type="checkbox" checked onchange="toggleAgentManaged(this, 'humidity-sensor-03')"><span class="toggle-slider"></span></label></td>
                 <td style="text-align:right;color:var(--color-text-tertiary)">2025-07-05 16:40</td>
                 <td style="text-align:center"><button class="btn btn-ghost btn-sm">⋮</button></td>
               </tr>
@@ -435,7 +436,7 @@ tr:nth-child(even) td { background: rgba(0,0,0,.01); }
                 <td>MotionSensor</td>
                 <td style="text-align:center"><span class="badge badge-offline"><span class="status-dot"></span>Offline</span></td>
                 <td><span style="font-size:11px;color:var(--color-text-tertiary)">lobby, security</span></td>
-                <td><span>—</span></td>
+                <td style="text-align:center"><label class="toggle"><input type="checkbox" onchange="toggleAgentManaged(this, 'motion-detector-lobby')"><span class="toggle-slider"></span></label></td>
                 <td style="text-align:right;color:var(--color-text-tertiary)">2025-06-28 11:05</td>
                 <td style="text-align:center"><button class="btn btn-ghost btn-sm">⋮</button></td>
               </tr>
@@ -445,7 +446,7 @@ tr:nth-child(even) td { background: rgba(0,0,0,.01); }
                 <td>LightController</td>
                 <td style="text-align:center"><span class="badge badge-online"><span class="status-dot"></span>Online</span></td>
                 <td><span style="font-size:11px;color:var(--color-text-tertiary)">floor-3, lighting</span></td>
-                <td><span>—</span></td>
+                <td style="text-align:center"><label class="toggle"><input type="checkbox" onchange="toggleAgentManaged(this, 'light-controller-07')"><span class="toggle-slider"></span></label></td>
                 <td style="text-align:right;color:var(--color-text-tertiary)">2025-06-20 08:30</td>
                 <td style="text-align:center"><button class="btn btn-ghost btn-sm">⋮</button></td>
               </tr>
@@ -963,6 +964,24 @@ function createInstance() {
 
 function closeModal(id) {
   document.getElementById(id).classList.remove('open');
+}
+
+// ============ Agent Management Toggle ============
+function toggleAgentManaged(checkbox, thingName) {
+  const enabled = checkbox.checked;
+  updateAgentManagedCount();
+  if (enabled) {
+    showToast('success', `✅ "${thingName}" Agent management enabled`);
+  } else {
+    showToast('info', `🔒 "${thingName}" Agent management disabled`);
+  }
+}
+
+function updateAgentManagedCount() {
+  const toggles = document.querySelectorAll('#page-things .toggle input[type="checkbox"]');
+  let count = 0;
+  toggles.forEach(cb => { if (cb.checked) count++; });
+  document.getElementById('agent-managed-count').textContent = count;
 }
 
 // ============ API Key ============
