@@ -1,0 +1,1291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EMQX Fleets — Agent Integration Demo</title>
+<style>
+/* ========== CSS Variables & Reset ========== */
+:root {
+  --color-primary: #5e4eff;
+  --color-primary-light: #7b6fff;
+  --color-primary-dark: #4a3de0;
+  --color-primary-bg: rgba(94,78,255,.08);
+  --color-success: #34c759;
+  --color-warning: #ff9500;
+  --color-danger: #ff3b30;
+  --color-info: #5ac8fa;
+  --color-text: #1d1d2c;
+  --color-text-secondary: #6b7280;
+  --color-text-tertiary: #9ca3af;
+  --color-bg: #f5f5f7;
+  --color-bg-white: #ffffff;
+  --color-border: #e5e7eb;
+  --color-border-light: #f0f0f5;
+  --sidebar-width: 56px;
+  --submenu-width: 200px;
+  --header-height: 48px;
+  --radius-sm: 4px;
+  --radius: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.05);
+  --shadow: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.06);
+  --shadow-lg: 0 10px 25px rgba(0,0,0,.1);
+  --shadow-xl: 0 20px 60px rgba(0,0,0,.15);
+  --transition: .2s ease;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background: var(--color-bg); color: var(--color-text); font-size: 14px; line-height: 1.5; height: 100vh; overflow: hidden; }
+button { cursor: pointer; font-family: inherit; border: none; outline: none; }
+input, select, textarea { font-family: inherit; outline: none; }
+svg.icon { width: 20px; height: 20px; fill: currentColor; }
+a { color: var(--color-primary); text-decoration: none; }
+
+/* ========== Layout ========== */
+.app-layout { display: flex; height: 100vh; }
+.sidebar { width: var(--sidebar-width); background: #1a1a2e; display: flex; flex-direction: column; align-items: center; padding: 12px 0; z-index: 100; flex-shrink: 0; }
+.sidebar-nav { display: flex; flex-direction: column; gap: 2px; width: 100%; }
+.sidebar-item { width: 100%; height: 44px; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,.45); transition: all var(--transition); position: relative; }
+.sidebar-item:hover { color: rgba(255,255,255,.7); background: rgba(255,255,255,.06); }
+.sidebar-item.active { color: #fff; }
+.sidebar-item.active::before { content: ''; position: absolute; left: 0; top: 8px; bottom: 8px; width: 3px; background: var(--color-primary); border-radius: 0 2px 2px 0; }
+.sidebar-item svg { width: 22px; height: 22px; }
+.sidebar-divider { width: 32px; height: 1px; background: rgba(255,255,255,.1); margin: 8px auto; }
+.sidebar-bottom { margin-top: auto; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+
+.main-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+.submenu-wrap { display: flex; flex: 1; overflow: hidden; }
+
+/* ========== Header ========== */
+.header { height: var(--header-height); background: var(--color-bg-white); border-bottom: 1px solid var(--color-border); display: flex; align-items: center; padding: 0 16px; gap: 12px; flex-shrink: 0; }
+.header-logo { display: flex; align-items: center; gap: 8px; color: var(--color-text); font-weight: 600; font-size: 15px; }
+.header-logo svg { width: 28px; height: 28px; }
+.header-breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--color-text-secondary); }
+.header-breadcrumb span { color: var(--color-text-secondary); }
+.header-breadcrumb span.active { color: var(--color-text); font-weight: 500; }
+.header-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+.header-badge { display: flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 20px; font-size: 12px; background: var(--color-primary-bg); color: var(--color-primary); font-weight: 500; }
+.header-badge .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--color-success); animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .5; } }
+.user-avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--color-primary); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; }
+
+/* ========== Submenu ========== */
+.submenu { width: var(--submenu-width); background: var(--color-bg-white); border-right: 1px solid var(--color-border); padding: 8px 0; flex-shrink: 0; overflow-y: auto; }
+.submenu-item { padding: 8px 20px; font-size: 13px; color: var(--color-text-secondary); cursor: pointer; transition: all var(--transition); display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+.submenu-item:hover { color: var(--color-text); background: var(--color-bg); }
+.submenu-item.active { color: var(--color-primary); background: var(--color-primary-bg); font-weight: 500; }
+.submenu-item .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--color-primary); opacity: 0; transition: opacity var(--transition); }
+.submenu-item.active .dot { opacity: 1; }
+.submenu-category { padding: 6px 20px; font-size: 11px; color: var(--color-text-tertiary); text-transform: uppercase; letter-spacing: .5px; font-weight: 600; margin-top: 8px; }
+.submenu-badge { margin-left: auto; font-size: 11px; background: var(--color-primary); color: #fff; padding: 1px 7px; border-radius: 10px; font-weight: 600; }
+
+/* ========== Content ========== */
+.content { flex: 1; overflow-y: auto; padding: 20px 24px; min-width: 0; }
+.page { display: none; }
+.page.active { display: block; }
+.page-title { font-size: 22px; font-weight: 700; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; }
+.page-title-actions { display: flex; gap: 8px; }
+
+/* ========== Buttons ========== */
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 16px; border-radius: var(--radius); font-size: 13px; font-weight: 500; transition: all var(--transition); white-space: nowrap; }
+.btn-primary { background: var(--color-primary); color: #fff; }
+.btn-primary:hover { background: var(--color-primary-dark); }
+.btn-outline { background: transparent; border: 1px solid var(--color-border); color: var(--color-text); }
+.btn-outline:hover { border-color: var(--color-primary); color: var(--color-primary); }
+.btn-ghost { background: transparent; color: var(--color-text-secondary); }
+.btn-ghost:hover { background: var(--color-bg); color: var(--color-text); }
+.btn-sm { padding: 4px 10px; font-size: 12px; }
+.btn-lg { padding: 10px 24px; font-size: 14px; }
+.btn-success { background: var(--color-success); color: #fff; }
+.btn-danger { background: var(--color-danger); color: #fff; }
+.btn-danger:hover { opacity: .9; }
+.btn:disabled { opacity: .4; cursor: not-allowed; }
+.btn-success:hover, .btn-success:focus { filter: brightness(1.05); }
+
+/* ========== Cards ========== */
+.card { background: var(--color-bg-white); border-radius: var(--radius-lg); border: 1px solid var(--color-border); padding: 20px; }
+.card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; font-weight: 600; font-size: 15px; }
+.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-bottom: 20px; }
+
+/* ========== Stats Cards ========== */
+.stat-card { background: var(--color-bg-white); border-radius: var(--radius-lg); border: 1px solid var(--color-border); padding: 16px 20px; display: flex; align-items: center; gap: 14px; }
+.stat-icon { width: 44px; height: 44px; border-radius: var(--radius); display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+.stat-icon.purple { background: var(--color-primary-bg); color: var(--color-primary); }
+.stat-icon.green { background: rgba(52,199,89,.1); color: var(--color-success); }
+.stat-icon.blue { background: rgba(90,200,250,.1); color: var(--color-info); }
+.stat-icon.orange { background: rgba(255,149,0,.1); color: var(--color-warning); }
+.stat-value { font-size: 28px; font-weight: 700; line-height: 1; }
+.stat-label { font-size: 12px; color: var(--color-text-secondary); margin-top: 2px; }
+
+/* ========== Tables ========== */
+.table-wrap { background: var(--color-bg-white); border-radius: var(--radius-lg); border: 1px solid var(--color-border); overflow: hidden; }
+table { width: 100%; border-collapse: collapse; }
+th { text-align: left; padding: 10px 16px; font-size: 12px; color: var(--color-text-secondary); font-weight: 600; border-bottom: 1px solid var(--color-border); white-space: nowrap; }
+td { padding: 10px 16px; font-size: 13px; border-bottom: 1px solid var(--color-border-light); }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: rgba(94,78,255,.02); }
+tr:nth-child(even) td { background: rgba(0,0,0,.01); }
+
+/* ========== Status Badges ========== */
+.badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+.badge .status-dot { width: 7px; height: 7px; border-radius: 50%; }
+.badge-online { background: rgba(52,199,89,.12); color: #1a8d3a; }
+.badge-online .status-dot { background: #34c759; }
+.badge-offline { background: rgba(156,163,175,.12); color: #6b7280; }
+.badge-offline .status-dot { background: #9ca3af; }
+.badge-running { background: rgba(52,199,89,.12); color: #1a8d3a; }
+.badge-running .status-dot { background: #34c759; animation: pulse 2s infinite; }
+.badge-stopped { background: rgba(255,59,48,.08); color: #c0392b; }
+.badge-stopped .status-dot { background: #ff3b30; }
+.badge-warning { background: rgba(255,149,0,.1); color: #b86e00; }
+
+/* ========== Tabs ========== */
+.tabs { display: flex; gap: 0; border-bottom: 2px solid var(--color-border); margin-bottom: 20px; }
+.tab { padding: 10px 20px; font-size: 13px; color: var(--color-text-secondary); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all var(--transition); font-weight: 500; }
+.tab:hover { color: var(--color-text); }
+.tab.active { color: var(--color-primary); border-bottom-color: var(--color-primary); }
+
+/* ========== Search/Filter Bar ========== */
+.filter-bar { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
+.filter-bar select, .filter-bar input { padding: 7px 12px; border: 1px solid var(--color-border); border-radius: var(--radius); font-size: 13px; background: var(--color-bg-white); color: var(--color-text); transition: all var(--transition); }
+.filter-bar select:hover, .filter-bar input:hover { border-color: #c4c4cf; }
+.filter-bar select:focus, .filter-bar input:focus { border-color: var(--color-primary); box-shadow: 0 0 0 2px var(--color-primary-bg); }
+
+/* ========== Form Elements ========== */
+.form-group { margin-bottom: 16px; }
+.form-label { display: block; font-size: 12px; font-weight: 600; color: var(--color-text-secondary); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .3px; }
+.form-input { width: 100%; padding: 8px 12px; border: 1px solid var(--color-border); border-radius: var(--radius); font-size: 13px; }
+.form-input:focus { border-color: var(--color-primary); box-shadow: 0 0 0 2px var(--color-primary-bg); }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.form-hint { font-size: 11px; color: var(--color-text-tertiary); margin-top: 4px; }
+
+/* ========== Instance Cards ========== */
+.instance-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+.instance-card { background: var(--color-bg-white); border-radius: var(--radius-lg); border: 1px solid var(--color-border); padding: 20px; transition: all var(--transition); }
+.instance-card:hover { box-shadow: var(--shadow-lg); border-color: #c4c4cf; }
+.instance-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+.instance-name { font-weight: 600; font-size: 15px; }
+.instance-id { font-size: 11px; color: var(--color-text-tertiary); font-family: "SF Mono", Monaco, monospace; }
+.instance-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.instance-meta-item { font-size: 12px; }
+.instance-meta-item label { display: block; color: var(--color-text-tertiary); font-size: 11px; margin-bottom: 2px; }
+.instance-meta-item .val { font-weight: 500; }
+.instance-card-footer { display: flex; gap: 8px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--color-border-light); }
+
+/* ========== Toggle Switch ========== */
+.toggle { position: relative; display: inline-block; width: 44px; height: 24px; }
+.toggle input { opacity: 0; width: 0; height: 0; }
+.toggle-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background: #d1d5db; border-radius: 12px; transition: var(--transition); }
+.toggle-slider::before { content: ''; position: absolute; height: 18px; width: 18px; left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: var(--transition); box-shadow: var(--shadow-sm); }
+.toggle input:checked + .toggle-slider { background: var(--color-primary); }
+.toggle input:checked + .toggle-slider::before { transform: translateX(20px); }
+
+/* ========== Floating Chat Button ========== */
+.chat-fab { position: fixed; bottom: 24px; right: 24px; width: 56px; height: 56px; border-radius: 50%; background: var(--color-primary); color: #fff; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 20px rgba(94,78,255,.35); cursor: pointer; z-index: 1000; transition: all var(--transition); border: none; }
+.chat-fab:hover { transform: scale(1.08); box-shadow: 0 8px 30px rgba(94,78,255,.45); }
+.chat-fab svg { width: 26px; height: 26px; }
+.chat-fab-pulse { position: absolute; inset: -4px; border-radius: 50%; border: 2px solid var(--color-primary); animation: fab-pulse 2s infinite; opacity: 0; }
+@keyframes fab-pulse { 0% { transform: scale(1); opacity: .4; } 100% { transform: scale(1.5); opacity: 0; } }
+.chat-fab-badge { position: absolute; top: -2px; right: -2px; width: 18px; height: 18px; background: var(--color-danger); border-radius: 50%; font-size: 10px; display: flex; align-items: center; justify-content: center; border: 2px solid var(--color-bg-white); font-weight: 700; }
+.chat-tooltip { position: fixed; bottom: 90px; right: 24px; background: var(--color-text); color: #fff; padding: 10px 16px; border-radius: var(--radius); font-size: 13px; z-index: 1000; white-space: nowrap; opacity: 0; transform: translateY(8px); transition: all .3s ease; pointer-events: none; box-shadow: var(--shadow-lg); }
+.chat-tooltip.visible { opacity: 1; transform: translateY(0); }
+.chat-tooltip::after { content: ''; position: absolute; bottom: -6px; right: 22px; width: 12px; height: 12px; background: var(--color-text); transform: rotate(45deg); }
+
+/* ========== Chat Dialog Overlay ========== */
+.chat-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 2000; display: none; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
+.chat-overlay.open { display: flex; }
+.chat-dialog { width: 720px; max-width: 94vw; max-height: 80vh; background: var(--color-bg-white); border-radius: var(--radius-xl); display: flex; flex-direction: column; overflow: hidden; box-shadow: var(--shadow-xl); animation: dialog-in .3s ease; }
+@keyframes dialog-in { from { opacity: 0; transform: scale(.95) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+.chat-dialog-header { padding: 16px 20px; border-bottom: 1px solid var(--color-border); display: flex; align-items: center; justify-content: space-between; }
+.chat-dialog-title { font-weight: 600; font-size: 16px; display: flex; align-items: center; gap: 8px; }
+.chat-dialog-title svg { width: 22px; height: 22px; color: var(--color-primary); }
+.chat-dialog-close { width: 32px; height: 32px; border-radius: var(--radius); display: flex; align-items: center; justify-content: center; background: transparent; color: var(--color-text-secondary); font-size: 20px; transition: all var(--transition); }
+.chat-dialog-close:hover { background: var(--color-bg); color: var(--color-text); }
+.chat-body { flex: 1; overflow-y: auto; padding: 16px 20px; display: flex; flex-direction: column; gap: 14px; min-height: 300px; max-height: 50vh; }
+.chat-msg { display: flex; gap: 10px; animation: msg-in .25s ease; }
+@keyframes msg-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+.chat-msg.user { flex-direction: row-reverse; }
+.chat-msg-avatar { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; flex-shrink: 0; }
+.chat-msg.user .chat-msg-avatar { background: var(--color-primary); color: #fff; }
+.chat-msg.agent .chat-msg-avatar { background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; }
+.chat-msg-bubble { padding: 10px 14px; border-radius: var(--radius-lg); font-size: 13px; line-height: 1.6; max-width: 80%; word-break: break-word; }
+.chat-msg.user .chat-msg-bubble { background: var(--color-primary); color: #fff; border-radius: var(--radius-lg) 4px var(--radius-lg) var(--radius-lg); }
+.chat-msg.agent .chat-msg-bubble { background: var(--color-bg); color: var(--color-text); border-radius: 4px var(--radius-lg) var(--radius-lg) var(--radius-lg); }
+.chat-msg.agent .chat-msg-bubble code { background: rgba(0,0,0,.06); padding: 2px 6px; border-radius: 3px; font-size: 12px; }
+.chat-context { background: var(--color-primary-bg); border-radius: var(--radius); padding: 10px 14px; font-size: 12px; color: var(--color-primary); display: flex; align-items: center; gap: 8px; }
+.chat-context-tag { background: var(--color-primary); color: #fff; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; white-space: nowrap; }
+.chat-context-hint { color: var(--color-text-secondary); font-size: 11px; }
+.chat-context a { color: var(--color-primary); cursor: pointer; font-weight: 600; font-size: 11px; text-decoration: underline; }
+.chat-typing { display: flex; gap: 4px; padding: 10px 14px; }
+.chat-typing span { width: 7px; height: 7px; border-radius: 50%; background: #c4c4cf; animation: typing 1.4s infinite; }
+.chat-typing span:nth-child(2) { animation-delay: .2s; }
+.chat-typing span:nth-child(3) { animation-delay: .4s; }
+@keyframes typing { 0%,60%,100% { transform: translateY(0); opacity: .4; } 30% { transform: translateY(-8px); opacity: 1; } }
+.chat-input-area { padding: 12px 20px; border-top: 1px solid var(--color-border); display: flex; flex-direction: column; gap: 8px; }
+.chat-quick-prompts { display: flex; gap: 6px; flex-wrap: wrap; }
+.chat-quick-prompt { font-size: 11px; padding: 4px 10px; border-radius: 14px; background: var(--color-bg); color: var(--color-text-secondary); border: 1px solid var(--color-border); cursor: pointer; transition: all var(--transition); white-space: nowrap; }
+.chat-quick-prompt:hover { border-color: var(--color-primary); color: var(--color-primary); background: var(--color-primary-bg); }
+.chat-input-row { display: flex; gap: 8px; align-items: flex-end; }
+.chat-input { flex: 1; padding: 10px 14px; border: 1px solid var(--color-border); border-radius: var(--radius); font-size: 13px; resize: none; min-height: 42px; max-height: 120px; line-height: 1.5; }
+.chat-input:focus { border-color: var(--color-primary); box-shadow: 0 0 0 2px var(--color-primary-bg); }
+.chat-voice-btn { width: 42px; height: 42px; border-radius: 50%; background: var(--color-bg); color: var(--color-text-secondary); display: flex; align-items: center; justify-content: center; font-size: 18px; transition: all var(--transition); border: 1px solid var(--color-border); flex-shrink: 0; }
+.chat-voice-btn:hover { background: var(--color-primary-bg); color: var(--color-primary); border-color: var(--color-primary); }
+.chat-voice-btn.recording { background: var(--color-danger); color: #fff; border-color: var(--color-danger); animation: recording 1s infinite; }
+@keyframes recording { 0%,100% { box-shadow: 0 0 0 0 rgba(255,59,48,.4); } 50% { box-shadow: 0 0 0 10px rgba(255,59,48,0); } }
+.chat-send-btn { width: 42px; height: 42px; border-radius: 50%; background: var(--color-primary); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 18px; transition: all var(--transition); flex-shrink: 0; }
+.chat-send-btn:hover { background: var(--color-primary-dark); }
+.chat-send-btn:disabled { opacity: .3; cursor: not-allowed; }
+
+/* ========== Modal ========== */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 1500; display: none; align-items: center; justify-content: center; }
+.modal-overlay.open { display: flex; }
+.modal { width: 520px; max-width: 94vw; background: var(--color-bg-white); border-radius: var(--radius-xl); box-shadow: var(--shadow-xl); overflow: hidden; animation: dialog-in .3s ease; }
+.modal-header { padding: 16px 20px; border-bottom: 1px solid var(--color-border); display: flex; align-items: center; justify-content: space-between; font-weight: 600; font-size: 16px; }
+.modal-body { padding: 20px; }
+.modal-footer { padding: 12px 20px; border-top: 1px solid var(--color-border); display: flex; justify-content: flex-end; gap: 8px; }
+
+/* ========== Toast ========== */
+.toast-container { position: fixed; top: 20px; right: 20px; z-index: 5000; display: flex; flex-direction: column; gap: 8px; }
+.toast { padding: 12px 20px; border-radius: var(--radius); color: #fff; font-size: 13px; font-weight: 500; box-shadow: var(--shadow-lg); animation: toast-in .3s ease; display: flex; align-items: center; gap: 8px; max-width: 400px; }
+.toast-success { background: var(--color-success); }
+.toast-error { background: var(--color-danger); }
+.toast-info { background: var(--color-primary); }
+@keyframes toast-in { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+
+/* ========== Scrollbar ========== */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+
+/* ========== Voice Wave ========== */
+.voice-wave { display: flex; gap: 2px; align-items: center; height: 20px; }
+.voice-wave span { width: 3px; background: var(--color-primary); border-radius: 2px; animation: wave .8s ease-in-out infinite; }
+.voice-wave span:nth-child(1) { height: 8px; animation-delay: 0s; }
+.voice-wave span:nth-child(2) { height: 16px; animation-delay: .1s; }
+.voice-wave span:nth-child(3) { height: 12px; animation-delay: .2s; }
+.voice-wave span:nth-child(4) { height: 20px; animation-delay: .3s; }
+.voice-wave span:nth-child(5) { height: 14px; animation-delay: .4s; }
+.voice-wave span:nth-child(6) { height: 18px; animation-delay: .5s; }
+.voice-wave span:nth-child(7) { height: 10px; animation-delay: .6s; }
+@keyframes wave { 0%,100% { transform: scaleY(1); } 50% { transform: scaleY(.4); } }
+
+/* ========== Empty State ========== */
+.empty-state { text-align: center; padding: 40px 20px; color: var(--color-text-tertiary); }
+.empty-state svg { width: 64px; height: 64px; margin-bottom: 16px; opacity: .3; }
+
+/* ========== Code block ========== */
+.code-block { background: #1a1a2e; color: #a0ffa0; padding: 12px 16px; border-radius: var(--radius); font-family: "SF Mono", Monaco, Consolas, monospace; font-size: 12px; line-height: 1.6; overflow-x: auto; margin: 8px 0; white-space: pre-wrap; }
+
+/* ========== API Key reveal ========== */
+.key-reveal { display: inline-flex; align-items: center; gap: 6px; font-family: "SF Mono", Monaco, monospace; font-size: 12px; padding: 6px 10px; background: var(--color-bg); border-radius: var(--radius); }
+.key-masked { color: var(--color-text-tertiary); }
+.key-value { color: var(--color-primary); }
+.key-copy { cursor: pointer; color: var(--color-text-secondary); font-size: 14px; padding: 2px; }
+.key-copy:hover { color: var(--color-primary); }
+
+/* ========== Tooltip ========== */
+[data-tooltip] { position: relative; }
+[data-tooltip]::after { content: attr(data-tooltip); position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%); background: var(--color-text); color: #fff; padding: 4px 10px; border-radius: var(--radius-sm); font-size: 11px; white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity .15s; }
+[data-tooltip]:hover::after { opacity: 1; }
+</style>
+</head>
+<body>
+
+<!-- ==================== APP LAYOUT ==================== -->
+<div class="app-layout">
+
+<!-- Sidebar -->
+<nav class="sidebar">
+  <div class="sidebar-nav">
+    <div class="sidebar-item" data-tooltip="Project Overview">🏠</div>
+    <div class="sidebar-item" data-tooltip="Network Management">📡</div>
+    <div class="sidebar-item" data-tooltip="EMQX Brokers">⚡</div>
+    <div class="sidebar-item" data-tooltip="EMQX Tables">🗄️</div>
+    <div class="sidebar-item active" data-tooltip="EMQX Fleets" style="color:#fff"><svg viewBox="0 0 1024 1024" style="width:22px;height:22px;fill:currentColor"><path d="M888.832 177.152h-624.64c-32.256 0-57.856 25.6-57.856 57.856s25.6 57.856 57.856 57.856h624.64c32.256 0 57.856-25.6 57.856-57.856s-25.6-57.856-57.856-57.856z m0 553.984h-624.64c-32.256 0-57.856 25.6-57.856 57.856s25.6 57.856 57.856 57.856h624.64c32.256 0 57.856-25.6 57.856-57.856s-25.6-57.856-57.856-57.856zM727.552 512c0-32.256-25.6-57.856-51.712-57.856H135.168c-32.256 0-57.856 25.6-57.856 57.856s25.6 57.856 57.856 57.856h534.528c32.256 0 57.856-25.6 57.856-57.856z"/></svg></div>
+    <div class="sidebar-item" data-tooltip="EMQX Agents">🤖</div>
+  </div>
+  <div class="sidebar-divider"></div>
+  <div class="sidebar-bottom">
+    <div class="sidebar-item" data-tooltip="Support Tickets">🎫</div>
+    <div class="sidebar-item" data-tooltip="Ask AI">💬</div>
+  </div>
+</nav>
+
+<!-- Main Content Area -->
+<div class="main-area">
+  <!-- Header -->
+  <header class="header">
+    <div class="header-logo">
+      <svg viewBox="0 0 1024 1024" style="width:26px;height:26px;fill:#5e4eff"><path d="M888.832 177.152h-624.64c-32.256 0-57.856 25.6-57.856 57.856s25.6 57.856 57.856 57.856h624.64c32.256 0 57.856-25.6 57.856-57.856s-25.6-57.856-57.856-57.856z m0 553.984h-624.64c-32.256 0-57.856 25.6-57.856 57.856s25.6 57.856 57.856 57.856h624.64c32.256 0 57.856-25.6 57.856-57.856s-25.6-57.856-57.856-57.856zM727.552 512c0-32.256-25.6-57.856-51.712-57.856H135.168c-32.256 0-57.856 25.6-57.856 57.856s25.6 57.856 57.856 57.856h534.528c32.256 0 57.856-25.6 57.856-57.856z"/></svg>
+      EMQX Cloud Console
+    </div>
+    <div class="header-breadcrumb">/ <span>All Deployments</span> / <span>dyyyyq</span> / <span class="active">Fleets</span></div>
+    <div class="header-right">
+      <div class="header-badge"><span class="dot"></span> Agent Connected</div>
+      <div class="user-avatar">T</div>
+    </div>
+  </header>
+
+  <div class="submenu-wrap">
+    <!-- Submenu -->
+    <aside class="submenu">
+      <div class="submenu-item active" onclick="switchPage('things', this)"><span class="dot"></span> Things</div>
+      <div class="submenu-item" onclick="switchPage('agent', this)"><span class="dot"></span> Agent <span class="submenu-badge">NEW</span></div>
+      <div class="submenu-category">Device Management</div>
+      <div class="submenu-item" onclick="switchPage('things', this)">Thing Types</div>
+      <div class="submenu-item" onclick="switchPage('things', this)">Thing Groups</div>
+      <div class="submenu-item" onclick="switchPage('things', this)">Device Query</div>
+      <div class="submenu-item" onclick="switchPage('things', this)">Shadow Sync</div>
+      <div class="submenu-item" onclick="switchPage('things', this)">Commands &amp; Jobs</div>
+      <div class="submenu-category">Settings</div>
+      <div class="submenu-item" onclick="switchPage('settings', this)">Deployment Settings</div>
+      <div class="submenu-item" onclick="switchPage('apikeys', this)">API Keys</div>
+    </aside>
+
+    <!-- Page Content -->
+    <main class="content">
+
+      <!-- ============ PAGE: Things ============ -->
+      <div id="page-things" class="page active">
+        <div class="page-title">
+          Things
+          <div class="page-title-actions">
+            <button class="btn btn-outline btn-sm">📥 Export</button>
+            <button class="btn btn-outline btn-sm">📤 Import</button>
+            <button class="btn btn-primary btn-sm">+ Register Thing</button>
+          </div>
+        </div>
+
+        <div class="filter-bar">
+          <select><option>Thing Type</option><option>Sensor</option><option>Gateway</option><option>Actuator</option></select>
+          <select><option>Group</option><option>Production</option><option>Staging</option></select>
+          <select><option>Tags</option></select>
+          <select style="width: 110px;"><option>Online</option><option>Offline</option><option>All</option></select>
+          <button class="btn btn-outline btn-sm">🔍</button>
+          <input placeholder="Search things..." style="width: 200px;">
+        </div>
+
+        <div class="card-grid">
+          <div class="stat-card">
+            <div class="stat-icon purple">📱</div>
+            <div><div class="stat-value">156</div><div class="stat-label">Total Things</div></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon green">🟢</div>
+            <div><div class="stat-value">142</div><div class="stat-label">Online</div></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon orange">🔴</div>
+            <div><div class="stat-value">14</div><div class="stat-label">Offline</div></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon blue">🔗</div>
+            <div><div class="stat-value">3</div><div class="stat-label">Agent-managed</div></div>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th style="width:40px;"><input type="checkbox"></th>
+              <th>Name</th>
+              <th>Thing Type</th>
+              <th style="text-align:center">Status</th>
+              <th>Tags</th>
+              <th>Agent Managed</th>
+              <th style="text-align:right">Created At</th>
+              <th style="text-align:center">Actions</th>
+            </tr></thead>
+            <tbody>
+              <tr>
+                <td><input type="checkbox"></td>
+                <td><strong>temp-sensor-01</strong></td>
+                <td>TemperatureSensor</td>
+                <td style="text-align:center"><span class="badge badge-online"><span class="status-dot"></span>Online</span></td>
+                <td><span style="font-size:11px;color:var(--color-text-tertiary)">floor-1, hvac</span></td>
+                <td><span class="badge badge-running"><span class="status-dot"></span>Yes</span></td>
+                <td style="text-align:right;color:var(--color-text-tertiary)">2025-07-10 14:22</td>
+                <td style="text-align:center"><button class="btn btn-ghost btn-sm">⋮</button></td>
+              </tr>
+              <tr>
+                <td><input type="checkbox"></td>
+                <td><strong>smart-gateway-east</strong></td>
+                <td>Gateway</td>
+                <td style="text-align:center"><span class="badge badge-online"><span class="status-dot"></span>Online</span></td>
+                <td><span style="font-size:11px;color:var(--color-text-tertiary)">building-A, edge</span></td>
+                <td><span class="badge badge-running"><span class="status-dot"></span>Yes</span></td>
+                <td style="text-align:right;color:var(--color-text-tertiary)">2025-07-08 09:15</td>
+                <td style="text-align:center"><button class="btn btn-ghost btn-sm">⋮</button></td>
+              </tr>
+              <tr>
+                <td><input type="checkbox"></td>
+                <td><strong>humidity-sensor-03</strong></td>
+                <td>HumiditySensor</td>
+                <td style="text-align:center"><span class="badge badge-online"><span class="status-dot"></span>Online</span></td>
+                <td><span style="font-size:11px;color:var(--color-text-tertiary)">floor-2</span></td>
+                <td><span class="badge badge-running"><span class="status-dot"></span>Yes</span></td>
+                <td style="text-align:right;color:var(--color-text-tertiary)">2025-07-05 16:40</td>
+                <td style="text-align:center"><button class="btn btn-ghost btn-sm">⋮</button></td>
+              </tr>
+              <tr>
+                <td><input type="checkbox"></td>
+                <td><strong>motion-detector-lobby</strong></td>
+                <td>MotionSensor</td>
+                <td style="text-align:center"><span class="badge badge-offline"><span class="status-dot"></span>Offline</span></td>
+                <td><span style="font-size:11px;color:var(--color-text-tertiary)">lobby, security</span></td>
+                <td><span>—</span></td>
+                <td style="text-align:right;color:var(--color-text-tertiary)">2025-06-28 11:05</td>
+                <td style="text-align:center"><button class="btn btn-ghost btn-sm">⋮</button></td>
+              </tr>
+              <tr>
+                <td><input type="checkbox"></td>
+                <td><strong>light-controller-07</strong></td>
+                <td>LightController</td>
+                <td style="text-align:center"><span class="badge badge-online"><span class="status-dot"></span>Online</span></td>
+                <td><span style="font-size:11px;color:var(--color-text-tertiary)">floor-3, lighting</span></td>
+                <td><span>—</span></td>
+                <td style="text-align:right;color:var(--color-text-tertiary)">2025-06-20 08:30</td>
+                <td style="text-align:center"><button class="btn btn-ghost btn-sm">⋮</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ============ PAGE: Agent ============ -->
+      <div id="page-agent" class="page">
+        <div class="page-title">
+          Agent Management
+          <div class="page-title-actions">
+            <button class="btn btn-outline btn-sm" onclick="refreshAgentInstances()">🔄 Refresh</button>
+            <button class="btn btn-primary btn-sm" onclick="showCreateInstanceModal()">+ New Instance</button>
+          </div>
+        </div>
+
+        <div class="card-grid">
+          <div class="stat-card">
+            <div class="stat-icon purple">⚙️</div>
+            <div><div class="stat-value" id="agent-total">3</div><div class="stat-label">Total Instances</div></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon green">▶️</div>
+            <div><div class="stat-value" id="agent-running">2</div><div class="stat-label">Running</div></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon orange">⏸️</div>
+            <div><div class="stat-value" id="agent-stopped">1</div><div class="stat-label">Stopped</div></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon blue">📡</div>
+            <div><div class="stat-value" id="agent-devices">156</div><div class="stat-label">Connected Devices</div></div>
+          </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tabs">
+          <div class="tab active" onclick="switchAgentTab('instances', this)">Instances</div>
+          <div class="tab" onclick="switchAgentTab('logs', this)">Service Logs</div>
+        </div>
+
+        <!-- Instances -->
+        <div id="agent-tab-instances">
+          <div class="instance-list" id="agent-instance-list">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+
+        <!-- Logs (hidden by default) -->
+        <div id="agent-tab-logs" style="display:none;">
+          <div class="card">
+            <div class="code-block" style="max-height:400px;overflow-y:auto;">
+<span style="color:#999;">2025-07-15T10:23:01.234Z</span> <span style="color:#5ac8fa;">INFO</span>  gateway started on port 3000
+<span style="color:#999;">2025-07-15T10:23:01.456Z</span> <span style="color:#5ac8fa;">INFO</span>  MQTT connected to broker at mqtt://emqx:1883
+<span style="color:#999;">2025-07-15T10:23:02.001Z</span> <span style="color:#5ac8fa;">INFO</span>  WebSocket voice channel on port 3001
+<span style="color:#999;">2025-07-15T10:23:02.345Z</span> <span style="color:#5ac8fa;">INFO</span>  Fleets IoT platform provider initialized (fleets v1)
+<span style="color:#999;">2025-07-15T10:23:03.100Z</span> <span style="color:#5ac8fa;">INFO</span>  AI agent loaded: claude-sonnet-4-5 (anthropic)
+<span style="color:#999;">2025-07-15T10:23:03.200Z</span> <span style="color:#5ac8fa;">INFO</span>  Product "TemperatureSensor" synced from Fleets (12 devices)
+<span style="color:#999;">2025-07-15T10:23:03.300Z</span> <span style="color:#5ac8fa;">INFO</span>  Product "Gateway" synced from Fleets (8 devices)
+<span style="color:#999;">2025-07-15T10:23:03.400Z</span> <span style="color:#5ac8fa;">INFO</span>  Agent card published to marketplace
+<span style="color:#999;">2025-07-15T10:24:15.678Z</span> <span style="color:#ff9500;">WARN</span>  Device temp-sensor-01: temperature threshold exceeded (35.2°C)
+<span style="color:#999;">2025-07-15T10:25:00.001Z</span> <span style="color:#5ac8fa;">INFO</span>  Workflow "auto-cooling" triggered for thing temp-sensor-01
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============ PAGE: Settings ============ -->
+      <div id="page-settings" class="page">
+        <div class="page-title">Deployment Settings</div>
+
+        <div class="tabs">
+          <div class="tab active" onclick="switchSettingsTab('general', this)">General</div>
+          <div class="tab" onclick="switchSettingsTab('agent', this)">Agent <span style="font-size:10px;background:var(--color-primary);color:#fff;padding:1px 6px;border-radius:8px;margin-left:4px;">NEW</span></div>
+          <div class="tab" onclick="switchSettingsTab('emqx', this)">EMQX Broker</div>
+        </div>
+
+        <!-- General Settings -->
+        <div id="settings-tab-general" style="max-width:640px;">
+          <div class="card">
+            <div class="card-header">Fleet Setup</div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">MQTT Device Auth Mode</label>
+                <select class="form-input"><option>password</option><option>mtls</option></select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Device Limit</label>
+                <input class="form-input" type="number" value="-1" placeholder="-1 = unlimited">
+              </div>
+            </div>
+          </div>
+          <div class="card" style="margin-top:16px;">
+            <div class="card-header">HTTPS</div>
+            <div class="form-group">
+              <label class="form-label">External Address</label>
+              <input class="form-input" value="https://fleets.example.com:8443" placeholder="https://...">
+            </div>
+          </div>
+        </div>
+
+        <!-- Agent Settings -->
+        <div id="settings-tab-agent" style="display:none;max-width:720px;">
+          <div class="card">
+            <div class="card-header">
+              <span>Agent Connection</span>
+              <span class="badge badge-online"><span class="status-dot"></span>Connected</span>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Agent API Endpoint</label>
+                <input class="form-input" value="https://agent-lb.example.com/api" placeholder="https://...">
+                <div class="form-hint">Load Balancer endpoint for Agent HTTP API</div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Agent WebSocket Endpoint</label>
+                <input class="form-input" value="wss://agent-lb.example.com/ws" placeholder="wss://...">
+                <div class="form-hint">Load Balancer endpoint for Agent WebSocket (voice channel)</div>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Agent API Port</label>
+                <input class="form-input" type="number" value="3000">
+                <div class="form-hint">Agent HTTP API listen port on each instance</div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Agent WebSocket Port</label>
+                <input class="form-input" type="number" value="3001">
+                <div class="form-hint">Agent WebSocket listen port on each instance</div>
+              </div>
+            </div>
+            <button class="btn btn-primary">Save Agent Settings</button>
+          </div>
+
+          <div class="card" style="margin-top:16px;">
+            <div class="card-header">API Key Validation for Agent</div>
+            <div class="form-group">
+              <label class="form-label">Fleets API Key used by Agent</label>
+              <div class="key-reveal">
+                <span class="key-masked" id="apikey-display">fleet-key-****a8f2</span>
+                <button class="key-copy" onclick="toggleApiKey()" id="apikey-toggle">👁️</button>
+              </div>
+            </div>
+            <div style="display:flex;gap:10px;">
+              <button class="btn btn-outline btn-sm" onclick="validateDAKey()">🔍 Validate API Key</button>
+              <span id="key-validation-result" style="font-size:12px;display:flex;align-items:center;"></span>
+            </div>
+            <div class="form-hint" style="margin-top:8px;">
+              Agent instances use Fleets API Key for authentication.<br>
+              The key must have permissions: GET /api/v1/things, POST /api/v1/things/*, GET /api/v1/thing-types
+            </div>
+          </div>
+        </div>
+
+        <!-- EMQX Broker Settings -->
+        <div id="settings-tab-emqx" style="display:none;max-width:640px;">
+          <div class="card">
+            <div class="card-header">EMQX Connection</div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">API URL</label>
+                <input class="form-input" value="http://localhost:18083">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Fleets Callback URL</label>
+                <input class="form-input" value="http://fleets:8080">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">API Key</label>
+                <input class="form-input" value="••••••••" type="password">
+              </div>
+              <div class="form-group">
+                <label class="form-label">API Secret</label>
+                <input class="form-input" value="••••••••" type="password">
+              </div>
+            </div>
+            <button class="btn btn-primary">Save EMQX Settings</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============ PAGE: API Keys ============ -->
+      <div id="page-apikeys" class="page">
+        <div class="page-title">
+          API Keys
+          <div class="page-title-actions">
+            <button class="btn btn-primary btn-sm" onclick="showCreateKeyModal()">+ Create API Key</button>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>Name</th>
+              <th>API Key</th>
+              <th>Permissions</th>
+              <th>Agent Scoped</th>
+              <th style="text-align:right">Created At</th>
+              <th style="text-align:center">Actions</th>
+            </tr></thead>
+            <tbody>
+              <tr>
+                <td><strong>agent-key</strong></td>
+                <td><code style="background:var(--color-bg);padding:2px 6px;border-radius:3px;font-size:12px;">fleet-key-a1b2c3d4e5f6a8f2</code></td>
+                <td><span style="font-size:11px;">GET,POST /api/v1/things<br>GET /api/v1/thing-types<br>GET,POST /api/v1/agent/*</span></td>
+                <td><span class="badge badge-running"><span class="status-dot"></span>Yes</span></td>
+                <td style="text-align:right;color:var(--color-text-tertiary)">2025-07-01 10:00</td>
+                <td style="text-align:center">
+                  <button class="btn btn-ghost btn-sm" onclick="rotateKey('agent-key')">🔄</button>
+                  <button class="btn btn-ghost btn-sm">🗑️</button>
+                </td>
+              </tr>
+              <tr>
+                <td><strong>readonly-key</strong></td>
+                <td><code style="background:var(--color-bg);padding:2px 6px;border-radius:3px;font-size:12px;">fleet-key-x9y8z7w6v5u4t3s2</code></td>
+                <td><span style="font-size:11px;">GET /api/v1/things/*</span></td>
+                <td><span>—</span></td>
+                <td style="text-align:right;color:var(--color-text-tertiary)">2025-06-15 14:30</td>
+                <td style="text-align:center">
+                  <button class="btn btn-ghost btn-sm">🔄</button>
+                  <button class="btn btn-ghost btn-sm">🗑️</button>
+                </td>
+              </tr>
+              <tr>
+                <td><strong>admin-key</strong></td>
+                <td><code style="background:var(--color-bg);padding:2px 6px;border-radius:3px;font-size:12px;">fleet-key-m1n2b3v4c5x6z7l8</code></td>
+                <td><span style="font-size:11px;">* /api/v1/*</span></td>
+                <td><span>—</span></td>
+                <td style="text-align:right;color:var(--color-text-tertiary)">2025-05-20 08:00</td>
+                <td style="text-align:center">
+                  <button class="btn btn-ghost btn-sm">🔄</button>
+                  <button class="btn btn-ghost btn-sm">🗑️</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+</div><!-- /app-layout -->
+
+<!-- ==================== FLOATING CHAT BUTTON ==================== -->
+<button class="chat-fab" id="chat-fab" onclick="toggleChat()" title="Open AI Agent">
+  <span class="chat-fab-pulse"></span>
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="8" r=".5"/></svg>
+  <span class="chat-fab-badge">3</span>
+</button>
+
+<div class="chat-tooltip" id="chat-tooltip">Ask AI Agent about your devices</div>
+
+<!-- ==================== CHAT DIALOG ==================== -->
+<div class="chat-overlay" id="chat-overlay">
+  <div class="chat-dialog">
+    <div class="chat-dialog-header">
+      <div class="chat-dialog-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        Fleets Agent · <span id="chat-context-label" style="font-size:12px;color:var(--color-text-secondary);font-weight:400;">Things</span>
+      </div>
+      <button class="chat-dialog-close" onclick="toggleChat()">✕</button>
+    </div>
+
+    <div class="chat-body" id="chat-body">
+      <!-- Context-aware welcome -->
+      <div class="chat-context" id="chat-context-bar">
+        <span class="chat-context-tag" id="chat-context-tag">📱 Things</span>
+        <span class="chat-context-hint">Try:</span>
+        <a onclick="sendQuickPrompt('Show me all online temperature sensors')">"Show all online temperature sensors"</a>
+        <a onclick="sendQuickPrompt('What is the status of temp-sensor-01?')">"Check temp-sensor-01"</a>
+      </div>
+
+      <div class="chat-msg agent">
+        <div class="chat-msg-avatar">A</div>
+        <div class="chat-msg-bubble">
+          👋 Hello! I'm the <strong>Fleets Agent</strong>, integrated with Fleets.<br><br>
+          You're currently on the <strong>Things</strong> page. I can help you:<br>
+          • Query device status and telemetry<br>
+          • Send commands to devices<br>
+          • Analyze device data patterns<br>
+          • Manage Agent instances<br><br>
+          <span style="color:var(--color-text-secondary);font-size:11px;">💡 Click the quick prompts above or type your question below.</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="chat-input-area">
+      <div class="chat-quick-prompts" id="chat-quick-prompts">
+        <!-- Populated dynamically based on active tab -->
+      </div>
+      <div class="chat-input-row">
+        <textarea class="chat-input" id="chat-input" placeholder="Type your message..." rows="1" onkeydown="handleChatKeydown(event)"></textarea>
+        <button class="chat-voice-btn" id="chat-voice-btn" onclick="toggleVoiceInput()" data-tooltip="Voice Input">🎤</button>
+        <button class="chat-send-btn" id="chat-send-btn" onclick="sendMessage()" disabled>➤</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== MODAL: Create Agent Instance ==================== -->
+<div class="modal-overlay" id="modal-create-instance">
+  <div class="modal">
+    <div class="modal-header">
+      Create New Agent Instance
+      <button class="chat-dialog-close" onclick="closeModal('modal-create-instance')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Instance Name</label>
+        <input class="form-input" id="new-instance-name" placeholder="e.g. agent-instance-04" value="agent-instance-04">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Region</label>
+          <select class="form-input" id="new-instance-region">
+            <option>us-east-1</option>
+            <option>eu-west-1</option>
+            <option>ap-southeast-1</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Instance Type</label>
+          <select class="form-input" id="new-instance-type">
+            <option>small (1 CPU, 2GB)</option>
+            <option>medium (2 CPU, 4GB)</option>
+            <option>large (4 CPU, 8GB)</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-create-instance')">Cancel</button>
+      <button class="btn btn-primary" onclick="createInstance()">Create Instance</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== MODAL: Create API Key ==================== -->
+<div class="modal-overlay" id="modal-create-key">
+  <div class="modal">
+    <div class="modal-header">
+      Create API Key
+      <button class="chat-dialog-close" onclick="closeModal('modal-create-key')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Key Name</label>
+        <input class="form-input" placeholder="e.g. agent-key-v2">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Permissions (method -> path prefix)</label>
+        <textarea class="form-input" rows="4" placeholder='{"GET":["/api/v1/things"],"POST":["/api/v1/things/*"]}' style="font-family:monospace;font-size:12px;">{
+  "GET": ["/api/v1/things", "/api/v1/thing-types", "/api/v1/agent/*"],
+  "POST": ["/api/v1/things/*", "/api/v1/agent/*"],
+  "PUT": ["/api/v1/agent/*"],
+  "DELETE": ["/api/v1/agent/*"]
+}</textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">
+          <input type="checkbox" checked> Enable Agent scoped permissions
+        </label>
+        <span class="form-hint">Allows this key to access Agent management APIs</span>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-create-key')">Cancel</button>
+      <button class="btn btn-primary" onclick="createApiKey()">Create</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== TOAST CONTAINER ==================== -->
+<div class="toast-container" id="toast-container"></div>
+
+<!-- ==================== SCRIPTS ==================== -->
+<script>
+// ============ Data Store ============
+const agentInstances = [
+  { id: 'agent-instance-01', name: 'agent-instance-01', status: 'running', region: 'us-east-1', type: 'medium', apiPort: 3000, wsPort: 3001, devices: 68, uptime: '3d 14h', version: 'v0.3.0' },
+  { id: 'agent-instance-02', name: 'agent-instance-02', status: 'running', region: 'eu-west-1', type: 'medium', apiPort: 3000, wsPort: 3001, devices: 52, uptime: '7d 2h', version: 'v0.3.0' },
+  { id: 'agent-instance-03', name: 'agent-instance-03', status: 'stopped', region: 'ap-southeast-1', type: 'small', apiPort: 3000, wsPort: 3001, devices: 36, uptime: '—', version: 'v0.3.0' },
+];
+
+// ============ Page Navigation ============
+function switchPage(pageName, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + pageName).classList.add('active');
+  document.querySelectorAll('.submenu-item').forEach(i => i.classList.remove('active'));
+  if (el) el.closest('.submenu-item').classList.add('active');
+  updateChatContext();
+}
+
+// ============ Agent Tab Navigation ============
+function switchAgentTab(tabName, el) {
+  document.querySelectorAll('#page-agent .tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('agent-tab-instances').style.display = tabName === 'instances' ? '' : 'none';
+  document.getElementById('agent-tab-logs').style.display = tabName === 'logs' ? '' : 'none';
+}
+
+function switchSettingsTab(tabName, el) {
+  document.querySelectorAll('#page-settings .tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('settings-tab-general').style.display = tabName === 'general' ? '' : 'none';
+  document.getElementById('settings-tab-agent').style.display = tabName === 'agent' ? '' : 'none';
+  document.getElementById('settings-tab-emqx').style.display = tabName === 'emqx' ? '' : 'none';
+}
+
+// ============ Agent Instance Management ============
+function renderAgentInstances() {
+  const container = document.getElementById('agent-instance-list');
+  container.innerHTML = agentInstances.map(inst => `
+    <div class="instance-card">
+      <div class="instance-card-header">
+        <div>
+          <div class="instance-name">${inst.name}</div>
+          <div class="instance-id">${inst.id}</div>
+        </div>
+        <span class="badge ${inst.status === 'running' ? 'badge-running' : 'badge-stopped'}">
+          <span class="status-dot"></span>${inst.status === 'running' ? 'Running' : 'Stopped'}
+        </span>
+      </div>
+      <div class="instance-meta">
+        <div class="instance-meta-item"><label>Region</label><span class="val">${inst.region}</span></div>
+        <div class="instance-meta-item"><label>Type</label><span class="val">${inst.type}</span></div>
+        <div class="instance-meta-item"><label>API Port</label><span class="val">${inst.apiPort}</span></div>
+        <div class="instance-meta-item"><label>WS Port</label><span class="val">${inst.wsPort}</span></div>
+        <div class="instance-meta-item"><label>Devices</label><span class="val">${inst.devices}</span></div>
+        <div class="instance-meta-item"><label>Version</label><span class="val">${inst.version}</span></div>
+      </div>
+      <div class="instance-card-footer">
+        ${inst.status === 'running'
+          ? `<button class="btn btn-danger btn-sm" onclick="stopInstance('${inst.id}')">⏹ Stop</button>
+             <button class="btn btn-outline btn-sm" onclick="restartInstance('${inst.id}')">🔄 Restart</button>`
+          : `<button class="btn btn-success btn-sm" onclick="startInstance('${inst.id}')">▶ Start</button>`
+        }
+        <button class="btn btn-outline btn-sm" onclick="viewInstanceLogs('${inst.id}')">📋 Logs</button>
+        <button class="btn btn-ghost btn-sm" style="margin-left:auto;" onclick="deleteInstance('${inst.id}')">🗑️</button>
+      </div>
+    </div>
+  `).join('');
+
+  updateAgentStats();
+}
+
+function updateAgentStats() {
+  const running = agentInstances.filter(i => i.status === 'running').length;
+  const stopped = agentInstances.filter(i => i.status === 'stopped').length;
+  const totalDevices = agentInstances.reduce((sum, i) => sum + i.devices, 0);
+  document.getElementById('agent-total').textContent = agentInstances.length;
+  document.getElementById('agent-running').textContent = running;
+  document.getElementById('agent-stopped').textContent = stopped;
+  document.getElementById('agent-devices').textContent = totalDevices;
+}
+
+function startInstance(id) {
+  const inst = agentInstances.find(i => i.id === id);
+  if (inst) { inst.status = 'running'; inst.uptime = '0m'; }
+  renderAgentInstances();
+  showToast('success', `✅ Instance ${id} started successfully`);
+}
+
+function stopInstance(id) {
+  const inst = agentInstances.find(i => i.id === id);
+  if (inst) { inst.status = 'stopped'; }
+  renderAgentInstances();
+  showToast('info', `⏸️ Instance ${id} stopped`);
+}
+
+function restartInstance(id) {
+  const inst = agentInstances.find(i => i.id === id);
+  if (inst) showToast('info', `🔄 Restarting instance ${id}...`);
+  setTimeout(() => showToast('success', `✅ Instance ${id} restarted`), 1000);
+}
+
+function deleteInstance(id) {
+  const idx = agentInstances.findIndex(i => i.id === id);
+  if (idx !== -1) agentInstances.splice(idx, 1);
+  renderAgentInstances();
+  showToast('info', `🗑️ Instance ${id} removed`);
+}
+
+function viewInstanceLogs(id) {
+  switchAgentTab('logs', document.querySelectorAll('#page-agent .tab')[1]);
+  showToast('info', `📋 Showing logs for ${id}`);
+}
+
+function refreshAgentInstances() {
+  showToast('info', '🔄 Refreshing instances...');
+  setTimeout(() => showToast('success', '✅ Instances refreshed'), 600);
+}
+
+function showCreateInstanceModal() {
+  document.getElementById('modal-create-instance').classList.add('open');
+}
+
+function createInstance() {
+  const name = document.getElementById('new-instance-name').value || 'agent-instance-new';
+  const region = document.getElementById('new-instance-region').value;
+  const type = document.getElementById('new-instance-type').value;
+  const id = name.toLowerCase().replace(/\s+/g, '-');
+  agentInstances.push({ id, name, status: 'running', region, type: type.split(' ')[0], apiPort: 3000, wsPort: 3001, devices: 0, uptime: '0m', version: 'v0.3.0' });
+  renderAgentInstances();
+  closeModal('modal-create-instance');
+  showToast('success', `✅ Instance "${name}" created and started`);
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+
+// ============ API Key ============
+function toggleApiKey() {
+  const display = document.getElementById('apikey-display');
+  const btn = document.getElementById('apikey-toggle');
+  if (display.classList.contains('key-masked')) {
+    display.classList.remove('key-masked');
+    display.classList.add('key-value');
+    display.textContent = 'fleet-key-a1b2c3d4e5f6a8f2';
+    btn.textContent = '🙈';
+  } else {
+    display.classList.add('key-masked');
+    display.classList.remove('key-value');
+    display.textContent = 'fleet-key-****a8f2';
+    btn.textContent = '👁️';
+  }
+}
+
+function validateDAKey() {
+  const result = document.getElementById('key-validation-result');
+  result.innerHTML = '<span style="color:var(--color-warning)">⏳ Validating...</span>';
+  setTimeout(() => {
+    result.innerHTML = `
+      <span class="badge badge-online" style="margin-right:8px;"><span class="status-dot"></span>Valid</span>
+      <span style="font-size:12px;color:var(--color-text-secondary)">
+        Scopes: GET /api/v1/things, GET /api/v1/thing-types, GET/POST/PUT/DELETE /api/v1/agent/*
+      </span>
+    `;
+    showToast('success', '✅ API Key validated — Agent access confirmed');
+  }, 800);
+}
+
+function rotateKey(name) {
+  showToast('info', `🔄 Rotating secret for ${name}...`);
+  setTimeout(() => showToast('success', `✅ New secret generated for ${name}`), 500);
+}
+
+function showCreateKeyModal() {
+  document.getElementById('modal-create-key').classList.add('open');
+}
+
+function createApiKey() {
+  closeModal('modal-create-key');
+  showToast('success', '✅ API Key created: fleet-key-xxxx');
+}
+
+// ============ Chat System ============
+let chatOpen = false;
+let isRecording = false;
+let currentPage = 'things';
+
+function toggleChat() {
+  chatOpen = !chatOpen;
+  document.getElementById('chat-overlay').classList.toggle('open', chatOpen);
+  document.getElementById('chat-fab').style.display = chatOpen ? 'none' : 'flex';
+  if (chatOpen) {
+    updateChatContext();
+    setTimeout(() => document.getElementById('chat-input').focus(), 300);
+  }
+}
+
+function updateChatContext() {
+  const activePage = document.querySelector('.page.active');
+  if (!activePage) return;
+  let pageName = 'Things';
+  if (activePage.id === 'page-agent') pageName = 'Agent';
+  else if (activePage.id === 'page-settings') pageName = 'Settings';
+  else if (activePage.id === 'page-apikeys') pageName = 'API Keys';
+  else if (activePage.id === 'page-things') pageName = 'Things';
+  currentPage = pageName;
+
+  document.getElementById('chat-context-label').textContent = pageName;
+  document.getElementById('chat-context-tag').textContent = getPageIcon(pageName) + ' ' + pageName;
+
+  const prompts = getQuickPrompts(pageName);
+  document.getElementById('chat-quick-prompts').innerHTML = prompts.map(p =>
+    `<span class="chat-quick-prompt" onclick="sendQuickPrompt('${p}')">${p}</span>`
+  ).join('');
+
+  document.getElementById('chat-context-bar').innerHTML = `
+    <span class="chat-context-tag" id="chat-context-tag">${getPageIcon(pageName)} ${pageName}</span>
+    <span class="chat-context-hint">Try:</span>
+    ${prompts.slice(0, 2).map(p => `<a onclick="sendQuickPrompt('${p}')">"${p}"</a>`).join('')}
+  `;
+}
+
+function getPageIcon(page) {
+  const icons = { 'Things': '📱', 'Agent': '🤖', 'Settings': '⚙️', 'API Keys': '🔑' };
+  return icons[page] || '📄';
+}
+
+function getQuickPrompts(page) {
+  const promptSets = {
+    'Things': [
+      'Show all online temperature sensors',
+      'What is the status of temp-sensor-01?',
+      'List devices that went offline in the last 24 hours',
+      'Which devices have low battery?',
+    ],
+    'Agent': [
+      'How many Agent instances are running?',
+      'Start agent-instance-03',
+      'Scale up Agent to 5 instances',
+      'Show Agent instance logs for errors',
+    ],
+    'Settings': [
+      'What is the current Agent API endpoint?',
+      'Validate the Agent API key',
+      'Show current EMQX broker connection status',
+      'What HTTPS settings are configured?',
+    ],
+    'API Keys': [
+      'List all Agent-scoped API keys',
+      'Create a new API key for Agent',
+      'Rotate the agent-key secret',
+      'Show permissions for admin-key',
+    ],
+  };
+  return promptSets[page] || promptSets['Things'];
+}
+
+function sendQuickPrompt(text) {
+  document.getElementById('chat-input').value = text;
+  sendMessage();
+}
+
+function handleChatKeydown(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+  const input = document.getElementById('chat-input');
+  const btn = document.getElementById('chat-send-btn');
+  btn.disabled = !input.value.trim();
+}
+
+function sendMessage() {
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  document.getElementById('chat-send-btn').disabled = true;
+
+  appendMessage('user', text);
+  showTyping();
+
+  setTimeout(() => {
+    removeTyping();
+    const response = generateResponse(text);
+    appendMessage('agent', response);
+  }, 1000 + Math.random() * 1500);
+}
+
+function generateResponse(text) {
+  const lower = text.toLowerCase();
+
+  if (lower.includes('online') && (lower.includes('temperature') || lower.includes('sensor'))) {
+    return `Here are the <strong>online temperature sensors</strong>:<br><br>
+<strong>temp-sensor-01</strong> · Online · 24.5°C · floor-1 · Battery 92%<br>
+<strong>temp-sensor-02</strong> · Online · 23.8°C · floor-1 · Battery 88%<br>
+<strong>temp-sensor-04</strong> · Online · 25.1°C · floor-2 · Battery 95%<br>
+<strong>temp-sensor-07</strong> · Online · 22.0°C · floor-3 · Battery 76%<br><br>
+<em>4 out of 8 temperature sensors are online. Would you like me to check the offline ones?</em>`;
+  }
+
+  if (lower.includes('temp-sensor-01') || lower.includes('status of temp')) {
+    return `<strong>temp-sensor-01</strong> status:<br><br>
+🟢 <strong>Online</strong> · Last seen: 2 minutes ago<br>
+🌡️ Temperature: 24.5°C (normal range 20-30°C)<br>
+💧 Humidity: 58%<br>
+🔋 Battery: 92%<br>
+📡 Signal: -48 dBm (excellent)<br>
+🏷️ Tags: floor-1, hvac<br>
+🤖 <strong>Agent-managed</strong>: Yes (agent-instance-01)<br><br>
+<em>Device is healthy. No alerts.</em>`;
+  }
+
+  if (lower.includes('agent instance') || lower.includes('how many agent')) {
+    return `Currently <strong>${agentInstances.length} Agent instances</strong>:<br><br>
+${agentInstances.map(i => `• <strong>${i.name}</strong> — ${i.status === 'running' ? '🟢 Running' : '🔴 Stopped'} (${i.region}, ${i.devices} devices)`)
+.join('<br>')}<br><br>
+<em>Would you like me to start, stop, or scale any instances?</em>`;
+  }
+
+  if (lower.includes('start') && lower.includes('agent-instance')) {
+    const match = lower.match(/agent-instance-0?3/);
+    if (match && match[0] === 'agent-instance-03') {
+      startInstance('agent-instance-03');
+      return `✅ <strong>agent-instance-03</strong> has been started successfully.<br><br>
+🟢 Status: Running<br>
+📍 Region: ap-southeast-1<br>
+📡 API Port: 3000<br>
+🔊 WebSocket Port: 3001<br>
+🔗 Connected Devices: 36<br><br>
+<em>Instance is now ready to process device requests.</em>`;
+    }
+  }
+
+  if (lower.includes('scale') || lower.includes('5 instances')) {
+    return `📊 <strong>Scaling Agent</strong>:<br><br>
+Current: 3 instances → Target: 5 instances<br><br>
+<em>Action plan:</em><br>
+1. ✅ Validated capacity: 5 medium instances available<br>
+2. ⏳ Provisioning agent-instance-04 (us-east-1)<br>
+3. ⏳ Provisioning agent-instance-05 (eu-west-1)<br><br>
+<em>Estimated time: 2-3 minutes. I can create these instances now — would you like me to proceed?</em>`;
+  }
+
+  if (lower.includes('validate') && (lower.includes('key') || lower.includes('api'))) {
+    validateDAKey();
+    return `🔍 <strong>API Key Validation Result</strong>:<br><br>
+✅ Key: <code>fleet-key-a1b2c3d4e5f6a8f2</code> — <strong>Valid</strong><br>
+📋 Scopes confirmed:<br>
+• GET /api/v1/things<br>
+• GET /api/v1/thing-types<br>
+• GET,POST,PUT,DELETE /api/v1/agent/*<br><br>
+<em>This key has full Agent management access.</em>`;
+  }
+
+  if (lower.includes('broker') || lower.includes('emqx connection')) {
+    return `🔌 <strong>EMQX Broker Status</strong>:<br><br>
+🟢 Connected to <code>mqtt://emqx:1883</code><br>
+📊 Broker Version: EMQX 5.8.0<br>
+🔗 Fleets Rules Configured: 8/8<br>
+📡 TSDB Connected: Yes (pg_wire:4003)<br>
+🔐 MQTT Auth Mode: password<br><br>
+<em>All Fleets-owned connectors and rules are healthy.</em>`;
+  }
+
+  if (lower.includes('hello') || lower.includes('hi') || lower.includes('hey')) {
+    return `Hello! 👋 How can I help you with your Fleets Agent setup today?<br><br>
+I can help with device queries, Agent instance management, API key validation, and more. Just ask!`;
+  }
+
+  return `I understand you're asking about "<em>${text}</em>" in the context of <strong>${currentPage}</strong>.<br><br>
+Here's what I can do:<br>
+• 📱 Query device status, telemetry, and events<br>
+• 🤖 Manage Agent instances (start/stop/scale)<br>
+• 🔑 Validate and manage API keys<br>
+• ⚙️ Check deployment settings<br><br>
+<em>Could you provide more details or try one of the quick prompts above?</em>`;
+}
+
+function appendMessage(role, text) {
+  const body = document.getElementById('chat-body');
+  const div = document.createElement('div');
+  div.className = `chat-msg ${role}`;
+  div.innerHTML = `
+    <div class="chat-msg-avatar">${role === 'user' ? 'U' : 'A'}</div>
+    <div class="chat-msg-bubble">${text}</div>
+  `;
+  body.appendChild(div);
+  body.scrollTop = body.scrollHeight;
+}
+
+function showTyping() {
+  const body = document.getElementById('chat-body');
+  const div = document.createElement('div');
+  div.className = 'chat-msg agent';
+  div.id = 'typing-indicator';
+  div.innerHTML = `
+    <div class="chat-msg-avatar">A</div>
+    <div class="chat-msg-bubble">
+      <div class="chat-typing"><span></span><span></span><span></span></div>
+    </div>
+  `;
+  body.appendChild(div);
+  body.scrollTop = body.scrollHeight;
+}
+
+function removeTyping() {
+  const el = document.getElementById('typing-indicator');
+  if (el) el.remove();
+}
+
+function toggleVoiceInput() {
+  const btn = document.getElementById('chat-voice-btn');
+  isRecording = !isRecording;
+  if (isRecording) {
+    btn.classList.add('recording');
+    btn.textContent = '⏹';
+    btn.setAttribute('data-tooltip', 'Stop Recording');
+    showToast('info', '🎤 Recording... (demo: will auto-transcribe in 3s)');
+    setTimeout(() => {
+      document.getElementById('chat-input').value = 'Show me all online temperature sensors';
+      document.getElementById('chat-send-btn').disabled = false;
+      toggleVoiceInput();
+      showToast('success', '✅ Voice transcribed');
+    }, 3000);
+  } else {
+    btn.classList.remove('recording');
+    btn.textContent = '🎤';
+    btn.setAttribute('data-tooltip', 'Voice Input');
+  }
+}
+
+// ============ Toast ============
+function showToast(type, message) {
+  const container = document.getElementById('toast-container');
+  const toast = document.createElement('div');
+  toast.className = `toast toast-${type}`;
+  toast.textContent = message;
+  container.appendChild(toast);
+  setTimeout(() => { toast.remove(); }, 3000);
+}
+
+// ============ Chat input live enable ============
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('chat-input').addEventListener('input', function() {
+    document.getElementById('chat-send-btn').disabled = !this.value.trim();
+  });
+  document.getElementById('chat-input').addEventListener('keydown', handleChatKeydown);
+});
+
+// ============ Init ============
+renderAgentInstances();
+
+// Show tooltip briefly on load
+setTimeout(() => {
+  document.getElementById('chat-tooltip').classList.add('visible');
+  setTimeout(() => document.getElementById('chat-tooltip').classList.remove('visible'), 5000);
+}, 1000);
+</script>
+</body>
+</html>
