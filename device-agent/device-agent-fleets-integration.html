@@ -138,8 +138,8 @@
   <div class="tags" role="list">
     <span role="listitem">📦 DA 设备 SDK → Fleets 规范</span>
     <span role="listitem">🤖 DA AI 功能适配 Fleets 协议</span>
-    <span role="listitem">🔗 同享 EMQX Broker</span>
-    <span role="listitem">🎮 双端控制 · 独立互不冲突</span>
+    <span role="listitem">🔗 DA 经 Fleets API 控制设备</span>
+    <span role="listitem">🎮 统一经 Fleets 下发</span>
   </div>
 </div>
 
@@ -148,7 +148,7 @@
   <button class="tab-btn active" role="tab" aria-selected="true" aria-controls="tab-overview" data-tab="tab-overview">📋 总体概览</button>
   <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-sdk" data-tab="tab-sdk">📦 SDK 生成</button>
   <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-dataflow" data-tab="tab-dataflow">🔄 数据流</button>
-  <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-control" data-tab="tab-control">🎮 双端控制</button>
+  <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-control" data-tab="tab-control">🎮 设备控制</button>
   <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-roadmap" data-tab="tab-roadmap">🗺️ 实施路线</button>
   <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-native" data-tab="tab-native">🏠 原生协议</button>
   <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-abstraction" data-tab="tab-abstraction">🔌 跨平台抽象</button>
@@ -165,7 +165,7 @@
     <h2 class="section-title">🎯 定位与边界</h2>
     <div class="info blue">
       <strong>核心定位：</strong> Device Agent 是 IoT 智能应用层，Fleets 是设备管理层。两者是互补关系，不是替代关系。
-      DA 利用 Fleets 的 ThingType Schema 生成兼容的设备 SDK，同时 DA 的 AI 功能通过 Fleets 的 MQTT 主题与设备通信。
+      DA 利用 Fleets 的 ThingType Schema 生成兼容的设备 SDK，同时 DA 的 AI 功能经 Fleets API 与设备通信（不再直连 MQTT）。
     </div>
 
     <div class="two">
@@ -197,13 +197,13 @@
       <strong>集成原则 — 三不碰：</strong>
       ① <strong>DA 不碰</strong> Fleets 的设备注册、鉴权、Shadow 持久化；
       ② <strong>Fleets 不碰</strong> DA 的 AI 会话、SDK 生成、NL 控制；
-      ③ <strong>设备不感知</strong> 谁在下发指令 —— 所有通信通过同一套 <code>$emqx/</code> 主题。
+      ③ <strong>设备不感知</strong> 谁在下发指令 —— 所有下行经 Fleets 统一经 <code>$emqx/</code> 主题送达。
     </div>
   </div>
 
   <div class="section">
     <h2 class="section-title">🏛️ 整体架构</h2>
-    <div class="section-desc">设备通过 EMQX Broker 与 Fleets 和 Device Agent 同时通信。Fleets 管理设备生命周期与影子状态，DA 提供 AI 智能层。两者共用同一套 MQTT 主题规范。</div>
+    <div class="section-desc">设备通过 EMQX Broker 与 Fleets 通信（Fleets 代管 MQTT 通道）。DA 作为 AI 智能层，统一经 Fleets API 与设备交互（读取状态、下发控制），不再直连 EMQX。</div>
 
     <div class="arch-fig">
       <svg viewBox="0 0 1100 620" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
@@ -273,16 +273,12 @@
         <text x="300" y="380" text-anchor="start" font-size="9" fill="#f9ab00" font-weight="600">Subscribe: desired, delta,</text>
         <text x="300" y="395" text-anchor="start" font-size="9" fill="#f9ab00" font-weight="600">command/request, jobs/notify</text>
 
-        <!-- ===== Arrows: DA ↔ EMQX ===== -->
-        <path d="M740,100 L620,100 L620,200" stroke="#7b1fa2" stroke-width="1.8" fill="none" marker-end="url(#arP)"/>
-        <text x="680" y="92" text-anchor="middle" font-size="10" fill="#7b1fa2" font-weight="600">订阅设备消息 · 发布命令</text>
+        <!-- ===== Arrows: DA → Fleets API（元数据 + 控制，不再直连 EMQX） ===== -->
+        <path d="M740,60 L310,60" stroke="#7b1fa2" stroke-width="1.8" fill="none" marker-end="url(#arP)"/>
+        <text x="525" y="52" text-anchor="middle" font-size="9" fill="#7b1fa2">拉取 ThingType / 经 API 下发控制</text>
 
-        <path d="M620,270 L740,270 L740,170" stroke="#7b1fa2" stroke-width="1.5" fill="none" marker-end="url(#arP)" stroke-dasharray="5,3"/>
-        <text x="700" y="290" text-anchor="middle" font-size="9" fill="#7b1fa2">设备消息路由到 DA</text>
-
-        <!-- ===== Arrows: DA → Fleets API ===== -->
-        <path d="M740,60 L310,60" stroke="#7b1fa2" stroke-width="1.5" fill="none" marker-end="url(#arP)" stroke-dasharray="4,4"/>
-        <text x="525" y="52" text-anchor="middle" font-size="9" fill="#7b1fa2">拉取 ThingType Schema · 注册 Thing</text>
+        <path d="M740,100 L310,100" stroke="#7b1fa2" stroke-width="1.5" fill="none" marker-end="url(#arP)" stroke-dasharray="5,3"/>
+        <text x="525" y="116" text-anchor="middle" font-size="9" fill="#7b1fa2">经 Fleets 读取设备状态 / 事件</text>
 
         <!-- ===== Arrows: EMQX Rule → Fleets DB ===== -->
         <path d="M500,336 L500,350 L180,350 L180,301" stroke="#34a853" stroke-width="1.5" fill="none" marker-end="url(#arG)" stroke-dasharray="4,3"/>
@@ -599,8 +595,8 @@
     <h2 class="section-title">🤖 DA 现有功能适配 Fleets 协议</h2>
 
     <div class="info orange">
-      <strong>设计要点：</strong> DA 的 AI 功能（NL 控制、规则引擎、数据分析）在控制设备时，使用 <strong>Fleets 的 <code>$emqx/</code> MQTT 主题</strong> 而非 DA 自有主题。
-      设备完全无感知 —— 它只看到同一个 EMQX Broker 上的同一套协议。
+      <strong>设计要点：</strong> DA 的 AI 功能（NL 控制、规则引擎、数据分析）在控制设备时，通过 <strong>Fleets REST API 下发控制指令</strong>，而非直连 MQTT。
+      设备本身仍走 <code>$emqx/</code> 协议（由 Fleets 代理下发），完全无感知 —— 它只看到 Fleets 同一套协议。
     </div>
 
     <div class="arch-fig">
@@ -629,13 +625,13 @@
         <text x="690" y="68" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">EMQX Broker</text>
         <text x="690" y="90" text-anchor="middle" font-size="10" fill="rgba(255,255,255,.8)">$emqx/things/{name}/...</text>
 
-        <!-- DA → EMQX -->
-        <path d="M510,55 L580,55" stroke="#7b1fa2" stroke-width="2" fill="none"/>
-        <text x="550" y="48" text-anchor="middle" font-size="9" fill="#7b1fa2">发布 $emqx/ 命令</text>
+        <!-- DA 经 FleetsAdapter → Fleets API 下发（不再直连 EMQX） -->
+        <path d="M510,130 L580,90" stroke="#7b1fa2" stroke-width="2" fill="none"/>
+        <text x="530" y="112" text-anchor="middle" font-size="9" fill="#7b1fa2">经 Fleets API 下发</text>
 
-        <!-- EMQX → DA -->
-        <path d="M580,100 L510,100 L510,75" stroke="#7b1fa2" stroke-width="1.5" fill="none" stroke-dasharray="5,3"/>
-        <text x="570" y="115" text-anchor="middle" font-size="9" fill="#7b1fa2">订阅设备消息</text>
+        <!-- EMQX → FleetsAdapter（事件经 Fleets API 回传 DA） -->
+        <path d="M580,100 L510,145" stroke="#7b1fa2" stroke-width="1.5" fill="none" stroke-dasharray="5,3"/>
+        <text x="545" y="135" text-anchor="middle" font-size="8" fill="#7b1fa2">经 Fleets API 获取事件</text>
 
         <!-- Device -->
         <rect x="850" y="50" width="160" height="50" rx="25" fill="#00897b" filter="url(#sh3)"/>
@@ -655,7 +651,7 @@
           <rect x="0" y="0" width="220" height="56" rx="6" fill="#e6f4ea" stroke="#34a853" stroke-width="1"/>
           <text x="10" y="18" font-size="9" font-weight="600" fill="#2e7d32">NL 控制示例</text>
           <text x="10" y="34" font-size="8" fill="#555">"把温度调到 25 度"</text>
-          <text x="10" y="48" font-size="8" fill="#555">→ DA 识别 → 发布到 $emqx/commands/.../request</text>
+          <text x="10" y="48" font-size="8" fill="#555">→ DA 识别 → 经 Fleets API 下发命令</text>
         </g>
       </svg>
     </div>
@@ -719,15 +715,15 @@ rule "HighTempAlert"
     <h2 class="section-title">🔄 数据流 · 上行共享 + 下行独立</h2>
 
     <div class="info blue">
-      <strong>核心原则：</strong> <strong>上行</strong>通过 EMQX Rule Engine 分发到 Fleets 和 DA 两端，各自消费；
-      <strong>下行</strong>DA 和 Fleets 各自独立发布指令，设备通过同一套订阅接收。两端互不干扰。
+      <strong>核心原则：</strong> <strong>上行</strong>设备上报经 EMQX Rule Engine 落入 Fleets（持久化），DA 通过 Fleets 数据/事件 API 获取，不再直连 MQTT；
+      <strong>下行</strong>DA 经 Fleets API 下发控制指令，由 Fleets 统一经 MQTT 送达设备。Fleets 是设备控制的唯一权威入口。
     </div>
 
     <div class="arch-fig">
       <svg viewBox="0 0 1100 300" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
         <defs><filter id="sh4"><feDropShadow dx="0" dy="1" stdDeviation="2" flood-opacity=".08"/></filter></defs>
         <rect x="0" y="0" width="1100" height="270" rx="8" fill="#fafbfc"/>
-        <text x="550" y="22" text-anchor="middle" font-size="12" font-weight="700" fill="#34a853">⬆️ 上行：设备 → EMQX → 双端分发</text>
+        <text x="550" y="22" text-anchor="middle" font-size="12" font-weight="700" fill="#34a853">⬆️ 上行：设备 → EMQX → Fleets 落库 + DA 经 API 获取</text>
 
         <!-- Device -->
         <rect x="450" y="180" width="140" height="40" rx="20" fill="#00897b" filter="url(#sh4)"/>
@@ -747,13 +743,13 @@ rule "HighTempAlert"
 
         <!-- DA Path -->
         <rect x="760" y="40" width="220" height="55" rx="8" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="2" filter="url(#sh4)"/>
-        <text x="870" y="60" text-anchor="middle" font-size="11" font-weight="700" fill="#7b1fa2">DA 消费</text>
-        <text x="870" y="78" text-anchor="middle" font-size="8" fill="#5f6368">MQTT 订阅 $emqx/things/+/shadow/update, events/+</text>
+        <text x="870" y="60" text-anchor="middle" font-size="11" font-weight="700" fill="#7b1fa2">DA 获取</text>
+        <text x="870" y="78" text-anchor="middle" font-size="8" fill="#5f6368">通过 Fleets 数据/事件 API</text>
         <path d="M760,65 L640,65 L640,100" stroke="#7b1fa2" stroke-width="1.5" fill="none"/>
 
         <!-- Callout -->
         <rect x="100" y="230" width="850" height="26" rx="6" fill="#e6f4ea" stroke="#34a853" stroke-width="1.5"/>
-        <text x="525" y="248" text-anchor="middle" font-size="9" font-weight="600" fill="#2e7d32">✦ 上行同时到达 Fleets（持久化）和 DA（实时消费）—— 两端彼此独立 ✦</text>
+        <text x="525" y="248" text-anchor="middle" font-size="9" font-weight="600" fill="#2e7d32">✦ 上行由 Fleets 落库；DA 通过 Fleets API / 事件订阅获取，不再直连 MQTT ✦</text>
       </svg>
     </div>
 
@@ -761,7 +757,7 @@ rule "HighTempAlert"
       <svg viewBox="0 0 1100 320" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
         <defs><filter id="sh5"><feDropShadow dx="0" dy="1" stdDeviation="2" flood-opacity=".08"/></filter></defs>
         <rect x="0" y="0" width="1100" height="290" rx="8" fill="#fafbfc"/>
-        <text x="550" y="22" text-anchor="middle" font-size="12" font-weight="700" fill="#f9ab00">⬇️ 下行：Fleets + DA 各自独立发布到同一套 $emqx/ 主题</text>
+        <text x="550" y="22" text-anchor="middle" font-size="12" font-weight="700" fill="#f9ab00">⬇️ 下行：Fleets 统一下发 —— DA 经 Fleets API 间接控制设备</text>
 
         <!-- Device -->
         <rect x="450" y="200" width="140" height="40" rx="20" fill="#00897b" filter="url(#sh5)"/>
@@ -788,11 +784,11 @@ rule "HighTempAlert"
         <rect x="760" y="30" width="240" height="65" rx="10" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="2" filter="url(#sh5)"/>
         <text x="880" y="52" text-anchor="middle" font-size="11" font-weight="700" fill="#7b1fa2">Device Agent</text>
         <text x="880" y="68" text-anchor="middle" font-size="8" fill="#5f6368">NL 控制 / 规则引擎触发</text>
-        <text x="880" y="82" text-anchor="middle" font-size="8" fill="#5f6368">MQTT 直接 publish</text>
+        <text x="880" y="82" text-anchor="middle" font-size="8" fill="#5f6368">经 Fleets API 下发</text>
         <path d="M760,60 L640,60 L640,80" stroke="#7b1fa2" stroke-width="1.5" fill="none"/>
 
         <rect x="200" y="255" width="630" height="26" rx="6" fill="#fce8e6" stroke="#ea4335" stroke-width="1.5"/>
-        <text x="515" y="273" text-anchor="middle" font-size="9" font-weight="600" fill="#c62828">✦ 两端各自独立发布 —— 设备从同一个主题接收，无需感知来源 ✦</text>
+        <text x="515" y="273" text-anchor="middle" font-size="9" font-weight="600" fill="#c62828">✦ 控制统一经 Fleets 下发，Fleets 经 $emqx/ 主题送达设备 —— DA 不直接连 MQTT ✦</text>
       </svg>
     </div>
   </div>
@@ -811,13 +807,13 @@ rule "HighTempAlert"
           </tr>
         </thead>
         <tbody>
-          <tr><td>Shadow reported</td><td><span class="tag tg-g">↑</span></td><td><code>$emqx/things/{name}/shadow/update</code></td><td>Rule Bridge → EMQX Tables + ThingDatas API → PG</td><td>订阅 → 更新本地 Shadow 缓存</td></tr>
-          <tr><td>Events</td><td><span class="tag tg-g">↑</span></td><td><code>$emqx/things/{name}/events/{type}</code></td><td>Rule Bridge → EMQX Tables</td><td>订阅 → 触发规则/分析</td></tr>
-          <tr><td>Command response</td><td><span class="tag tg-g">↑</span></td><td><code>$emqx/commands/.../{id}/response</code></td><td>Rule HTTP POST → ThingDatas API → PG</td><td>订阅 → 处理响应回调</td></tr>
-          <tr><td>Shadow desired</td><td><span class="tag tg-o">↓</span></td><td><code>$emqx/things/{name}/shadow/update</code></td><td>EMQX V5 API 发布</td><td>MQTT publish</td></tr>
-          <tr><td>Command request</td><td><span class="tag tg-o">↓</span></td><td><code>$emqx/commands/.../{id}/request</code></td><td>EMQX V5 API 发布</td><td>MQTT publish</td></tr>
-          <tr><td>Jobs notify</td><td><span class="tag tg-o">↓</span></td><td><code>$emqx/things/{name}/jobs/notify</code></td><td>EMQX V5 API 发布</td><td>—</td></tr>
-          <tr><td>Lifecycle</td><td><span class="tag tg-t">⚡</span></td><td><code>$events/client_connected|disconnected</code></td><td>Rule HTTP POST → ThingDatas API → PG</td><td>可选订阅 → 更新设备在线状态</td></tr>
+          <tr><td>Shadow reported</td><td><span class="tag tg-g">↑</span></td><td><code>$emqx/things/{name}/shadow/update</code></td><td>Rule Bridge → EMQX Tables + ThingDatas API → PG</td><td>经 Fleets API 读取（ThingDatas）</td></tr>
+          <tr><td>Events</td><td><span class="tag tg-g">↑</span></td><td><code>$emqx/things/{name}/events/{type}</code></td><td>Rule Bridge → EMQX Tables</td><td>经 Fleets 事件 API 触发</td></tr>
+          <tr><td>Command response</td><td><span class="tag tg-g">↑</span></td><td><code>$emqx/commands/.../{id}/response</code></td><td>Rule HTTP POST → ThingDatas API → PG</td><td>经 Fleets API 回调处理</td></tr>
+          <tr><td>Shadow desired</td><td><span class="tag tg-o">↓</span></td><td><code>$emqx/things/{name}/shadow/update</code></td><td>EMQX V5 API 发布</td><td>经 Fleets API 下发</td></tr>
+          <tr><td>Command request</td><td><span class="tag tg-o">↓</span></td><td><code>$emqx/commands/.../{id}/request</code></td><td>EMQX V5 API 发布</td><td>经 Fleets API 下发</td></tr>
+          <tr><td>Jobs notify</td><td><span class="tag tg-o">↓</span></td><td><code>$emqx/things/{name}/jobs/notify</code></td><td>EMQX V5 API 发布</td><td>—（DA 不做 Jobs）</td></tr>
+          <tr><td>Lifecycle</td><td><span class="tag tg-t">⚡</span></td><td><code>$events/client_connected|disconnected</code></td><td>Rule HTTP POST → ThingDatas API → PG</td><td>经 Fleets 生命周期事件 API</td></tr>
         </tbody>
       </table>
     </div>
@@ -826,16 +822,16 @@ rule "HighTempAlert"
 </div>
 
 <!-- ================================================================== -->
-<!-- TAB 4: 双端控制 -->
+<!-- TAB 4: 设备控制 -->
 <!-- ================================================================== -->
 <div class="tab-panel" id="tab-control" role="tabpanel" aria-labelledby="tab-control">
 
   <div class="section">
-    <h2 class="section-title">🎮 双端控制 · 独立互不冲突</h2>
+    <h2 class="section-title">🎮 统一经 Fleets 的设备控制</h2>
 
     <div class="info orange">
-      <strong>核心设计：</strong> DA 和 Fleets 各自拥有独立的控制逻辑。Fleets 管理 Shadow 三态同步和 Jobs 调度，DA 管理 AI 会话式控制和规则引擎触发。
-      两者在 MQTT 层面"各写各的"——通过<strong>最后写入者语义</strong>自然收敛。
+      <strong>核心设计：</strong> DA 和 Fleets 都通过 Fleets 下发设备控制：Fleets 管理 Shadow 三态同步和 Jobs 调度，DA 的 AI 会话式控制与规则引擎触发也统一经 Fleets API 下发。
+      Fleets 是设备控制的唯一权威入口，DA 不再直连 MQTT，因此不存在两端并发写入的冲突。
     </div>
 
     <div class="arch-fig">
@@ -855,38 +851,38 @@ rule "HighTempAlert"
         <text x="520" y="78" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">EMQX Broker</text>
         <text x="520" y="96" text-anchor="middle" font-size="9" fill="rgba(255,255,255,.8)">$emqx/things/{name}/...</text>
 
-        <path d="M280,40 L400,75" stroke="#7b1fa2" stroke-width="1.5" fill="none"/>
-        <text x="340" y="32" text-anchor="middle" font-size="9" fill="#7b1fa2">MQTT publish</text>
+        <path d="M170,80 L170,105" stroke="#7b1fa2" stroke-width="1.5" fill="none"/>
+        <text x="178" y="98" text-anchor="start" font-size="9" fill="#7b1fa2">Fleets API 下发</text>
 
         <path d="M280,135 L400,90" stroke="#f9ab00" stroke-width="1.5" fill="none"/>
         <text x="340" y="145" text-anchor="middle" font-size="9" fill="#f9ab00">EMQX V5 API</text>
 
         <rect x="760" y="30" width="180" height="50" rx="25" fill="#00897b" filter="url(#sh6)"/>
         <text x="850" y="55" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">Device</text>
-        <text x="850" y="70" text-anchor="middle" font-size="8" fill="rgba(255,255,255,.8)">同一套订阅处理</text>
+        <text x="850" y="70" text-anchor="middle" font-size="8" fill="rgba(255,255,255,.8)">Fleets 经 MQTT 送达</text>
         <path d="M640,80 L760,50" stroke="#f9ab00" stroke-width="1.5" fill="none"/>
 
         <rect x="60" y="185" width="880" height="20" rx="5" fill="#e6f4ea" stroke="#34a853" stroke-width="1"/>
-        <text x="500" y="199" text-anchor="middle" font-size="8" font-weight="600" fill="#2e7d32">✅ 独立控制 · 各管各的 · 不需要冲突仲裁 · 最后写入自然收敛</text>
+        <text x="500" y="199" text-anchor="middle" font-size="8" font-weight="600" fill="#2e7d32">✅ 控制统一经 Fleets 下发 · DA 不再直连 MQTT · 单一权威入口无并发冲突</text>
       </svg>
     </div>
 
     <div class="mg">
       <div>
         <h4>🎯 DA 控制场景</h4>
-        <p>"把客厅温度调到 26°C" → DA AI Agent 解析意图 → 发布 Shadow desired 或 Command 到 <code>$emqx/</code> 主题 → 设备收到后执行。</p>
+        <p>"把客厅温度调到 26°C" → DA AI Agent 解析意图 → 经 Fleets API 下发 Shadow desired 或 Command → Fleets 经 MQTT 送达设备执行。</p>
       </div>
       <div>
         <h4>🏭 Fleets 控制场景</h4>
         <p>批次重启 10 台设备 → Fleets 创建 Job → EMQX V5 API 发布到 <code>$emqx/</code> 主题 → 设备收到后执行并上报。</p>
       </div>
       <div>
-        <h4>⚡ 冲突场景：最后写入生效</h4>
-        <p>DA 设 desired.targetTemp=25，Fleets 随后设 26。设备收到两次 desired，以最后一次为准。设备上报最新 reported 后两端同步。</p>
+        <h4>⚡ 控制权威</h4>
+        <p>DA 与 Fleets 的控制指令都经由 Fleets 下发，Fleets 是设备控制的唯一权威入口。DA 不再直连 MQTT，因此不会产生与 Fleets 并发写入的冲突。</p>
       </div>
       <div>
-        <h4>📋 最终一致性</h4>
-        <p>两端的 desired 可能不同，但设备按最后收到的执行 —— 这本身就是最终一致性，不需要额外仲裁机制。</p>
+        <h4>📋 一致性与状态</h4>
+        <p>设备状态以 Fleets Shadow 为权威存储，DA 通过 Fleets API 读取并缓存 thingType 模型，控制指令经 Fleets 统一落库与下发。</p>
       </div>
     </div>
   </div>
@@ -895,8 +891,8 @@ rule "HighTempAlert"
     <h2 class="section-title">🔌 FleetsAdapter · Device Agent 适配层</h2>
 
     <div class="info purple">
-      <strong>适配层职责：</strong> FleetsAdapter 是 DA 中的一个内部模块，负责拉取 Fleets ThingType Schema、注册设备、配置 MQTT 主题模板，使得 SDK 生成器和 AI 功能能正确适配 Fleets 协议。
-      它不处理设备消息，也不处理 AI 逻辑。
+      <strong>适配层职责：</strong> FleetsAdapter 是 DA 中的一个内部模块，负责拉取 Fleets ThingType Schema、构建 DeviceSpec，并封装经 Fleets API 的设备控制调用，使得 SDK 生成器和 AI 功能能正确适配 Fleets 协议。
+      它不直连 MQTT，也不处理设备消息与 AI 逻辑本身。
     </div>
 
     <div class="arch-fig">
@@ -909,16 +905,16 @@ rule "HighTempAlert"
           <text x="10" y="22" font-size="11" font-weight="700" fill="#7b1fa2">FleetsAdapter 接口</text>
           <text x="10" y="42" font-size="8" fill="#555">connect(config) → Promise&lt;void&gt;</text>
           <text x="10" y="58" font-size="8" fill="#555">fetchThingType(name) → ThingType</text>
-          <text x="10" y="74" font-size="8" fill="#555">registerDevice(thing) → Device</text>
-          <text x="10" y="90" font-size="8" fill="#555">generateMqttTopics(name) → Topics</text>
+          <text x="10" y="74" font-size="8" fill="#555">resolveDeviceSpec(thingId) → DeviceSpec</text>
+          <text x="10" y="90" font-size="8" fill="#555">generateSdkTopics(name) → Topics</text>
           <text x="10" y="106" font-size="8" fill="#555">buildDeviceSpec(thingType) → DeviceSpec</text>
-          <text x="10" y="122" font-size="8" fill="#555">getMqttCredentials(thingId) → Credentials</text>
+          <text x="10" y="122" font-size="8" fill="#555">controlDevice(thingId, cmd) → void</text>
         </g>
 
         <g transform="translate(380,20)"><rect x="0" y="0" width="220" height="50" rx="6" fill="#e6f4ea" stroke="#34a853" stroke-width="1.5" filter="url(#sh7)"/><text x="110" y="20" text-anchor="middle" font-size="9" font-weight="700" fill="#2e7d32">SDK 生成器</text><text x="110" y="38" text-anchor="middle" font-size="8" fill="#5f6368">使用 DeviceSpec 生成 SDK</text></g>
         <g transform="translate(380,85)"><rect x="0" y="0" width="220" height="50" rx="6" fill="#fce8e6" stroke="#ea4335" stroke-width="1.5" filter="url(#sh7)"/><text x="110" y="20" text-anchor="middle" font-size="9" font-weight="700" fill="#c62828">AI Agent / NL 控制</text><text x="110" y="38" text-anchor="middle" font-size="8" fill="#5f6368">使用 Topics 发送命令</text></g>
         <g transform="translate(700,20)"><rect x="0" y="0" width="220" height="50" rx="6" fill="#fff3e0" stroke="#f9ab00" stroke-width="1.5" filter="url(#sh7)"/><text x="110" y="20" text-anchor="middle" font-size="9" font-weight="700" fill="#e65100">规则 / 分析引擎</text><text x="110" y="38" text-anchor="middle" font-size="8" fill="#5f6368">接收设备消息做出决策</text></g>
-        <g transform="translate(700,85)"><rect x="0" y="0" width="220" height="50" rx="6" fill="#e8f0fe" stroke="#1a73e8" stroke-width="1.5" filter="url(#sh7)"/><text x="110" y="20" text-anchor="middle" font-size="9" font-weight="700" fill="#1565c0">设备注册服务</text><text x="110" y="38" text-anchor="middle" font-size="8" fill="#5f6368">自动注册 Thing 到 Fleets</text></g>
+        <g transform="translate(700,85)"><rect x="0" y="0" width="220" height="50" rx="6" fill="#e8f0fe" stroke="#1a73e8" stroke-width="1.5" filter="url(#sh7)"/><text x="110" y="20" text-anchor="middle" font-size="9" font-weight="700" fill="#1565c0">设备查询服务</text><text x="110" y="38" text-anchor="middle" font-size="8" fill="#5f6368">按 thingId 查 Fleets 设备</text></g>
 
         <path d="M320,45 L380,45" stroke="#7b1fa2" stroke-width="1.5" fill="none"/>
         <path d="M320,100 L380,110" stroke="#7b1fa2" stroke-width="1.5" fill="none"/>
@@ -940,35 +936,26 @@ rule "HighTempAlert"
         "key": "sk-your-signkey"
       }
     },
-    "mqtt": {
-      "broker": "mqtt://emqx:1883",
-      "subscribeTopics": [
-        "$emqx/things/+/shadow/update",
-        "$emqx/things/+/events/+",
-        "$emqx/commands/things/+/executions/+/response"
-      ]
-    },
     "sdk": {
       "languages": ["typescript", "c", "python"],
       "outputDir": "./generated-sdks"
-    },
-    "autoRegisterDevices": true
+    }
   }
 }</code></pre>
       </div>
       <div class="card">
-        <h3>🚀 设备自动注册流程</h3>
-        <pre class="code"><code>// 1. 设备连接 EMQX（ClientId = mqttClientId）
+        <h3>🚀 设备接入与按需解析</h3>
+        <pre class="code"><code>// 设备已在 Fleets Thing Registry 注册（无需 DA 重复注册）
+// 1. 设备连接 EMQX（ClientId = mqttClientId）
 // 2. EMQX lifecycle 触发：
 //    $events/client_connected → Fleets ThingDatas API
 //    → PostgreSQL things.status = "online"
-// 3. DA 发现新设备上线（订阅 lifecycle
-//    或收到设备第一条消息后触发）
-// 4. DA 调用 FleetsAdapter.registerDevice():
-//    - 检查设备是否已在 Fleets 注册
-//    - 如未注册 → Fleets API 创建 Thing
-//    - 绑定 ThingType
-//    - 写入 DA 本地设备表
+// 3. DA 需控制某设备时，按 thingId 解析：
+//    FleetsAdapter.resolveDeviceSpec(thingId)
+//    - GET /things/{id} 取 metadata
+//    - GET /thing-types/{name} 构建 DeviceSpec（缓存）
+// 4. 下发控制：POST /things/{id}/commands
+//    （Fleets 经 MQTT 送达设备，DA 不直连 MQTT）
 // 5. SDK 生成器为设备提供 SDK
 //    - 内含正确的 MQTT 主题和 Payload 格式</code></pre>
       </div>
@@ -1020,7 +1007,7 @@ rule "HighTempAlert"
         <div class="phase-c">
           <div class="phase-t">DA AI 功能适配 Fleets + Fleets AI 增强 API</div>
           <div class="phase-d">DA 的 NL 控制/规则引擎/分析能力完全适配 Fleets 主题。同时为 Fleets 提供 AI 增强 API 端点。</div>
-          <div class="phase-d">• DA AI 功能适配 Fleets MQTT 协议（NL 控制、规则引擎、数据分析）<br>
+          <div class="phase-d">• DA AI 功能适配 Fleets（经 Fleets API 控制：NL 控制、规则引擎、数据分析）<br>
           • DA AI API Server 完善：/ai/chat, /ai/analyze, /ai/policy<br>
           • <strong>新增 DA AI API</strong>：/ai/query/nl（NL → Device Query DSL 翻译）<br>
           • <strong>新增 DA AI API</strong>：/ai/anomaly/detect（设备异常检测）<br>
@@ -1032,13 +1019,13 @@ rule "HighTempAlert"
         <span class="phase-n">P3</span>
         <div class="phase-c">
           <div class="phase-t">管控面：DA 实例生命周期 + 按需拉取设备模型</div>
-          <div class="phase-d">Fleets 对 DA 拥有控制面权限，管理 DA 实例进程。设备模型采用按需拉取（默认），导入/导出为可选规划功能。</div>
+          <div class="phase-d">Fleets 对 DA 拥有控制面权限，管理 DA 实例进程。设备模型采用按需拉取（默认，无导入/导出），设备控制统一经 Fleets API 间接下发。</div>
           <div class="phase-d">• DA 实例注册 + 心跳机制（POST /da/instances + PUT .../heartbeat）<br>
           • Fleets 进程管理 API（POST .../start|stop|restart）<br>
           • <strong>按需拉取 thingType</strong>：DA 用 thingId 调 Fleets GET /things/{id}（拉取 metadata）+ GET /thing-types/{name}，只缓存 thingType 模型不存设备列表<br>
           • <strong>Fleets 新增 API</strong>：POST /ai/data/batch-shadow（批量设备状态）<br>
-          • DA 对设备的控制权验证（NL 控制 + 规则引擎 + AI 分析全链路）<br>
-          • <strong>规划（可选）</strong>：设备导入/导出 API（/da/devices/import|export）+ Thing managedByDa 标记</div>
+          • DA 对设备的控制权验证（NL 控制 + 规则引擎 + AI 分析全链路，均经 Fleets API 下发）<br>
+          • <strong>设备控制 API</strong>：POST /things/{id}/commands、PUT /things/{id}/shadow（DA → Fleets）</div>
         </div>
       </li>
       <li>
@@ -1049,7 +1036,7 @@ rule "HighTempAlert"
           <div class="phase-d">• C SDK 模板适配 Fleets 规范<br>
           • Python SDK 模板适配 Fleets 规范<br>
           • Web 控制台：DA 实例列表 + 管理（启动/停止/重启）<br>
-          • Web 控制台：ThingType 缓存查看 +（规划）设备导入/导出操作界面<br>
+          • Web 控制台：ThingType 缓存查看<br>
           • Web 控制台：SDK 下载入口（适配 Fleets 的 SDK）<br>
           • 集成测试覆盖所有端到端场景<br>
           • Prometheus 监控指标 + 告警</div>
@@ -1066,20 +1053,20 @@ rule "HighTempAlert"
           <tr><th style="width:160px">决策点</th><th>选择</th><th>理由</th></tr>
         </thead>
         <tbody>
-          <tr><td>设备协议</td><td><span class="tag tg-b">Fleets $emqx/ 规范</span></td><td>设备只有一套 Schema、一套 MQTT 主题。DA 的一切通信也走这套协议。</td></tr>
-          <tr><td>DA 通信方式</td><td><span class="tag tg-b">$emqx/ 主题 MQTT publish</span></td><td>DA 不使用自有 device-agent/ 主题。所有操作走 Fleets 规范主题。</td></tr>
-          <tr><td>设备 SDK</td><td><span class="tag tg-p">DA 生成 · Fleets 兼容</span></td><td>从 ThingType Schema 自动生成 SDK，设备开箱即用 Fleets 协议。</td></tr>
-          <tr><td>Fleets 使用</td><td><span class="tag tg-b">EMQX V5 API 发布</span></td><td>Fleets 永不订阅 MQTT。所有下行通过 REST API 发布到 EMQX。</td></tr>
-          <tr><td>消息路由</td><td><span class="tag tg-g">EMQX Rule Engine</span></td><td>上行由规则引擎分发到 Fleets（DB）和 DA（MQTT 订阅）。</td></tr>
-          <tr><td>控制独立性</td><td><span class="tag tg-g">完全独立</span></td><td>Fleets 管 Shadow + Jobs，DA 管 AI 控制。最后写入者生效。</td></tr>
-          <tr><td>冲突仲裁</td><td><span class="tag tg-t">不需要</span></td><td>两端各自独立下发，设备自然收敛。</td></tr>
-          <tr><td>DA 设备发现</td><td><span class="tag tg-o">MQTT 消息 / Fleets API</span></td><td>设备上线后第一条消息或 lifecycle 事件触发注册。</td></tr>
+          <tr><td>设备协议</td><td><span class="tag tg-b">Fleets $emqx/ 规范</span></td><td>设备侧仍走 Fleets $emqx/ 规范；DA 经 Fleets API 与设备交互，不直接连 MQTT。</td></tr>
+          <tr><td>DA 通信方式</td><td><span class="tag tg-b">Fleets REST API</span></td><td>DA 不直接连 MQTT Broker，所有设备交互（元数据 + 控制 + 状态）经 Fleets API 间接完成。</td></tr>
+          <tr><td>设备 SDK</td><td><span class="tag tg-p">DA 生成 · Fleets 兼容</span></td><td>从 ThingType Schema 自动生成 SDK，设备开箱即用 Fleets 协议（设备↔Fleets 仍走 MQTT）。</td></tr>
+          <tr><td>Fleets 使用</td><td><span class="tag tg-b">EMQX V5 API 发布</span></td><td>Fleets 永不订阅 MQTT。所有下行通过 REST API 发布到 EMQX，并代 DA 下发控制指令。</td></tr>
+          <tr><td>消息路由</td><td><span class="tag tg-g">Fleets 统一汇聚</span></td><td>设备上行经 Fleets 落库；DA 通过 Fleets 数据/事件 API 获取，不再 MQTT 订阅。</td></tr>
+          <tr><td>控制路径</td><td><span class="tag tg-g">统一经 Fleets</span></td><td>DA 控制经 Fleets API 下发，Fleets 为唯一控制权威，避免双写冲突。</td></tr>
+          <tr><td>冲突仲裁</td><td><span class="tag tg-t">无需（单入口）</span></td><td>控制统一经 Fleets，不存在 DA/Fleets 并发下发。</td></tr>
+          <tr><td>DA 设备发现</td><td><span class="tag tg-o">Fleets API</span></td><td>DA 通过 Fleets 设备列表 / 生命周期事件 API 获取，不再依赖 MQTT 消息。</td></tr>
           <tr><td>DA 原有改动</td><td><span class="tag tg-r">零侵入</span></td><td>FleetsAdapter 以插件方式接入。主题模板切换即可。</td></tr>
           <tr><td>跨平台实现方式</td><td><span class="tag tg-p">多 DA 实例</span></td><td>每个平台一个 DA 实例，初始化时指定 platform，运行时锁定。</td></tr>
-          <tr><td>状态权威源</td><td><span class="tag tg-b">Fleets Shadow</span></td><td>Fleets 是设备状态权威存储。DA 订阅 + API 读取，不做双写。</td></tr>
+          <tr><td>状态权威源</td><td><span class="tag tg-b">Fleets Shadow</span></td><td>Fleets 是设备状态权威存储。DA 经 Fleets API 读取，不做双写。</td></tr>
           <tr><td>DA 生命周期管理</td><td><span class="tag tg-p">Fleets 进程控制</span></td><td>DA 实例注册 + 心跳 + systemd/Docker 启停管控。</td></tr>
           <tr><td>设备模型获取</td><td><span class="tag tg-b">按 thingId 拉取 metadata</span></td><td>默认 DA 不存设备列表，运行时用 thingId 调 Fleets API 拉取 thing metadata，只缓存 thingType（DeviceSpec）模型。</td></tr>
-          <tr><td>设备导入导出</td><td><span class="tag tg-o">规划功能</span></td><td>后续可选：Fleets 通过 import/export API 主动管控 DA 的设备管理范围。</td></tr>
+          <tr><td>设备控制方式</td><td><span class="tag tg-b">Fleets API 间接下发</span></td><td>DA 经 Fleets API（commands / shadow）下发控制，Fleets 再经 MQTT 送达设备；DA 不直连 MQTT。</td></tr>
           <tr><td>DA 原生协议</td><td><span class="tag tg-t">独立平台规范 @da/platform-native</span></td><td>原生协议也是独立的 DA 实例（platform: "native"），与 Fleets 实例平行、各自独立运行。</td></tr>
           <tr><td>AI 增强 Fleets</td><td><span class="tag tg-p">DA REST API</span></td><td>Fleets 调用 DA 的 /ai/ 系列 API 获得 NL 查询/异常检测/物模型建议。</td></tr>
         </tbody>
@@ -1335,8 +1322,8 @@ async function initDA(config) {
             <tr><th style="width:140px">保证项</th><th>实现方式</th></tr>
           </thead>
           <tbody>
-            <tr><td>NL 控制正常执行</td><td>解析意图 → specLib.publishCommand() → 平台 MQTT</td></tr>
-            <tr><td>规则引擎触发</td><td>接收平台事件 → 匹配规则 → specLib.publishCommand()</td></tr>
+            <tr><td>NL 控制正常执行</td><td>解析意图 → specLib.publishCommand() → Fleets API（间接下发）</td></tr>
+            <tr><td>规则引擎触发</td><td>接收 Fleets 事件(API) → 匹配规则 → specLib.publishCommand()</td></tr>
             <tr><td>AI 分析数据源</td><td>specLib 将平台消息统一为 DeviceSpec shadow 格式</td></tr>
             <tr><td>SDK 生成兼容</td><td>从 platformSpec 推导主题模板 + Payload 格式</td></tr>
             <tr><td>新增平台</td><td>实现 PlatformSpec 接口 → 新 DA 实例 → 自动适配</td></tr>
@@ -1361,7 +1348,7 @@ async function initDA(config) {
     <div class="section-desc">Fleets 是一个功能完整的 IoT 设备管理平台，但不具备 AI 能力。Device Agent 作为 AI 应用层，通过 REST API 为 Fleets 注入 NL 控制、智能分析、异常检测等 AI 能力。以下分析基于 Fleets 现有能力 + DA 可提供的 AI API。</div>
 
     <div class="info blue">
-      <strong>集成模式：</strong> Fleets 调用 DA 的 REST API 获得 AI 能力，DA 在需要时通过 Fleets API 或 MQTT 与设备和 Fleets 交互。
+      <strong>集成模式：</strong> Fleets 调用 DA 的 REST API 获得 AI 能力，DA 在需要时通过 Fleets API 与设备和 Fleets 交互（不再直连 MQTT）。
       7 个 AI 功能中 5 个不需要 Fleets 侧新增 API，仅 2 个需要新增端点。
     </div>
 
@@ -1415,7 +1402,7 @@ async function initDA(config) {
 
         <!-- Bottom arrow: DA → Fleets back -->
         <path d="M1050,100 L1060,100 L1060,220 L400,220 L400,175" stroke="#34a853" stroke-width="1.5" fill="none" marker-end="url(#arA)" stroke-dasharray="5,3"/>
-        <text x="730" y="215" text-anchor="middle" font-size="9" fill="#34a853">DA 通过 MQTT / Fleets API 与设备和 Fleets 交互</text>
+        <text x="730" y="215" text-anchor="middle" font-size="9" fill="#34a853">DA 经 Fleets API 与设备和 Fleets 交互（不再直连 MQTT）</text>
 
         <!-- Legend -->
         <rect x="470" y="155" width="100" height="22" rx="4" fill="#e6f4ea" stroke="#34a853" stroke-width="1"/>
@@ -1426,7 +1413,7 @@ async function initDA(config) {
     </div>
 
     <div class="info purple">
-      <strong>结果：</strong> 7 个 AI 功能中 <strong>5 个不需要 Fleets 侧新增 API</strong> —— DA 已经能通过 MQTT 直接通信或调用 Fleets 现有 API。
+      <strong>结果：</strong> 7 个 AI 功能中 <strong>5 个不需要 Fleets 侧新增 API</strong> —— DA 经 Fleets API 间接控制设备、读取状态，无需直连 MQTT。
       仅 2 个需要 Fleets 新增读影子历史、批量读状态端点。
     </div>
   </div>
@@ -1559,12 +1546,12 @@ POST /api/v1/ai/schema/suggest
   "message": "把温度调到26度"
 }
 
-→ DA FleetsAdapter.publishCommand()
-→ 发布到 $emqx/commands/things/.../request
-   或 $emqx/things/{name}/shadow/update
+→ DA FleetsAdapter 经 Fleets API 下发控制：
+   POST /api/v1/things/{id}/commands
+   或 PUT /api/v1/things/{id}/shadow
 
-→ Fleets 侧改动：无
-   DA 已通过 MQTT 直接下发</code></pre>
+→ Fleets 侧改动：无（复用现有设备控制 API）
+   DA 经 Fleets API 间接控制，不再直连 MQTT</code></pre>
       </div>
       <div class="card">
         <h3>📊 /ai/analyze — 时序数据分析</h3>
@@ -1595,12 +1582,12 @@ POST /api/v1/ai/schema/suggest
   "enabled": true
 }
 
-→ DA 订阅设备消息，匹配规则
-→ 触发时发布命令到 $emqx/ 主题
+→ DA 经 Fleets 事件 API 获取设备消息，匹配规则
+→ 触发时经 Fleets API 下发控制指令
 → 同时可通过 Fleets API 写入告警事件
 
 → Fleets 侧改动：无
-   DA 独立运行规则，MQTT 下发</code></pre>
+   DA 经 Fleets API 间接控制，不再直连 MQTT</code></pre>
       </div>
     </div>
   </div>
@@ -1646,7 +1633,7 @@ POST /api/v1/ai/schema/suggest
         </thead>
         <tbody>
           <tr><td>1</td><td>NL → Device Query</td><td><span class="tag tg-p">P0</span></td><td>2 人天</td><td>价值最大，用户痛点最明显，Fleets 侧零改动</td></tr>
-          <tr><td>2</td><td>NL 设备控制 /ai/chat</td><td><span class="tag tg-p">P0</span></td><td>1 人天</td><td>已有 DA 设计，补充 Fleets MQTT 主题适配即可</td></tr>
+          <tr><td>2</td><td>NL 设备控制 /ai/chat</td><td><span class="tag tg-p">P0</span></td><td>1 人天</td><td>已有 DA 设计，补充 Fleets API 控制适配即可</td></tr>
           <tr><td>3</td><td>异常检测 /ai/anomaly</td><td><span class="tag tg-b">P1</span></td><td>3 人天</td><td>需新增 Fleets + DA 两端 API</td></tr>
           <tr><td>4</td><td>时序分析 /ai/analyze</td><td><span class="tag tg-b">P1</span></td><td>2 人天</td><td>依赖新增 Fleets 历史 API</td></tr>
           <tr><td>5</td><td>物模型建议 /ai/schema/suggest</td><td><span class="tag tg-o">P2</span></td><td>1 人天</td><td>纯 LLM，无后端依赖</td></tr>
@@ -1676,8 +1663,8 @@ POST /api/v1/ai/schema/suggest
     </div>
 
     <div class="info orange">
-      <strong>设备范围管控（规划功能）：</strong> 未来可通过导入/导出 API 让 Fleets 主动管控 DA 的设备管理范围。
-      当前默认不启用 —— DA 不维护设备列表，仅在需要与某设备交互时按 <code>thingId</code> 拉取其 thing metadata，只缓存其中的 thingType（DeviceSpec）。
+      <strong>无需设备导入/导出：</strong> DA 不再维护设备列表，也不提供导入/导出能力。
+      仅在与某设备交互时按 <code>thingId</code> 调 Fleets API 拉取其 thing metadata，提取并只缓存 thingType（DeviceSpec），再通过 Fleets API 间接下发控制。
     </div>
 
     <div class="info green">
@@ -1704,8 +1691,7 @@ POST /api/v1/ai/schema/suggest
         <rect x="60" y="100" width="300" height="28" rx="6" fill="#fff" stroke="#1a73e8" stroke-width="1"/>
         <text x="210" y="119" text-anchor="middle" font-size="10" font-weight="600" fill="#1565c0">🟢 ThingType 查询 GET /thing-types</text>
 
-        <rect x="60" y="135" width="300" height="28" rx="6" fill="#f8f9fa" stroke="#9aa0a6" stroke-width="1" stroke-dasharray="4,3"/>
-        <text x="210" y="154" text-anchor="middle" font-size="10" font-weight="600" fill="#80868b">⏳ 设备导入导出（规划）/da/devices</text>
+        <!-- Fleets 不再提供设备导入导出：DA 通过 thingId 调 Fleets API 获取 metadata/thingType -->
 
         <!-- Arrows: Fleets → DA Lifecycle -->
         <path d="M380,50 L440,50 L440,60 L500,60 L500,70" stroke="#ea4335" stroke-width="2" fill="none" marker-end="url(#arL)"/>
@@ -1715,7 +1701,7 @@ POST /api/v1/ai/schema/suggest
         <path d="M380,110 L508,110" stroke="#1a73e8" stroke-width="2" fill="none" marker-end="url(#arL)"/>
         <path d="M510,130 L382,130" stroke="#1a73e8" stroke-width="2" fill="none" marker-end="url(#arL)"/>
         <text x="445" y="102" text-anchor="middle" font-size="9" fill="#1565c0" font-weight="600">AI 增强功能</text>
-        <text x="445" y="145" text-anchor="middle" font-size="9" fill="#1565c0" font-weight="600">thingId 查询</text>
+        <text x="445" y="145" text-anchor="middle" font-size="9" fill="#1565c0" font-weight="600">thingId 查询/设备控制</text>
 
         <!-- Device Agent -->
         <rect x="510" y="20" width="340" height="200" rx="12" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="2" filter="url(#shL)"/>
@@ -1741,9 +1727,7 @@ POST /api/v1/ai/schema/suggest
         <path d="M870,189 L850,189" stroke="#f9ab00" stroke-width="2" fill="none" marker-end="url(#arL)"/>
         <text x="860" y="180" text-anchor="middle" font-size="8" fill="#e65100">直接调用</text>
 
-        <!-- DA → MQTT ↔ Devices -->
-        <path d="M850,120 L920,120 L920,290 L550,290 L550,220" stroke="#34a853" stroke-width="1.5" fill="none" marker-end="url(#arL)" stroke-dasharray="5,3"/>
-        <text x="735" y="285" text-anchor="middle" font-size="9" fill="#34a853">MQTT 通信：$emqx/ 主题 ↔ Fleets 设备</text>
+        <!-- DA 控制设备统一经 Fleets API 间接下发，不再直连 MQTT Broker -->
 
         <!-- Device area -->
         <rect x="100" y="330" width="800" height="60" rx="12" fill="#e6f4ea" stroke="#34a853" stroke-width="2" filter="url(#shL)"/>
@@ -1752,20 +1736,19 @@ POST /api/v1/ai/schema/suggest
 
         <!-- Arrows down -->
         <path d="M210,180 L210,330" stroke="#1a73e8" stroke-width="1.5" fill="none" marker-end="url(#arL)" stroke-dasharray="4,3"/>
-        <text x="160" y="260" text-anchor="start" font-size="8" fill="#1565c0">管理设备注册</text>
+        <text x="160" y="260" text-anchor="start" font-size="8" fill="#1565c0">设备注册/控制</text>
 
-        <path d="M680,220 L680,330" stroke="#7b1fa2" stroke-width="1.5" fill="none" marker-end="url(#arL)"/>
-        <text x="720" y="280" text-anchor="start" font-size="8" fill="#7b1fa2">控制设备</text>
+        <!-- DA controls devices via Fleets API (thingId query), no direct line to device layer -->
 
         <!-- Legend -->
         <g transform="translate(40,420)">
-          <rect x="0" y="0" width="620" height="50" rx="6" fill="#fff" stroke="#e0e0e0"/>
+          <rect x="0" y="0" width="1010" height="50" rx="6" fill="#fff" stroke="#e0e0e0"/>
           <text x="10" y="16" font-size="10" font-weight="600" fill="#333">控制面路径</text>
           <line x1="10" y1="30" x2="40" y2="30" stroke="#ea4335" stroke-width="2"/><text x="44" y="34" font-size="9" fill="#555">进程控制（生命周期）</text>
-          <line x1="200" y1="30" x2="230" y2="30" stroke="#1a73e8" stroke-width="1.5"/><text x="234" y="34" font-size="9" fill="#555">API 调用</text>
-          <line x1="390" y1="30" x2="420" y2="30" stroke="#f9ab00" stroke-width="1.5"/><text x="424" y="34" font-size="9" fill="#555">Basic Auth 直接调用</text>
-          <line x1="10" y1="44" x2="40" y2="44" stroke="#7b1fa2" stroke-width="1.5"/><text x="44" y="48" font-size="9" fill="#555">DA 控制路径</text>
-          <line x1="200" y1="44" x2="230" y2="44" stroke="#34a853" stroke-width="1.5" stroke-dasharray="4,3"/><text x="234" y="48" font-size="9" fill="#555">MQTT 数据路径</text>
+          <line x1="200" y1="30" x2="230" y2="30" stroke="#1a73e8" stroke-width="1.5"/><text x="234" y="34" font-size="9" fill="#555">API 调用（AI 增强 / thingId 查询·设备控制）</text>
+          <line x1="640" y1="30" x2="670" y2="30" stroke="#f9ab00" stroke-width="1.5"/><text x="674" y="34" font-size="9" fill="#555">Basic Auth 直接调用</text>
+          <line x1="10" y1="44" x2="40" y2="44" stroke="#1a73e8" stroke-width="1.5" stroke-dasharray="4,3"/><text x="44" y="48" font-size="9" fill="#555">设备注册/控制（Fleets → Thing Registry）</text>
+          <line x1="430" y1="44" x2="460" y2="44" stroke="#34a853" stroke-width="1.5" stroke-dasharray="4,3"/><text x="464" y="48" font-size="9" fill="#555">Fleets → 设备 下发（经 MQTT）</text>
         </g>
       </svg>
     </div>
@@ -1850,7 +1833,7 @@ GET  /api/v1/da/instances/da-inst-001/status
 
     <div class="info green">
       <strong>核心逻辑：</strong> DA <strong>不保存完整设备列表</strong>。当 DA 需要与某个设备交互时（NL 控制、规则触发、AI 分析），
-      主动用 <code>thingId</code> 调 Fleets API 拉取该设备的 thing metadata，从中提取并只缓存其 thingType（即 DeviceSpec），同类型设备共享一份模型，随后通过 <code>$emqx/</code> MQTT 主题直接与设备通信。
+      主动用 <code>thingId</code> 调 Fleets API 拉取该设备的 thing metadata，从中提取并只缓存其 thingType（即 DeviceSpec），同类型设备共享一份模型，随后通过 <strong>Fleets API 下发控制指令</strong>（Fleets 再经自身 MQTT 通道与设备通信）。
     </div>
 
     <div class="arch-fig">
@@ -1884,9 +1867,9 @@ GET  /api/v1/da/instances/da-inst-001/status
         <path d="M690,72 L720,72" stroke="#5f6368" stroke-width="1.5" fill="none" marker-end="url(#arL)"/>
 
         <rect x="730" y="40" width="180" height="65" rx="8" fill="#e6f4ea" stroke="#34a853" stroke-width="1.5" filter="url(#shI)"/>
-        <text x="820" y="60" text-anchor="middle" font-size="10" font-weight="700" fill="#2e7d32">4. 与设备通信</text>
-        <text x="820" y="78" text-anchor="middle" font-size="8" fill="#5f6368">$emqx/things/{name}/...</text>
-        <text x="820" y="92" text-anchor="middle" font-size="8" fill="#5f6368">下发命令 / 订阅上报</text>
+        <text x="820" y="60" text-anchor="middle" font-size="10" font-weight="700" fill="#2e7d32">4. 经 Fleets API 控制</text>
+        <text x="820" y="78" text-anchor="middle" font-size="8" fill="#5f6368">POST /things/{id}/commands</text>
+        <text x="820" y="92" text-anchor="middle" font-size="8" fill="#5f6368">Fleets 经 MQTT 下发设备</text>
 
         <g transform="translate(30,125)">
           <rect x="0" y="0" width="880" height="75" rx="6" fill="#fff" stroke="#e0e0e0"/>
@@ -1921,38 +1904,16 @@ async function resolveDeviceSpec(thingId) {
   return spec;
 }
 
-// 交互时无需预先导入设备
+// 交互时无需预先导入设备（DA 不维护设备列表，按 thingId 经 Fleets API 控制）
 async function handleNlControl(input, thingId) {
   const spec = await resolveDeviceSpec(thingId);
   const cmd  = parseIntent(input, spec.commands);
-  await adapter.publishCommand(thingId, cmd.name, cmd.params);
+  // 控制指令统一经 Fleets API 下发，Fleets 再经 MQTT 送达设备
+  await fleetsApi.post(`/api/v1/things/${thingId}/commands`, {
+    command: cmd.name,
+    params:  cmd.params
+  });
 }</code></pre>
-      </div>
-      <div class="card">
-        <h3>⏳ 规划功能：设备导入 / 导出 API</h3>
-        <div class="info orange" style="margin:0 0 8px">
-          <strong>规划中（默认不启用）：</strong> 未来可让 Fleets 主动管控 DA 的设备管理范围，
-          适用于需要 DA 预订阅设备、预热缓存或限定管理边界的场景。
-        </div>
-        <pre class="code"><code>// 【规划】POST /api/v1/da/devices/import
-// 调用方：Fleets → DA
-// 作用：Fleets 主动把一批设备纳入 DA 管理范围
-{
-  "thingIds": ["t-001", "t-002"]
-}
-// DA 预拉取 ThingType + 预订阅 $emqx/things/{name}/...
-
-// 【规划】POST /api/v1/da/devices/export
-// 作用：Fleets 通知 DA 释放设备（取消订阅 + 清缓存）
-{
-  "thingIds": ["t-001"],
-  "reason": "maintenance"
-}
-
-// 说明：
-// - 默认模式无需导入 —— DA 按 thingId 懒加载即可控制设备
-// - 导入/导出仅用于"预热 / 范围管控"等增强场景
-// - 是否落地取决于后续实际运营需求</code></pre>
       </div>
     </div>
   </div>
@@ -1961,16 +1922,16 @@ async function handleNlControl(input, thingId) {
     <h2 class="section-title">🤖 DA 对 Fleets 已有设备的控制权</h2>
 
     <div class="info purple">
-      <strong>核心机制：</strong> DA 按 <code>thingId</code> 拉取到设备的 thing metadata、提取其 thingType（DeviceSpec）后，即通过 <code>$emqx/</code> MQTT 主题与设备通信，
-      <strong>控制路径不经过 Fleets API</strong>，与 Fleets 完全独立、互不干扰。设备模型按需获取，无需预先导入。
+      <strong>核心机制：</strong> DA 按 <code>thingId</code> 拉取到设备的 thing metadata、提取其 thingType（DeviceSpec）后，即通过 <strong>Fleets API 下发控制指令</strong>（Fleets 再经 MQTT 与设备通信），
+      <strong>控制路径统一经过 Fleets</strong>，DA 不再直连 MQTT Broker。设备模型按需获取，无需预先导入。
     </div>
 
     <div class="mg">
       <div>
         <h4>🎯 DA 获得哪些控制权</h4>
-        <p>• 读取设备上报的 Shadow reported、Events、Command response<br>
-        • 通过 Shadow desired 设置设备属性<br>
-        • 通过 Command 下发设备指令<br>
+        <p>• 通过 Fleets API 读取设备上报的 Shadow reported、Events、Command response<br>
+        • 通过 Fleets API 设置 Shadow desired 属性<br>
+        • 通过 Fleets API 下发 Command 指令<br>
         • 通过规则引擎自动响应设备事件<br>
         • 通过 AI 分析设备数据趋势</p>
       </div>
@@ -1980,17 +1941,12 @@ async function handleNlControl(input, thingId) {
         • ThingType Schema 的创建/修改<br>
         • Jobs 作业调度（DA 不做 Jobs）<br>
         • 设备认证凭据管理<br>
-        • 设备查询与标签分组</p>
+        • 与设备之间的 MQTT 通道（Fleets 代理下发）</p>
       </div>
       <div>
         <h4>⚡ 按需获取模型</h4>
         <p>DA 不维护设备列表，运行时用 <code>thingId</code> 向 Fleets 拉取 thing metadata，提取其 thingType 构建 DeviceSpec 并只缓存该模型。
-        DA 与 Fleets 都能控制设备 —— 两者通过 <strong>最后写入者语义</strong> 自然收敛。</p>
-      </div>
-      <div>
-        <h4>📋 设备范围管控（规划）</h4>
-        <p>默认无需标记。若启用规划中的导入/导出功能，可为 Thing 增加 <code>metadata.managedByDa</code> 字段，
-        由 Fleets UI 展示并手动管控 DA 的设备管理范围。</p>
+        DA 的控制指令统一经 Fleets 下发，<strong>Fleets 是设备控制的唯一权威入口</strong>；DA 不再直连 MQTT。</p>
       </div>
     </div>
 
@@ -2007,8 +1963,8 @@ async function handleNlControl(input, thingId) {
           <tr><td><code>POST /api/v1/da/instances/{id}/start|stop|restart</code></td><td>Fleets 内部</td><td>控制 DA 进程生命周期</td></tr>
           <tr><td><code>GET /api/v1/things/{id}</code></td><td>DA → Fleets</td><td>按 thingId 拉取 thing metadata（默认）</td></tr>
           <tr><td><code>GET /api/v1/thing-types/{name}</code></td><td>DA → Fleets</td><td>拉取 ThingType Schema 构建 DeviceSpec（默认）</td></tr>
-          <tr><td><code>POST /api/v1/da/devices/import</code></td><td>Fleets → DA</td><td><span class="tag tg-o">规划</span> 导入设备到 DA 管理范围</td></tr>
-          <tr><td><code>POST /api/v1/da/devices/export</code></td><td>Fleets → DA</td><td><span class="tag tg-o">规划</span> 从 DA 导出/释放设备</td></tr>
+          <tr><td><code>POST /api/v1/things/{id}/commands</code></td><td>DA → Fleets</td><td>下发设备控制指令（Fleets 经 MQTT 送达设备）</td></tr>
+          <tr><td><code>PUT /api/v1/things/{id}/shadow</code></td><td>DA → Fleets</td><td>设置设备 Shadow desired（经 Fleets 下发）</td></tr>
         </tbody>
       </table>
     </div>
