@@ -1,0 +1,1493 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>EMQX Tables 深度调研报告</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/atom-one-dark.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js"></script>
+<style>
+:root {
+  --c-bg: #f0f3f7;
+  --c-surface: #ffffff;
+  --c-primary: #00b173;
+  --c-text: #1a1a2e;
+  --c-text-muted: #5a6070;
+  --c-border: #e2e7ed;
+  --c-blue: #1a73e8;
+  --c-orange: #f29900;
+  --c-purple: #7b1fa2;
+  --c-red: #ea4335;
+  --c-source-bg: #f8f9fb;
+  --radius: 10px;
+  --shadow: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+  --shadow-lg: 0 4px 16px rgba(0,0,0,.08), 0 1px 4px rgba(0,0,0,.04);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100%; max-width: 100%; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans SC', sans-serif;
+  background: var(--c-bg); color: var(--c-text); line-height: 1.65; font-size: .88rem;
+  overflow-x: hidden; /* 防止任何横向滚动 */
+}
+.wrapper { max-width: 1160px; margin: 0 auto; padding: 28px 20px 60px; width: 100%; }
+
+/* Header */
+.header {
+  background: linear-gradient(135deg, #00b173 0%, #00d68f 50%, #00e69a 100%);
+  color: #fff; padding: 40px 32px 32px; border-radius: var(--radius); margin-bottom: 28px;
+  box-shadow: var(--shadow-lg);
+}
+.header h1 { font-size: 1.9rem; font-weight: 700; margin-bottom: 6px; }
+.header .subtitle { font-size: .92rem; opacity: .9; }
+.header .meta { margin-top: 14px; font-size: .78rem; opacity: .75; }
+.header .tags { margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap; }
+.header .tag {
+  background: rgba(255,255,255,.22); color: #fff; padding: 3px 12px; border-radius: 20px;
+  font-size: .76rem; font-weight: 500; backdrop-filter: blur(4px);
+}
+
+/* Tab System — 自动换行，避免横向滚动 */
+.tabs { margin-bottom: 28px; }
+.tab-nav {
+  display: flex; flex-wrap: wrap; gap: 4px 0;
+  border-bottom: 2px solid var(--c-border);
+  margin-bottom: 0;
+}
+.tab-btn {
+  background: none; border: none; padding: 10px 16px; font-size: .82rem; font-weight: 600;
+  color: var(--c-text-muted); cursor: pointer; border-bottom: 2px solid transparent;
+  margin-bottom: -2px; transition: color .2s, border-color .2s; font-family: inherit;
+}
+.tab-btn:hover { color: var(--c-primary); }
+.tab-btn.active { color: var(--c-primary); border-bottom-color: var(--c-primary); }
+.tab-panel { display: none; animation: fadeIn .3s ease; }
+.tab-panel.active { display: block; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+/* Cards */
+.card { background: var(--c-surface); border-radius: var(--radius); padding: 24px; margin-bottom: 20px; box-shadow: var(--shadow); }
+.section-title { font-size: 1.15rem; font-weight: 700; margin-bottom: 14px; padding-left: 14px; border-left: 4px solid var(--c-primary); }
+h3 { font-size: .98rem; font-weight: 700; margin: 18px 0 8px; }
+h4 { font-size: .86rem; font-weight: 600; margin: 12px 0 6px; color: var(--c-text-muted); }
+
+/* Source citation */
+.source-note {
+  margin-top: 14px; padding: 7px 12px; background: var(--c-source-bg); border-radius: 6px;
+  font-size: .72rem; color: var(--c-text-muted); border-left: 3px solid #ccd5de; word-break: break-word;
+}
+.source-note strong { color: var(--c-text); font-weight: 600; }
+
+/* Info Boxes */
+.info-box { padding: 12px 16px; border-radius: 8px; font-size: .84rem; border-left: 4px solid; margin-bottom: 14px; }
+.info-box.blue  { background: #e8f0fe; border-color: var(--c-blue); }
+.info-box.green { background: #e6f4ea; border-color: var(--c-primary); }
+.info-box.orange{ background: #fef7e0; border-color: var(--c-orange); }
+.info-box.purple{ background: #f3e5f5; border-color: var(--c-purple); }
+.info-box.red   { background: #fce8e6; border-color: var(--c-red); }
+
+/* Grids */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.feature-card {
+  background: var(--c-surface); border-radius: var(--radius); padding: 18px 16px;
+  box-shadow: var(--shadow); border-top: 3px solid var(--c-primary);
+}
+.feature-card h3 { margin: 0 0 6px; font-size: .9rem; }
+
+/* Architecture Figure */
+.arch-fig { margin: 20px 0; text-align: center; }
+.arch-fig svg { max-width: 100%; height: auto; display: block; margin: 0 auto; }
+
+/* Tables — 在小屏上允许容器横向滚动，但不影响整个页面 */
+.table-wrap { overflow-x: auto; max-width: 100%; -webkit-overflow-scrolling: touch; }
+.styled-table { width: 100%; border-collapse: collapse; font-size: .82rem; min-width: 600px; }
+.styled-table thead th {
+  background: #f8f9fa; padding: 10px 14px; text-align: left; font-weight: 600;
+  border-bottom: 2px solid var(--c-border); font-size: .78rem; color: var(--c-text-muted); white-space: nowrap;
+}
+.styled-table tbody td { padding: 9px 14px; border-bottom: 1px solid var(--c-border); vertical-align: top; word-break: break-word; }
+.styled-table tbody tr:hover { background: #f8fafb; }
+
+/* Code */
+pre.code { position: relative; background: #1e1e2e; border-radius: 8px; overflow-x: auto; margin: 10px 0; padding: 0; }
+pre.code code {
+  display: block; padding: 12px 16px; font-family: 'SF Mono','Fira Code',monospace;
+  font-size: .74rem; line-height: 1.55; background: transparent !important;
+}
+.copy-btn {
+  position: absolute; top: 6px; right: 8px; background: rgba(255,255,255,.12); border: none;
+  border-radius: 6px; padding: 3px 8px; font-size: .82rem; cursor: pointer; color: #ccc; z-index: 2;
+  transition: background .2s;
+}
+.copy-btn:hover { background: rgba(255,255,255,.22); }
+
+/* Flow Steps */
+.flow-steps { display: flex; gap: 0; align-items: stretch; margin: 18px 0; flex-wrap: wrap; }
+.flow-step {
+  flex: 1 1 150px; min-width: 130px; text-align: center; position: relative; padding: 14px 10px;
+  background: #e6f4ea; border-radius: 8px; font-size: .78rem; margin: 4px;
+}
+.flow-step .step-num {
+  display: inline-block; width: 24px; height: 24px; line-height: 24px; border-radius: 50%;
+  background: var(--c-primary); color: #fff; font-weight: 700; font-size: .74rem; margin-bottom: 6px;
+}
+.flow-step .step-label { font-weight: 600; display: block; margin-bottom: 2px; }
+
+/* KPI Cards */
+.kpi-row { display: flex; gap: 14px; margin: 14px 0; flex-wrap: wrap; }
+.kpi-card {
+  flex: 1 1 140px; min-width: 130px; background: var(--c-surface); border-radius: var(--radius);
+  padding: 16px; box-shadow: var(--shadow); text-align: center;
+}
+.kpi-card .kpi-value { font-size: 1.5rem; font-weight: 800; color: var(--c-primary); }
+.kpi-card .kpi-label { font-size: .74rem; color: var(--c-text-muted); margin-top: 2px; }
+
+/* Lists in cards */
+.card ul, .card ol { padding-left: 20px; line-height: 1.85; font-size: .82rem; }
+.card li { margin-bottom: 4px; }
+.card code { background: #f1f3f5; padding: 1px 6px; border-radius: 3px; font-family: 'SF Mono',monospace; font-size: .82em; word-break: break-all; }
+
+/* References list */
+.ref-list { font-size: .78rem; line-height: 1.8; color: var(--c-text-muted); padding: 0; list-style: none; }
+.ref-list li { margin-bottom: 4px; }
+.ref-list a { color: var(--c-blue); text-decoration: none; word-break: break-all; }
+.ref-list a:hover { text-decoration: underline; }
+
+/* Footer */
+.footer { text-align: center; padding: 20px; color: var(--c-text-muted); font-size: .76rem; border-top: 1px solid var(--c-border); margin-top: 20px; }
+
+/* Responsive */
+@media(max-width:900px) {
+  .grid-2 { grid-template-columns: 1fr; }
+  .grid-3 { grid-template-columns: 1fr 1fr; }
+  .grid-4 { grid-template-columns: 1fr 1fr; }
+  .kpi-row { flex-direction: column; }
+  .tab-btn { padding: 8px 12px; font-size: .76rem; }
+  .header h1 { font-size: 1.5rem; }
+  .header { padding: 28px 20px 22px; }
+  .wrapper { padding: 18px 14px 40px; }
+}
+@media(max-width:600px) {
+  .grid-3, .grid-4 { grid-template-columns: 1fr; }
+  .tab-btn { padding: 6px 10px; font-size: .72rem; flex: 0 0 auto; }
+  .card { padding: 16px; }
+  .header h1 { font-size: 1.25rem; }
+}
+
+.svg-label { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans SC', sans-serif; }
+</style>
+</head>
+<body>
+
+<div class="wrapper">
+
+<!-- ==================== HEADER ==================== -->
+<div class="header">
+  <h1>EMQX Tables 深度调研报告</h1>
+  <div class="subtitle">全托管 MQTT 时序数据库服务 — 功能、架构、原理与竞品分析</div>
+  <div class="meta">调研日期：2026-07-17 &nbsp;|&nbsp; 基于 EMQX 官方产品页、技术文档、技术博客及 Datalayers 官方文档</div>
+  <div class="tags">
+    <span class="tag">IoT</span><span class="tag">MQTT</span><span class="tag">时序数据库</span>
+    <span class="tag">GreptimeDB</span><span class="tag">Datalayers</span><span class="tag">可观测性</span>
+  </div>
+</div>
+
+<!-- ==================== TAB NAVIGATION ==================== -->
+<div class="tabs" role="tablist">
+  <div class="tab-nav">
+    <button class="tab-btn active" data-tab="tab-overview" role="tab" aria-selected="true">1. 概览</button>
+    <button class="tab-btn" data-tab="tab-arch" role="tab">2. 产品架构</button>
+    <button class="tab-btn" data-tab="tab-greptimedb" role="tab">3. 底层引擎 GreptimeDB</button>
+    <button class="tab-btn" data-tab="tab-features" role="tab">4. 核心功能</button>
+    <button class="tab-btn" data-tab="tab-integration" role="tab">5. 集成指南</button>
+    <button class="tab-btn" data-tab="tab-pricing" role="tab">6. 定价与方案</button>
+    <button class="tab-btn" data-tab="tab-compare" role="tab">7. 竞品对比</button>
+    <button class="tab-btn" data-tab="tab-datalayers" role="tab">8. Datalayers 对比</button>
+    <button class="tab-btn" data-tab="tab-replace" role="tab">9. 替换可行性分析</button>
+  </div>
+
+<!-- ============================================================================================================ -->
+<!-- TAB 1: 概览 -->
+<!-- ============================================================================================================ -->
+<div class="tab-panel active" id="tab-overview" role="tabpanel">
+
+<div class="info-box green">
+  <strong>定义：</strong>EMQX Tables 是 EMQX Cloud 内置的全托管时序数据库服务，底层基于 GreptimeDB 引擎。它将 MQTT 消息代理与时序数据存储深度整合，在统一控制台内实现「设备接入 → 数据流转 → 持久化存储 → SQL 查询 → 可视化」的完整闭环，无需部署任何外部数据库或中间件。
+  <div class="source-note" style="margin-top:8px"><strong>来源：</strong>EMQX Cloud 产品页 [1]、EMQX Tables 概述文档 [2]、EMQX 官方博客「Why EMQX Tables Chose GreptimeDB」[8]</div>
+</div>
+
+<div class="card">
+  <div class="section-title">产品定位</div>
+  <p>EMQX Tables 定位于 <strong>IoT 场景一站式数据处理平台</strong>的存储层。传统 IoT 架构需要在 MQTT Broker 之外单独部署 InfluxDB/TimescaleDB 等时序数据库，带来集成复杂、多供应商账单、运维成本高等问题。EMQX Tables 通过将存储能力内建到 EMQX Cloud 中，消除了这一集成摩擦。</p>
+  <div class="source-note"><strong>来源：</strong>EMQX Cloud 产品页 — "The Challenge" 与 "The Solution" 章节 [1]</div>
+</div>
+
+<div class="card">
+  <div class="section-title">核心价值主张</div>
+  <div class="grid-2">
+    <div class="feature-card">
+      <h3>统一平台</h3>
+      <p style="font-size:.82rem;color:var(--c-text-muted)">Broker 与 DB 在同一 EMQX Cloud 控制面管理，消除上下文切换。<br>
+      <em style="font-size:.72rem">来源: EMQX Tables 概述 [2] — "Unified Experience"</em></p>
+    </div>
+    <div class="feature-card">
+      <h3>零运维</h3>
+      <p style="font-size:.82rem;color:var(--c-text-muted)">全托管：扩缩容、备份、监控、升级均由平台自动处理。<br>
+      <em style="font-size:.72rem">来源: 产品页 [1] — "Simplified Operations"</em></p>
+    </div>
+    <div class="feature-card">
+      <h3>单一账单</h3>
+      <p style="font-size:.82rem;color:var(--c-text-muted)">一个供应商、一张账单，显著降低 TCO。<br>
+      <em style="font-size:.72rem">来源: 产品页 [1] — "Reduced TCO"</em></p>
+    </div>
+    <div class="feature-card">
+      <h3>即时洞察</h3>
+      <p style="font-size:.82rem;color:var(--c-text-muted)">MQTT 消息直达时序存储，实时 SQL 查询与分析。<br>
+      <em style="font-size:.72rem">来源: 产品页 [1] — "Powerful Query & Integration"</em></p>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="section-title">关键数据一览</div>
+  <div class="kpi-row">
+    <div class="kpi-card"><div class="kpi-value">4 档</div><div class="kpi-label">计算规格 (2C/8G — 16C/64G)</div></div>
+    <div class="kpi-card"><div class="kpi-value">3 云</div><div class="kpi-label">AWS / Azure / Google Cloud</div></div>
+    <div class="kpi-card"><div class="kpi-value">$0.39/h</div><div class="kpi-label">起步价格 (2C8G)</div></div>
+    <div class="kpi-card"><div class="kpi-value">500K/s</div><div class="kpi-label">最高写入吞吐 (16C)</div></div>
+    <div class="kpi-card"><div class="kpi-value">99.5%</div><div class="kpi-label">Starter Plan SLA</div></div>
+  </div>
+  <div class="source-note"><strong>来源：</strong>EMQX Tables 定价文档 [3]、产品方案文档 [7] — 规格与 SLA 来自 Starter Plan 定义</div>
+</div>
+
+<div class="card">
+  <div class="section-title">适用场景</div>
+  <div class="grid-3">
+    <div class="feature-card"><h3>IoT 遥测存储</h3><p style="font-size:.8rem;color:var(--c-text-muted)">温度、湿度、GPS、传感器读数持续采集与长期保留。</p></div>
+    <div class="feature-card"><h3>运维监控</h3><p style="font-size:.8rem;color:var(--c-text-muted)">设备电池、在线时长、状态等指标的实时告警与监控。</p></div>
+    <div class="feature-card"><h3>实时看板</h3><p style="font-size:.8rem;color:var(--c-text-muted)">通过 Grafana/Metabase 构建设备状态和历史趋势的实时仪表盘。</p></div>
+    <div class="feature-card"><h3>工业 IoT 分析</h3><p style="font-size:.8rem;color:var(--c-text-muted)">产线传感器数据的预测性维护与运营效率优化。</p></div>
+    <div class="feature-card"><h3>车联网遥测</h3><p style="font-size:.8rem;color:var(--c-text-muted)">车辆位置、速度、诊断数据等海量时序信息的接入与查询。</p></div>
+    <div class="feature-card"><h3>数据分析与 AI</h3><p style="font-size:.8rem;color:var(--c-text-muted)">基于 SQL 的时序查询、模式检测，对接 MindsDB 等 AI/ML 工具。</p></div>
+  </div>
+  <div class="source-note"><strong>来源：</strong>EMQX Tables 概述 [2] — "Common Use Cases" 章节；产品页 [1] — "Use Cases" 章节</div>
+</div>
+
+<div class="card">
+  <div class="section-title">底层引擎：GreptimeDB</div>
+  <p>EMQX Tables 的存储引擎由 <strong>GreptimeDB</strong> 提供——一款由 Rust 语言编写、Apache 2.0 许可的云原生时序数据库。EMQX Cloud 团队在评估了 InfluxDB、TimescaleDB 等多款时序数据库后，基于五大设计决策选择了 GreptimeDB：</p>
+  <ol style="font-size:.82rem;line-height:2;padding-left:20px;margin-top:8px">
+    <li><strong>对象存储优先</strong>—— 架构第一天即以 S3/GCS 为主存储，成本仅为 EBS 的 1/3.5 — 1/80</li>
+    <li><strong>性能-成本比</strong>—— 写入吞吐为 InfluxDB 的 2 倍+、TimescaleDB 的 2.17 倍，存储仅 1/18</li>
+    <li><strong>统一数据模型</strong>—— Metrics + Logs + Traces 三合一，一条 SQL 关联三种信号</li>
+    <li><strong>开源即分布式</strong>—— Apache 2.0 许可下完整提供集群能力，无 vendor lock-in</li>
+    <li><strong>协议兼容</strong>—— 同时支持 InfluxDB Line Protocol、Prometheus Remote Write、OTLP、SQL 和 PromQL</li>
+  </ol>
+  <div class="source-note"><strong>来源：</strong>EMQX 官方博客「Why EMQX Tables Chose GreptimeDB」[8]；TSBS 基准数据来自 GreptimeDB 官方基准报告 [10]</div>
+</div>
+
+</div><!-- /tab-overview -->
+
+<!-- ============================================================================================================ -->
+<!-- TAB 2: 产品架构 -->
+<!-- ============================================================================================================ -->
+<div class="tab-panel" id="tab-arch" role="tabpanel">
+
+<div class="card">
+  <div class="section-title">整体架构图</div>
+  <div class="arch-fig">
+    <svg viewBox="0 0 960 560" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <filter id="sh"><feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#00000015"/></filter>
+        <marker id="ag" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#00b173"/></marker>
+        <marker id="ab" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#1a73e8"/></marker>
+        <marker id="ao" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#f29900"/></marker>
+        <marker id="ap" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#7b1fa2"/></marker>
+      </defs>
+      <rect x="30" y="20" width="180" height="50" rx="8" fill="#e8f0fe" stroke="#1a73e8" stroke-width="1.5" filter="url(#sh)"/>
+      <text x="120" y="42" text-anchor="middle" font-size="12" font-weight="700" fill="#1a73e8" class="svg-label">设备层</text>
+      <text x="120" y="58" text-anchor="middle" font-size="10" fill="#5a6070" class="svg-label">传感器 · 车辆 · 工厂 · 网关</text>
+      <rect x="60" y="90" width="60" height="36" rx="8" fill="#fff" stroke="#1a73e8" stroke-width="1.2" filter="url(#sh)"/>
+      <text x="90" y="113" text-anchor="middle" font-size="11" fill="#1a73e8" class="svg-label">MQTT</text>
+      <rect x="150" y="90" width="60" height="36" rx="8" fill="#fff" stroke="#1a73e8" stroke-width="1.2" filter="url(#sh)"/>
+      <text x="180" y="113" text-anchor="middle" font-size="11" fill="#1a73e8" class="svg-label">MQTT</text>
+      <line x1="120" y1="70" x2="90" y2="88" stroke="#1a73e8" stroke-width="1.5" marker-end="url(#ab)"/>
+      <line x1="120" y1="70" x2="180" y2="88" stroke="#1a73e8" stroke-width="1.5" marker-end="url(#ab)"/>
+      <rect x="30" y="140" width="900" height="380" rx="12" fill="none" stroke="#00b173" stroke-width="2.5" stroke-dasharray="8,4"/>
+      <rect x="38" y="130" width="130" height="22" rx="4" fill="#00b173"/>
+      <text x="103" y="145" text-anchor="middle" font-size="11" font-weight="700" fill="#fff" class="svg-label">EMQX Cloud</text>
+      <rect x="60" y="175" width="200" height="80" rx="10" fill="#e6f4ea" stroke="#00b173" stroke-width="1.8" filter="url(#sh)"/>
+      <text x="160" y="200" text-anchor="middle" font-size="13" font-weight="700" fill="#008a59" class="svg-label">EMQX Broker</text>
+      <text x="160" y="218" text-anchor="middle" font-size="10" fill="#5a6070" class="svg-label">MQTT 消息代理</text>
+      <text x="160" y="234" text-anchor="middle" font-size="10" fill="#5a6070" class="svg-label">Topic 路由 · 认证鉴权</text>
+      <rect x="340" y="175" width="200" height="80" rx="10" fill="#fef7e0" stroke="#f29900" stroke-width="1.8" filter="url(#sh)"/>
+      <text x="440" y="200" text-anchor="middle" font-size="13" font-weight="700" fill="#cc7a00" class="svg-label">规则引擎</text>
+      <text x="440" y="218" text-anchor="middle" font-size="10" fill="#5a6070" class="svg-label">SQL 过滤 · 字段提取</text>
+      <text x="440" y="234" text-anchor="middle" font-size="10" fill="#5a6070" class="svg-label">数据转换 · 格式化</text>
+      <rect x="620" y="160" width="280" height="110" rx="10" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="2" filter="url(#sh)"/>
+      <text x="760" y="185" text-anchor="middle" font-size="14" font-weight="700" fill="#6a1b9a" class="svg-label">EMQX Tables</text>
+      <text x="760" y="202" text-anchor="middle" font-size="10" fill="#5a6070" class="svg-label">全托管时序数据库 (GreptimeDB 引擎)</text>
+      <rect x="640" y="212" width="120" height="22" rx="4" fill="#7b1fa2" opacity=".12"/>
+      <text x="700" y="227" text-anchor="middle" font-size="9" fill="#7b1fa2" class="svg-label">Schema 自动推断</text>
+      <rect x="770" y="212" width="120" height="22" rx="4" fill="#7b1fa2" opacity=".12"/>
+      <text x="830" y="227" text-anchor="middle" font-size="9" fill="#7b1fa2" class="svg-label">高压缩比存储</text>
+      <rect x="640" y="240" width="120" height="22" rx="4" fill="#7b1fa2" opacity=".12"/>
+      <text x="700" y="255" text-anchor="middle" font-size="9" fill="#7b1fa2" class="svg-label">自动备份</text>
+      <rect x="770" y="240" width="120" height="22" rx="4" fill="#7b1fa2" opacity=".12"/>
+      <text x="830" y="255" text-anchor="middle" font-size="9" fill="#7b1fa2" class="svg-label">自动扩缩容</text>
+      <line x1="262" y1="215" x2="336" y2="215" stroke="#f29900" stroke-width="2" marker-end="url(#ao)"/>
+      <text x="299" y="208" text-anchor="middle" font-size="8" fill="#f29900" class="svg-label">消息</text>
+      <line x1="542" y1="215" x2="616" y2="215" stroke="#7b1fa2" stroke-width="2" marker-end="url(#ap)"/>
+      <text x="579" y="208" text-anchor="middle" font-size="8" fill="#7b1fa2" class="svg-label">Line Protocol</text>
+      <path d="M260,240 C330,310 530,310 620,250" fill="none" stroke="#1a73e8" stroke-width="1.5" stroke-dasharray="6,3" marker-end="url(#ab)"/>
+      <text x="440" y="318" text-anchor="middle" font-size="9" fill="#1a73e8" class="svg-label">Direct Sink（可选直连路径）</text>
+      <rect x="60" y="320" width="840" height="60" rx="8" fill="#e8f0fe" stroke="#1a73e8" stroke-width="1.5" filter="url(#sh)"/>
+      <text x="100" y="348" font-size="11" font-weight="600" fill="#1a73e8" class="svg-label">查询协议</text>
+      <rect x="180" y="335" width="80" height="28" rx="5" fill="#1a73e8" opacity=".1"/>
+      <text x="220" y="354" text-anchor="middle" font-size="10" fill="#1a73e8" class="svg-label">SQL</text>
+      <rect x="270" y="335" width="80" height="28" rx="5" fill="#1a73e8" opacity=".1"/>
+      <text x="310" y="354" text-anchor="middle" font-size="10" fill="#1a73e8" class="svg-label">PromQL</text>
+      <rect x="360" y="335" width="120" height="28" rx="5" fill="#1a73e8" opacity=".1"/>
+      <text x="420" y="354" text-anchor="middle" font-size="10" fill="#1a73e8" class="svg-label">InfluxDB LP</text>
+      <text x="530" y="348" font-size="11" font-weight="600" fill="#1a73e8" class="svg-label">可视化</text>
+      <rect x="590" y="335" width="65" height="28" rx="5" fill="#fff" stroke="#1a73e8" stroke-width="1"/>
+      <text x="622" y="354" text-anchor="middle" font-size="10" fill="#1a73e8" class="svg-label">Grafana</text>
+      <rect x="665" y="335" width="70" height="28" rx="5" fill="#fff" stroke="#1a73e8" stroke-width="1"/>
+      <text x="700" y="354" text-anchor="middle" font-size="9" fill="#1a73e8" class="svg-label">Metabase</text>
+      <rect x="745" y="335" width="70" height="28" rx="5" fill="#fff" stroke="#1a73e8" stroke-width="1"/>
+      <text x="780" y="354" text-anchor="middle" font-size="9" fill="#1a73e8" class="svg-label">Streamlit</text>
+      <rect x="825" y="335" width="65" height="28" rx="5" fill="#fff" stroke="#1a73e8" stroke-width="1"/>
+      <text x="857" y="354" text-anchor="middle" font-size="9" fill="#1a73e8" class="svg-label">DBeaver</text>
+      <line x1="760" y1="270" x2="480" y2="333" stroke="#1a73e8" stroke-width="1.5" marker-end="url(#ab)"/>
+      <rect x="300" y="410" width="360" height="50" rx="10" fill="#e6f4ea" stroke="#00b173" stroke-width="1.8" filter="url(#sh)"/>
+      <text x="480" y="432" text-anchor="middle" font-size="12" font-weight="600" fill="#008a59" class="svg-label">下游消费</text>
+      <text x="480" y="450" text-anchor="middle" font-size="10" fill="#5a6070" class="svg-label">监控告警 · BI 分析 · AI/ML 工作流 · 自定义应用</text>
+      <line x1="480" y1="380" x2="480" y2="408" stroke="#00b173" stroke-width="2" marker-end="url(#ag)"/>
+      <rect x="30" y="490" width="900" height="50" rx="6" fill="#f8f9fa" stroke="#e2e7ed" stroke-width="1"/>
+      <text x="55" y="512" font-size="10" font-weight="600" fill="#5a6070" class="svg-label">图例：</text>
+      <line x1="95" y1="508" x2="125" y2="508" stroke="#1a73e8" stroke-width="1.5" marker-end="url(#ab)"/>
+      <text x="130" y="512" font-size="9" fill="#5a6070" class="svg-label">数据流</text>
+      <line x1="200" y1="508" x2="230" y2="508" stroke="#1a73e8" stroke-width="1.5" stroke-dasharray="6,3" marker-end="url(#ab)"/>
+      <text x="235" y="512" font-size="9" fill="#5a6070" class="svg-label">可选路径</text>
+      <rect x="320" y="500" width="24" height="12" rx="2" fill="#e6f4ea" stroke="#00b173" stroke-width="1"/>
+      <text x="350" y="512" font-size="9" fill="#5a6070" class="svg-label">Broker</text>
+      <rect x="410" y="500" width="24" height="12" rx="2" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="1"/>
+      <text x="440" y="512" font-size="9" fill="#5a6070" class="svg-label">Tables (GreptimeDB)</text>
+      <text x="560" y="512" font-size="9" fill="#5a6070" class="svg-label">虚线 = EMQX Cloud 边界</text>
+    </svg>
+  </div>
+  <div class="source-note"><strong>来源：</strong>EMQX Tables 概述文档 [2] — "How It Works" 流程图；Broker 集成文档 [4] — "Architecture Overview" 与 "Typical Workflow"</div>
+</div>
+
+<div class="card">
+  <div class="section-title">数据流详解</div>
+  <div class="flow-steps">
+    <div class="flow-step"><span class="step-num">1</span><span class="step-label">设备发布</span>遥测数据经 MQTT 协议发送到 Broker</div>
+    <div class="flow-step"><span class="step-num">2</span><span class="step-label">规则匹配</span>Rule Engine 用 SQL 过滤消息、提取字段</div>
+    <div class="flow-step"><span class="step-num">3</span><span class="step-label">数据写入</span>经 InfluxDB Line Protocol 写入 Tables</div>
+    <div class="flow-step"><span class="step-num">4</span><span class="step-label">Schema 推断</span>GreptimeDB 自动推断表结构</div>
+    <div class="flow-step"><span class="step-num">5</span><span class="step-label">查询可视化</span>SQL / Grafana 查询与展示</div>
+  </div>
+  <div class="source-note"><strong>来源：</strong>EMQX Tables 概述文档 [2] — "How It Works" 六步流程</div>
+</div>
+
+<div class="card">
+  <div class="section-title">网络与安全架构要点</div>
+  <ul>
+    <li><strong>内网直连：</strong>Broker 与 Tables 部署在同一项目、同一区域、同一网络时，自动通过低延迟私有连接通信，数据不经过公网，<strong>免费且安全</strong>。</li>
+    <li><strong>跨区域公网：</strong>若部署在不同区域或网络，需通过 NAT 网关走公网。</li>
+    <li><strong>网络限制：</strong>每个项目网络最多可被 1 个 Broker 部署 + 1 个 Tables 部署同时共享。</li>
+    <li><strong>端口管理：</strong>支持单独启用或禁用公网与内网端点端口。</li>
+  </ul>
+  <div class="source-note"><strong>来源：</strong>Broker 集成文档 [4] — "Architecture Overview" 与 "Integration Flow"；创建部署文档 [5] — 网络关联说明</div>
+</div>
+
+<div class="card">
+  <div class="section-title">新架构 vs 传统架构</div>
+  <div class="grid-2">
+    <div style="background:#fef7e0;border-radius:8px;padding:16px;border:1px solid #f29900">
+      <h3 style="color:#cc7a00;margin-top:0">传统方案</h3>
+      <ul>
+        <li>设备 → EMQX → 公网/VPC → InfluxDB/TimescaleDB → 应用</li>
+        <li>多供应商、多账单</li>
+        <li>复杂网络与安全配置</li>
+        <li>需分别管理 Broker 和 DB</li>
+      </ul>
+    </div>
+    <div style="background:#e6f4ea;border-radius:8px;padding:16px;border:1px solid #00b173">
+      <h3 style="color:#008a59;margin-top:0">EMQX Tables 方案</h3>
+      <ul>
+        <li>设备 → EMQX Cloud（Broker → 规则引擎 → Tables）→ 应用</li>
+        <li>单一供应商、单一账单</li>
+        <li>同区域安全内网，数据流免费</li>
+        <li>统一控制面管理</li>
+      </ul>
+    </div>
+  </div>
+  <div class="source-note"><strong>来源：</strong>EMQX Cloud 产品页 [1] — "Before/After" 对比图</div>
+</div>
+
+</div><!-- /tab-arch -->
+
+<!-- ============================================================================================================ -->
+<!-- TAB 3: 底层引擎 GreptimeDB -->
+<!-- ============================================================================================================ -->
+<div class="tab-panel" id="tab-greptimedb" role="tabpanel">
+
+<div class="info-box blue">
+  <strong>背景：</strong>2025 年 12 月 23 日，EMQX Cloud 团队发布技术博客「Why EMQX Tables Chose GreptimeDB」，详细阐述了从 InfluxDB、TimescaleDB 等多款竞品中选定 GreptimeDB 的技术决策过程。以下内容基于该系列技术博客及 GreptimeDB 官方基准测试报告。
+  <div class="source-note" style="margin-top:8px"><strong>来源：</strong>EMQX 官方博客 [8] (2025-12-23) 及 [9] (2026-02-17)</div>
+</div>
+
+<div class="card">
+  <div class="section-title">GreptimeDB 存算分离存储架构</div>
+  <div class="arch-fig">
+    <svg viewBox="0 0 900 380" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <filter id="sh2"><feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#00000015"/></filter>
+        <marker id="ma" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#1a73e8"/></marker>
+        <marker id="mb" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#f29900"/></marker>
+        <marker id="mc" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#7b1fa2"/></marker>
+      </defs>
+      <rect x="20" y="20" width="860" height="115" rx="10" fill="#e8f0fe" stroke="#1a73e8" stroke-width="1.8" filter="url(#sh2)"/>
+      <rect x="30" y="12" width="160" height="20" rx="4" fill="#1a73e8"/>
+      <text x="110" y="26" text-anchor="middle" font-size="10" font-weight="700" fill="#fff" class="svg-label">计算层（无状态，水平可扩）</text>
+      <rect x="50" y="48" width="170" height="50" rx="8" fill="#fff" stroke="#1a73e8" stroke-width="1.5" filter="url(#sh2)"/>
+      <text x="135" y="70" text-anchor="middle" font-size="11" font-weight="700" fill="#1a73e8" class="svg-label">Frontend</text>
+      <text x="135" y="85" text-anchor="middle" font-size="8" fill="#5a6070" class="svg-label">SQL/PromQL 查询入口 · 协议转换</text>
+      <rect x="365" y="48" width="170" height="50" rx="8" fill="#fff" stroke="#1a73e8" stroke-width="1.5" filter="url(#sh2)"/>
+      <text x="450" y="70" text-anchor="middle" font-size="11" font-weight="700" fill="#1a73e8" class="svg-label">Metasrv</text>
+      <text x="450" y="85" text-anchor="middle" font-size="8" fill="#5a6070" class="svg-label">元数据管理 · Region 路由</text>
+      <rect x="680" y="48" width="170" height="50" rx="8" fill="#fff" stroke="#1a73e8" stroke-width="1.5" filter="url(#sh2)"/>
+      <text x="765" y="70" text-anchor="middle" font-size="11" font-weight="700" fill="#1a73e8" class="svg-label">Datanode</text>
+      <text x="765" y="85" text-anchor="middle" font-size="8" fill="#5a6070" class="svg-label">LSM Tree · 压缩 · 数据检索</text>
+      <line x1="222" y1="73" x2="362" y2="73" stroke="#1a73e8" stroke-width="1.5" marker-end="url(#ma)"/>
+      <line x1="537" y1="73" x2="677" y2="73" stroke="#1a73e8" stroke-width="1.5" marker-end="url(#ma)"/>
+      <rect x="20" y="148" width="860" height="55" rx="10" fill="#fef7e0" stroke="#f29900" stroke-width="1.8" filter="url(#sh2)"/>
+      <rect x="30" y="140" width="90" height="20" rx="4" fill="#f29900"/>
+      <text x="75" y="154" text-anchor="middle" font-size="10" font-weight="700" fill="#fff" class="svg-label">缓存层</text>
+      <rect x="50" y="165" width="190" height="25" rx="5" fill="#fff" stroke="#f29900" stroke-width="1" filter="url(#sh2)"/>
+      <text x="145" y="182" text-anchor="middle" font-size="9" fill="#cc7a00" class="svg-label">Memory Cache (ms)</text>
+      <rect x="255" y="165" width="190" height="25" rx="5" fill="#fff" stroke="#f29900" stroke-width="1" filter="url(#sh2)"/>
+      <text x="350" y="182" text-anchor="middle" font-size="9" fill="#cc7a00" class="svg-label">Write Cache (低延迟)</text>
+      <rect x="460" y="165" width="190" height="25" rx="5" fill="#fff" stroke="#f29900" stroke-width="1" filter="url(#sh2)"/>
+      <text x="555" y="182" text-anchor="middle" font-size="9" fill="#cc7a00" class="svg-label">Read Cache (冷数据加速)</text>
+      <rect x="665" y="165" width="190" height="25" rx="5" fill="#fff" stroke="#f29900" stroke-width="1" filter="url(#sh2)"/>
+      <text x="760" y="182" text-anchor="middle" font-size="9" fill="#cc7a00" class="svg-label">Metadata Cache</text>
+      <rect x="20" y="218" width="860" height="94" rx="10" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="1.8" filter="url(#sh2)"/>
+      <rect x="30" y="210" width="160" height="20" rx="4" fill="#7b1fa2"/>
+      <text x="110" y="224" text-anchor="middle" font-size="10" font-weight="700" fill="#fff" class="svg-label">存储层（对象存储 — S3/GCS/MinIO）</text>
+      <rect x="50" y="240" width="240" height="42" rx="6" fill="#fff" stroke="#7b1fa2" stroke-width="1.2" filter="url(#sh2)"/>
+      <text x="170" y="258" text-anchor="middle" font-size="10" font-weight="600" fill="#6a1b9a" class="svg-label">Apache Parquet 列式文件</text>
+      <text x="170" y="274" text-anchor="middle" font-size="8" fill="#5a6070" class="svg-label">列裁剪 · 谓词下推 · 编码压缩</text>
+      <rect x="320" y="240" width="240" height="42" rx="6" fill="#fff" stroke="#7b1fa2" stroke-width="1.2" filter="url(#sh2)"/>
+      <text x="440" y="258" text-anchor="middle" font-size="10" font-weight="600" fill="#6a1b9a" class="svg-label">SST Files (LSM Tree)</text>
+      <text x="440" y="274" text-anchor="middle" font-size="8" fill="#5a6070" class="svg-label">不可变 · 顺序写入 · Compaction</text>
+      <rect x="590" y="240" width="260" height="42" rx="6" fill="#fff" stroke="#7b1fa2" stroke-width="1.2" filter="url(#sh2)"/>
+      <text x="720" y="258" text-anchor="middle" font-size="10" font-weight="600" fill="#6a1b9a" class="svg-label">冷热分层存储</text>
+      <text x="720" y="274" text-anchor="middle" font-size="8" fill="#5a6070" class="svg-label">S3 Standard $0.023 vs Glacier $0.001/GB</text>
+      <line x1="450" y1="135" x2="350" y2="163" stroke="#f29900" stroke-width="1.2" stroke-dasharray="5,3" marker-end="url(#mb)"/>
+      <line x1="765" y1="98" x2="765" y2="163" stroke="#f29900" stroke-width="1.2" stroke-dasharray="5,3" marker-end="url(#mb)"/>
+      <line x1="170" y1="203" x2="170" y2="238" stroke="#7b1fa2" stroke-width="1.5" marker-end="url(#mc)"/>
+      <line x1="440" y1="203" x2="440" y2="238" stroke="#7b1fa2" stroke-width="1.5" marker-end="url(#mc)"/>
+      <text x="450" y="340" text-anchor="middle" font-size="8" fill="#5a6070" class="svg-label">数据湖兼容：Parquet 可直接被 Spark / Presto / Athena 读取，无缝对接下游分析与 ML 工作流</text>
+    </svg>
+  </div>
+  <div class="source-note"><strong>来源：</strong>EMQX 博客「Cloud-Native Storage Engine」[9] — 存算分离架构图与 GreptimeDB 源码架构文档</div>
+</div>
+
+<div class="card">
+  <div class="section-title">LSM Tree — 写入优化，天然适配对象存储</div>
+  <p>GreptimeDB 的核心存储引擎基于 <strong>LSM Tree（Log-Structured Merge Tree）</strong>，这一设计从三个层面完美契合 IoT 场景：</p>
+  <ul style="margin:8px 0">
+    <li><strong>写入优化：</strong>随机写转为顺序写——数据先进内存 MemTable，满后刷为不可变的 SST 文件，批量追加模式实现高写入吞吐。</li>
+    <li><strong>对象存储兼容：</strong>SST 文件创建后永不修改，更新与删除通过 Compaction（读旧文件→合并写新文件）完成。「写一次、读多次」模式完美匹配 S3 等对象存储的不可变语义，避免了 B-tree 引擎在 S3 上代价高昂的「读-修改-写」操作。</li>
+    <li><strong>高基数优化：</strong>GreptimeDB 1.0 beta 引入 <strong>Flat Format</strong>，不再为每个 Series 单独分配缓冲区。在 200 万 Series 的基准测试中，<strong>写入吞吐提升 4 倍，查询速度提升 10 倍</strong>。</li>
+  </ul>
+  <div class="source-note"><strong>来源：</strong>EMQX 博客 [9] — "LSM Tree: Write-Optimized and Object Storage Friendly" 与 "High-Cardinality Optimization" 章节</div>
+</div>
+
+<div class="card">
+  <div class="section-title">Apache Parquet — 列式存储，分析友好</div>
+  <p>GreptimeDB 以 <strong>Apache Parquet</strong> 作为数据文件格式，带来三方面的核心价值：</p>
+  <div class="table-wrap">
+  <table class="styled-table">
+    <thead><tr><th style="width:18%">能力</th><th style="width:42%">原理</th><th style="width:40%">效果</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>列裁剪</strong></td>
+        <td>IoT 查询通常只需 2-4 个字段（如温度、压力），Parquet 仅读取需要的列</td>
+        <td>跳过无关列，减少 IO，加速查询</td>
+      </tr>
+      <tr>
+        <td><strong>编码优化</strong></td>
+        <td>Dictionary Encoding（低基数设备类型）、RLE（连续相同值）、Delta Encoding（时间戳增量存储）</td>
+        <td>按列选择最优编码，压缩比通常为未压缩 CSV 的 <strong>5-50 倍</strong></td>
+      </tr>
+      <tr>
+        <td><strong>数据湖标准</strong></td>
+        <td>S3 上的 Parquet 文件可直接被 Spark、Presto、Athena 通过外表读取</td>
+        <td>无需 ETL，时序数据无缝对接大数据分析和 ML 工作流</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+  <p style="margin-top:8px">叠加 ZSTD 文件级压缩和时序专用编码（DELTA_BINARY_PACKED），GreptimeDB 在同等数据集上相比 TimescaleDB 实现了 <strong>18 倍更优压缩</strong>（1.1 GB vs 20 GB），意味着相同存储成本可保留更长时间的数据。</p>
+  <div class="source-note"><strong>来源：</strong>EMQX 博客 [9] — "Parquet Columnar Format" 与 "Time-Series Compression Optimizations" 章节；TSBS 基准数据 [10]</div>
+</div>
+
+<div class="card">
+  <div class="section-title">多级缓存架构</div>
+  <div class="table-wrap">
+  <table class="styled-table">
+    <thead><tr><th>缓存层级</th><th>存储介质</th><th>典型延迟</th><th>覆盖数据</th></tr></thead>
+    <tbody>
+      <tr><td>Memory Cache</td><td>内存</td><td>毫秒级</td><td>最近数小时热数据</td></tr>
+      <tr><td>Write Cache</td><td>本地 NVMe</td><td>低延迟</td><td>写入缓冲与近期历史数据</td></tr>
+      <tr><td>Read Cache</td><td>本地 NVMe</td><td>中等</td><td>首次查询对象存储后回填的冷数据</td></tr>
+      <tr><td>Object Storage</td><td>S3/GCS/Blob</td><td>百毫秒至秒级（首次查询）</td><td>长期历史数据——成本最低</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p style="font-size:.82rem;color:var(--c-text-muted)">核心理念：以对象存储的价格存储数据，在缓存命中时以本地磁盘速度访问热数据。S3 首次字节延迟 50-100ms，而本地 SSD 为微秒级——多级缓存在不影响查询体验的前提下实现了 3-20 倍存储成本节省。</p>
+  <div class="source-note"><strong>来源：</strong>EMQX 博客 [9] — "Multi-Level Cache Architecture" 章节</div>
+</div>
+
+<div class="card">
+  <div class="section-title">存储成本对比 — 24TB / 2 年保留</div>
+  <div class="table-wrap">
+  <table class="styled-table">
+    <thead><tr><th>方案</th><th>年存储成本 (us-east-1)</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td>传统 EBS gp3 SSD</td><td>~$23,000</td><td>迫使团队通常只保留 30-90 天数据</td></tr>
+      <tr><td>存算分离（全部 S3 Standard）</td><td>~$6,600</td><td>成本降低 3.5×</td></tr>
+      <tr style="background:#e6f4ea"><td><strong>冷热分层（3TB S3 + 21TB Glacier Deep Archive）</strong></td><td><strong>~$1,100-$3,000</strong></td><td><strong>热数据快速访问 + 冷数据极低成本归档</strong></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="source-note"><strong>来源：</strong>EMQX 博客 [9] — "Cost and Retention" 章节，基于 AWS us-east-1 存储价格计算</div>
+</div>
+
+<div class="card">
+  <div class="section-title">TSBS 基准测试 — GreptimeDB vs TimescaleDB</div>
+  <div class="table-wrap">
+  <table class="styled-table">
+    <thead><tr><th>指标</th><th>TimescaleDB</th><th>GreptimeDB</th><th>优势</th></tr></thead>
+    <tbody>
+      <tr><td>写入吞吐</td><td>131,531 rows/s</td><td>285,301 rows/s</td><td><strong>2.17×</strong></td></tr>
+      <tr><td>存储占用</td><td>20 GB</td><td>1.1 GB</td><td><strong>18× 更小</strong></td></tr>
+      <tr><td>cpu-max-all-8（8h 所有主机最大值）</td><td>6,012 ms</td><td>89 ms</td><td><strong>67×</strong></td></tr>
+      <tr><td>single-groupby-1-1-12（12h 单主机单指标聚合）</td><td>571 ms</td><td>9 ms</td><td><strong>62×</strong></td></tr>
+      <tr><td>lastpoint（最新点查询）</td><td>131 ms</td><td>1,131 ms</td><td>TimescaleDB 8.7×（GreptimeDB 劣势）</td></tr>
+      <tr><td>groupby-orderby-limit（Top N）</td><td>122 ms</td><td>728 ms</td><td>TimescaleDB 6×（GreptimeDB 劣势）</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p style="font-size:.76rem;color:var(--c-text-muted);margin-top:6px">* 硬件：AWS c5d.2xlarge（8 vCPU, 16 GB RAM, 300 GB gp3 SSD），TSBS cpu-only 场景，4,000 主机 × 3 天数据。GreptimeDB 在大范围聚合和多主机扫描上优势显著，而 TimescaleDB 在点查询和 Top-N 上仍保持领先——这是 PostgreSQL B-tree 索引的长项。</p>
+  <div class="source-note"><strong>来源：</strong>GreptimeDB 官方基准报告 [10] (2026-04-26)，使用 TimescaleDB 团队原始开发的 TSBS 基准套件</div>
+</div>
+
+</div><!-- /tab-greptimedb -->
+
+<!-- ============================================================================================================ -->
+<!-- TAB 4: 核心功能 -->
+<!-- ============================================================================================================ -->
+<div class="tab-panel" id="tab-features" role="tabpanel">
+
+<div class="card">
+  <div class="section-title">功能清单</div>
+  <div class="table-wrap">
+  <table class="styled-table">
+    <thead><tr><th style="width:18%">功能模块</th><th style="width:42%">说明</th><th style="width:40%">技术细节</th></tr></thead>
+    <tbody>
+      <tr><td><strong>MQTT 无缝集成</strong></td><td>Rule Engine 或 Direct Sink 直接将 Topic 数据写入时序表，零代码配置</td><td>规则引擎 SQL 过滤 + InfluxDB Line Protocol 写入；同区域走免费内网</td></tr>
+      <tr><td><strong>内置时序引擎</strong></td><td>由 GreptimeDB 驱动的全托管时序数据库</td><td>LSM Tree + Parquet + 对象存储，云原生存算分离</td></tr>
+      <tr><td><strong>Schema 自动推断</strong></td><td>数据写入时自动推断字段类型，无需手动建表</td><td>Schema-on-the-fly，适配 IoT 非结构化数据流</td></tr>
+      <tr><td><strong>多协议查询</strong></td><td>SQL、PromQL、InfluxDB Line Protocol 三种查询入口</td><td>兼容 PostgreSQL/MySQL 驱动、DBeaver、MindsDB</td></tr>
+      <tr><td><strong>用户权限管理</strong></td><td>自定义用户、数据库/表级访问控制、正则模式匹配</td><td>最多 10 用户/部署；12 种细粒度权限；5 种预置角色组</td></tr>
+      <tr><td><strong>可视化集成</strong></td><td>原生对接 Grafana、Metabase、Streamlit</td><td>Grafana 通过 PostgreSQL 数据源直连；内置 SQL 编辑器</td></tr>
+      <tr><td><strong>自动运维</strong></td><td>扩缩容、备份、监控、升级全自动</td><td>备份不计入存储配额；内置指标与告警</td></tr>
+      <tr><td><strong>多网络端点</strong></td><td>公网 + 内网两种端点，可独立启停端口</td><td>同项目同区域走内网，免费低延迟</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="source-note"><strong>来源：</strong>EMQX Tables 概述 [2] — "Key Features" 完整列表</div>
+</div>
+
+<div class="card">
+  <div class="section-title">细粒度权限体系</div>
+  <div class="table-wrap">
+  <table class="styled-table">
+    <thead><tr><th>权限</th><th>说明</th><th>所属预置组</th></tr></thead>
+    <tbody>
+      <tr><td><code>SqlSelect</code></td><td>SQL 查询</td><td>Read Only / Broker Integration / Read &amp; Write</td></tr>
+      <tr><td><code>SqlInsert</code></td><td>SQL / Line Protocol 写入</td><td>Write Only / Broker Integration / Read &amp; Write</td></tr>
+      <tr><td><code>SqlDelete</code></td><td>SQL 删除</td><td>Write Only / Read &amp; Write</td></tr>
+      <tr><td><code>DatabaseCreate/Alter/Drop</code></td><td>数据库创建/修改/删除</td><td>Write Only / Read &amp; Write</td></tr>
+      <tr><td><code>TableCreate/Drop/Alter</code></td><td>表级别管理</td><td>Write Only / Read &amp; Write</td></tr>
+      <tr><td><code>TriggerCreate/Drop/Alter</code></td><td>触发器管理</td><td>Write Only / Read &amp; Write</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="info-box purple" style="margin-top:12px">
+    <strong>Broker 集成建议：</strong>选择<strong> Broker Integration</strong> 预置组（含 SqlSelect + SqlInsert）即可满足数据集成连接器的权限需求。用户名必须拥有目标数据库的访问权限，控制台会自动校验。
+    <div class="source-note" style="margin-top:6px"><strong>来源：</strong>用户管理文档 [6] — "Privileges" 与 "Use Users in Data Integration" 章节</div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="section-title">Starter Plan 性能规格参考</div>
+  <div class="table-wrap">
+  <table class="styled-table">
+    <thead><tr><th>规格</th><th>IOPS</th><th>写入/秒</th><th>查询/秒</th><th>唯一序列数</th></tr></thead>
+    <tbody>
+      <tr><td>2C8G</td><td>1,000</td><td>&lt; 10,000</td><td>&lt; 50</td><td>&lt; 100,000</td></tr>
+      <tr><td>4C16G</td><td>2,000+</td><td>&lt; 200,000</td><td>&lt; 100</td><td>&lt; 1,000,000</td></tr>
+      <tr><td>8C32G</td><td>2,000+</td><td>&lt; 300,000</td><td>&lt; 150</td><td>&gt; 1,000,000</td></tr>
+      <tr><td>16C64G</td><td>3,000+</td><td>&lt; 500,000</td><td>&lt; 200</td><td>&gt; 1,000,000</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="source-note"><strong>来源：</strong>产品方案文档 [7] — "Tier Selection Guide" 性能估算表；实际性能因查询复杂度和数据分布而异</div>
+</div>
+
+</div><!-- /tab-features -->
+
+<!-- ============================================================================================================ -->
+<!-- TAB 5: 集成指南 -->
+<!-- ============================================================================================================ -->
+<div class="tab-panel" id="tab-integration" role="tabpanel">
+
+<div class="card">
+  <div class="section-title">六步集成流程</div>
+  <div class="flow-steps">
+    <div class="flow-step"><span class="step-num">1</span><span class="step-label">同区域部署</span>Broker 与 Tables 同一云平台、同一区域、同一网络</div>
+    <div class="flow-step"><span class="step-num">2</span><span class="step-label">创建用户</span>User Management 中创建至少含 SqlInsert 的用户</div>
+    <div class="flow-step"><span class="step-num">3</span><span class="step-label">创建连接器</span>Broker 中添加 Tables 连接器，选择写入用户</div>
+    <div class="flow-step"><span class="step-num">4</span><span class="step-label">定义规则</span>SQL 从 MQTT Topic 提取字段</div>
+    <div class="flow-step"><span class="step-num">5</span><span class="step-label">配置动作</span>Line Protocol 格式化并转发</div>
+    <div class="flow-step"><span class="step-num">6</span><span class="step-label">查询可视化</span>SQL 编辑器 / Grafana 分析</div>
+  </div>
+  <div class="source-note"><strong>来源：</strong>Broker 集成文档 [4] — "Integration Flow" 完整步骤</div>
+</div>
+
+<div class="card">
+  <div class="section-title">MQTT Topic → 写入示例</div>
+  <p style="margin-bottom:8px;font-size:.84rem">设备向 Topic <code>sensors/temperature</code> 发布 JSON：</p>
+<pre class="code"><code class="language-json">{
+  "device_id": "sensor-001",
+  "temperature": 23.5,
+  "humidity": 45.2,
+  "timestamp": 1752733170000
+}</code></pre>
+  <p style="margin:10px 0;font-size:.84rem">Rule Engine SQL 提取字段：</p>
+<pre class="code"><code class="language-sql">SELECT
+  payload.device_id AS device_id,
+  payload.temperature AS temperature,
+  payload.humidity AS humidity,
+  payload.timestamp AS ts
+FROM
+  "sensors/temperature"</code></pre>
+  <p style="margin:10px 0;font-size:.84rem">Action 用 Line Protocol 写入 Tables：</p>
+<pre class="code"><code class="language-text">sensors,device_id=${device_id} temperature=${temperature},humidity=${humidity} ${ts}</code></pre>
+  <p style="font-size:.82rem;color:var(--c-text-muted)">GreptimeDB 自动推断 schema（device_id→STRING, temperature→FLOAT64, humidity→FLOAT64, ts→TIMESTAMP），无需手动建表。</p>
+  <div class="source-note"><strong>来源：</strong>Broker 集成文档 [4] — Line Protocol 写入示例；产品页 [1] — "Quick Start" 示意代码</div>
+</div>
+
+<div class="card">
+  <div class="section-title">SQL 查询示例</div>
+  <p style="margin-bottom:6px;font-size:.84rem">最近 1 小时温度数据：</p>
+<pre class="code"><code class="language-sql">SELECT device_id, temperature, humidity, ts
+FROM sensors
+WHERE ts > NOW() - INTERVAL '1 hour'
+ORDER BY ts DESC LIMIT 100;</code></pre>
+  <p style="margin:10px 0 6px;font-size:.84rem">5 分钟窗口聚合（平均值、最大值、最小值）：</p>
+<pre class="code"><code class="language-sql">SELECT
+  device_id,
+  date_bin('5 minutes', ts) AS time_window,
+  AVG(temperature) AS avg_temp,
+  MAX(temperature) AS max_temp,
+  MIN(temperature) AS min_temp
+FROM sensors
+WHERE ts > NOW() - INTERVAL '1 day'
+GROUP BY device_id, time_window
+ORDER BY time_window DESC;</code></pre>
+  <div class="source-note"><strong>来源：</strong>EMQX Tables 概述 [2] — SQL 兼容性说明；GreptimeDB 支持标准 SQL 时间窗口函数</div>
+</div>
+
+<div class="card">
+  <div class="section-title">可对接的外部工具</div>
+  <div class="grid-3">
+    <div class="feature-card"><h3>Grafana</h3><p style="font-size:.8rem;color:var(--c-text-muted)">PostgreSQL 数据源直连，构建实时仪表盘与历史趋势图。</p></div>
+    <div class="feature-card"><h3>Metabase</h3><p style="font-size:.8rem;color:var(--c-text-muted)">MySQL/PostgreSQL 协议连接，零编码自助式 BI 分析。</p></div>
+    <div class="feature-card"><h3>DBeaver</h3><p style="font-size:.8rem;color:var(--c-text-muted)">PostgreSQL 驱动连接，桌面端 SQL 查询与数据管理。</p></div>
+    <div class="feature-card"><h3>Streamlit</h3><p style="font-size:.8rem;color:var(--c-text-muted)">Python 数据应用框架，构建交互式分析应用。</p></div>
+    <div class="feature-card"><h3>MindsDB</h3><p style="font-size:.8rem;color:var(--c-text-muted)">AI/ML 驱动，直接在 Tables 上训练模型。</p></div>
+    <div class="feature-card"><h3>自定义应用</h3><p style="font-size:.8rem;color:var(--c-text-muted)">HTTP API / SQL 客户端，任意语言对接。</p></div>
+  </div>
+  <div class="source-note"><strong>来源：</strong>EMQX Cloud 产品页 [1] — "Integrations" 章节列出全部兼容工具</div>
+</div>
+
+</div><!-- /tab-integration -->
+
+<!-- ============================================================================================================ -->
+<!-- TAB 6: 定价与方案 -->
+<!-- ============================================================================================================ -->
+<div class="tab-panel" id="tab-pricing" role="tabpanel">
+
+<div class="info-box orange">
+  <strong>定价模式：</strong>按部署实例计费，小时为粒度。按 vCPU、存储配额和出站流量三部分计费。无按消息计费、无限读写操作、同区域 Broker↔Tables 内网流量免费。
+</div>
+
+<div class="card">
+  <div class="section-title">Starter Plan 规格与定价（当前可用）</div>
+  <div class="table-wrap">
+  <table class="styled-table">
+    <thead><tr><th>规格</th><th>存储配额</th><th>月出站流量</th><th>时价 (USD)</th><th>月估算 (730h)</th><th>可用性</th></tr></thead>
+    <tbody>
+      <tr><td>2C8G</td><td>100 GB</td><td>100 GB</td><td>$0.39</td><td>~$285</td><td><span style="color:#00b173;font-weight:600">✓ 可用（含免费试用）</span></td></tr>
+      <tr><td>4C16G</td><td>200 GB</td><td>200 GB</td><td>$0.75</td><td>~$548</td><td>即将推出</td></tr>
+      <tr><td>8C32G</td><td>500 GB</td><td>500 GB</td><td>$1.39</td><td>~$1,015</td><td>即将推出</td></tr>
+      <tr><td>16C64G</td><td>1 TB</td><td>1 TB</td><td>$2.58</td><td>~$1,884</td><td>即将推出</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="source-note"><strong>来源：</strong>EMQX Tables 定价文档 [3] — "Pricing Summary" 表格</div>
+</div>
+
+<div class="card">
+  <div class="section-title">费用明细</div>
+  <div class="grid-2">
+    <div>
+      <h3 style="color:#00b173">已包含在基础价中</h3>
+      <ul>
+        <li>无限 MQTT 数据写入</li>
+        <li>同区域 Broker↔Tables 内网流量</li>
+        <li>内置监控指标与告警</li>
+        <li>自动备份（不占存储配额）</li>
+        <li>NAT 网关等基础设施</li>
+        <li>无限读写操作（不计量）</li>
+        <li>无最低承诺，按需付费</li>
+      </ul>
+    </div>
+    <div>
+      <h3 style="color:#f29900">超额费用</h3>
+      <ul>
+        <li>超额存储：<strong>$0.04/GB/月</strong>（压缩后平均用量）</li>
+        <li>超额外网流量：<strong>$0.09/GB/月</strong></li>
+      </ul>
+      <h3 style="color:var(--c-purple);margin-top:14px">承诺折扣</h3>
+      <ul>
+        <li>1 年预付：<strong>85 折</strong></li>
+        <li>3 年预付：<strong>7 折</strong></li>
+      </ul>
+    </div>
+  </div>
+  <div class="source-note"><strong>来源：</strong>定价文档 [3] — "What's Included"、"Additional Charges" 与 "Billing Behavior" 章节</div>
+</div>
+
+<div class="card">
+  <div class="section-title">方案对比：Starter vs Pro</div>
+  <div class="table-wrap">
+  <table class="styled-table">
+    <thead><tr><th>特性</th><th>Starter（当前）</th><th>Pro（即将推出）</th></tr></thead>
+    <tbody>
+      <tr><td>目标用户</td><td>个人项目、原型验证、小规模</td><td>生产环境、高负载</td></tr>
+      <tr><td>可用区</td><td>单 AZ</td><td>多 AZ</td></tr>
+      <tr><td>最大规格</td><td>16 vCPU / 64 GB</td><td>64 vCPU / 256 GB</td></tr>
+      <tr><td>存储 & 出站</td><td>100 GB — 1 TB</td><td>企业级高性能</td></tr>
+      <tr><td>端点类型</td><td>公网 + 内网 Broker 集成</td><td>支持 VPC Peering / PrivateLink</td></tr>
+      <tr><td>云区域</td><td>AWS、Azure、GCP</td><td>多云</td></tr>
+      <tr><td>技术支持</td><td>8×5 基础支持</td><td>24×7 专家支持</td></tr>
+      <tr><td>SLA</td><td>99.5%</td><td>99.99%</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="source-note"><strong>来源：</strong>产品方案文档 [7] — "Plan Overview" 对比表</div>
+</div>
+
+<div class="card">
+  <div class="section-title">部署区域覆盖</div>
+  <div class="table-wrap">
+  <table class="styled-table">
+    <thead><tr><th>云厂商</th><th>北美</th><th>欧洲</th><th>亚洲</th></tr></thead>
+    <tbody>
+      <tr><td><strong>AWS</strong></td><td>弗吉尼亚、俄亥俄、俄勒冈</td><td>法兰克福</td><td>新加坡、孟买</td></tr>
+      <tr><td><strong>Azure</strong></td><td>东美、西美 3</td><td>德国中西部</td><td>东南亚</td></tr>
+      <tr><td><strong>Google Cloud</strong></td><td>爱荷华、俄勒冈</td><td>伦敦、法兰克福</td><td>新加坡、台湾</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="source-note"><strong>来源：</strong>产品方案文档 [7] — "Cloud Providers and Regions" 区域列表</div>
+</div>
+
+</div><!-- /tab-pricing -->
+
+<!-- ============================================================================================================ -->
+<!-- TAB 7: 竞品对比 -->
+<!-- ============================================================================================================ -->
+<div class="tab-panel" id="tab-compare" role="tabpanel">
+
+<div class="card">
+  <div class="section-title">EMQX Tables（GreptimeDB）vs 自建 InfluxDB/TimescaleDB</div>
+  <div class="table-wrap">
+  <table class="styled-table">
+    <thead><tr><th style="width:20%">维度</th><th style="width:40%">EMQX Tables</th><th style="width:40%">自建 InfluxDB/TimescaleDB</th></tr></thead>
+    <tbody>
+      <tr><td>部署复杂度</td><td>控制台点击创建，几分钟就绪</td><td>分别部署 Broker 和 DB，配置网络/认证/连接器</td></tr>
+      <tr><td>数据管道</td><td>内置 Rule Engine → Tables，零代码</td><td>需自行开发数据桥接或配置插件</td></tr>
+      <tr><td>运维成本</td><td>全托管，零运维</td><td>自行管理扩缩容、备份、监控、升级</td></tr>
+      <tr><td>存储成本</td><td>S3 $0.023/GB/月，存算分离</td><td>EBS gp3 $0.08/GB/月，存储计算绑定</td></tr>
+      <tr><td>计费</td><td>单一供应商，无消息费</td><td>多供应商账单</td></tr>
+      <tr><td>Schema 管理</td><td>自动推断，Schema-on-the-fly</td><td>InfluxDB 需定义 measurement；TimescaleDB 需手动建表</td></tr>
+      <tr><td>查询</td><td>SQL + PromQL + Line Protocol</td><td>InfluxQL/SQL（InfluxDB）；标准 SQL（TimescaleDB）</td></tr>
+      <tr><td>开源集群</td><td>GreptimeDB Apache 2.0 全功能</td><td>InfluxDB 集群需企业版；TimescaleDB 分布式需企业版</td></tr>
+      <tr><td>适用场景</td><td>IoT 一站式，中小到中等规模</td><td>需要精细控制底层引擎的超大规模场景</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="source-note"><strong>来源：</strong>EMQX 博客 [8] — InfluxDB 与 TimescaleDB 的限制分析；[9] — 存储成本对比；[10] — 基准数据</div>
+</div>
+
+<div class="card">
+  <div class="section-title">SWOT 分析</div>
+  <div class="grid-2">
+    <div style="background:#e6f4ea;border-radius:8px;padding:16px;border-left:4px solid #00b173">
+      <h3 style="color:#008a59;margin-top:0">优势 S</h3>
+      <ul>
+        <li>与 EMQX Broker 深度原生集成</li>
+        <li>全托管零运维，极低上手门槛</li>
+        <li>单供应商降低 TCO</li>
+        <li>GreptimeDB 存算分离存储成本优势</li>
+        <li>多协议支持 (SQL/PromQL/LP/OTLP)</li>
+        <li>Apache 2.0 开源，无 vendor lock-in</li>
+      </ul>
+    </div>
+    <div style="background:#fce8e6;border-radius:8px;padding:16px;border-left:4px solid #ea4335">
+      <h3 style="color:#c62828;margin-top:0">劣势 W</h3>
+      <ul>
+        <li>Starter 仅单 AZ，无高可用</li>
+        <li>最大 16C/64G，Pro Plan 未上线</li>
+        <li>深度绑定 EMQX 生态</li>
+        <li>不支持暂停实例</li>
+        <li>每部署最多 10 用户</li>
+        <li>点查询与 Top-N 性能不及 TimescaleDB</li>
+      </ul>
+    </div>
+    <div style="background:#e8f0fe;border-radius:8px;padding:16px;border-left:4px solid #1a73e8">
+      <h3 style="color:#1a73e8;margin-top:0">机会 O</h3>
+      <ul>
+        <li>Pro Plan 上线后覆盖企业场景</li>
+        <li>IoT 市场持续高速增长</li>
+        <li>边缘计算 + 云时序存储协同</li>
+        <li>MindsDB 整合打开 AI 分析空间</li>
+        <li>GreptimeDB 持续迭代（Flow Engine、触发器告警等）</li>
+      </ul>
+    </div>
+    <div style="background:#fef7e0;border-radius:8px;padding:16px;border-left:4px solid #f29900">
+      <h3 style="color:#cc7a00;margin-top:0">威胁 T</h3>
+      <ul>
+        <li>AWS Timestream、Azure Data Explorer 等云厂商原生方案</li>
+        <li>InfluxDB Cloud Serverless 竞品生态成熟</li>
+        <li>开源时序 DB 自建方案 (TimescaleDB/ClickHouse)</li>
+        <li>云厂商可能将 MQTT 能力整合入自有 IoT 套件</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+</div><!-- /tab-compare -->
+
+<!-- ============================================================================================================ -->
+<!-- TAB 8: Datalayers 对比 -->
+<!-- ============================================================================================================ -->
+<div class="tab-panel" id="tab-datalayers" role="tabpanel">
+
+<div class="info-box blue">
+  <strong>Datalayers：</strong>由澜图未来（成都）数据科技有限公司开发的分布式多模态数据库，面向工业物联网、车联网、具身智能、AI 和能源领域。在统一架构下同时提供时序存储、全文检索、向量检索、键值存储与流计算能力。与 GreptimeDB 定位不同，Datalayers 强调「一个平台解决所有数据问题」。
+  <div class="source-note" style="margin-top:8px"><strong>来源：</strong>Datalayers 产品页 [11]、Datalayers v2.3 文档 [12]</div>
+</div>
+
+<div class="card">
+  <div class="section-title">Datalayers 核心特性</div>
+  <div class="table-wrap">
+  <table class="styled-table">
+    <thead><tr><th style="width:16%">能力</th><th style="width:44%">说明</th><th style="width:40%">技术细节</th></tr></thead>
+    <tbody>
+      <tr><td><strong>时序存储</strong></td><td>面向海量时间序列优化，监控指标、设备遥测、工业采样高并发写入场景</td><td>时序索引、向量化执行、自适应编码压缩；支持手动定制存储参数</td></tr>
+      <tr><td><strong>向量检索</strong></td><td>VECTOR(dim) 类型，维度 [1, 16383]</td><td>IVF、HNSW 索引算法；向量检索与 SQL 条件联合查询</td></tr>
+      <tr><td><strong>全文检索</strong></td><td>基于倒排索引的 STRING 列全文检索</td><td>MATCH、QUERY、SCORE() 检索函数；BM25 相关性评分</td></tr>
+      <tr><td><strong>键值存储</strong></td><td>TB-PB 级分布式持久化 KV，兼容 Redis 协议</td><td>完全兼容 Redis 核心数据结构，现有业务可平滑迁移</td></tr>
+      <tr><td><strong>流计算</strong></td><td>SQL 风格流处理：Kafka、MQTT、HTTP 持续接入</td><td>SOURCE → PIPELINE → SINK TABLE 实时过滤、投影与入库</td></tr>
+      <tr><td><strong>联邦查询</strong></td><td>支持与 MySQL、PostgreSQL 等跨库 JOIN</td><td>像查询本地表一样 SELECT、JOIN 远程数据库</td></tr>
+      <tr><td><strong>存算分离 + 读写分离</strong></td><td>存储与计算独立扩展；读写操作分配至不同节点</td><td>支持阿里云/华为云/腾讯云/AWS/Azure/GCP 及 S3 兼容存储</td></tr>
+      <tr><td><strong>边缘受限设备</strong></td><td>嵌入式、边缘网关、盒子等资源受限设备深度优化</td><td>有限 CPU/内存/存储下高效读写；边云同步，边缘自治+云端汇聚</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="source-note"><strong>来源：</strong>Datalayers v2.3 文档 [12] — "核心功能特性" 章节；Datalayers 产品首页 [13] — "核心特性" 章节</div>
+</div>
+
+<div class="card">
+  <div class="section-title">GreptimeDB vs Datalayers — 全方位对比</div>
+  <div class="table-wrap">
+  <table class="styled-table">
+    <thead><tr><th style="width:20%">维度</th><th style="width:40%">GreptimeDB（EMQX Tables 引擎）</th><th style="width:40%">Datalayers</th></tr></thead>
+    <tbody>
+      <tr><td><strong>产品定位</strong></td><td>云原生时序 + 可观测性数据库</td><td>分布式多模态超融合数据库</td></tr>
+      <tr><td><strong>数据模型</strong></td><td>Metrics + Logs + Traces（三合一）</td><td>时序 + 全文检索 + 向量 + KV + 流计算（五合一）</td></tr>
+      <tr><td><strong>时序引擎</strong></td><td>自研 Mito (LSM Tree + Parquet)</td><td>TimeSeries 引擎，深度时序优化</td></tr>
+      <tr><td><strong>向量检索</strong></td><td>未原生支持</td><td><strong>✔</strong> 原生支持 1-16383 维向量，IVF/HNSW</td></tr>
+      <tr><td><strong>全文检索</strong></td><td>未原生支持</td><td><strong>✔</strong> 倒排索引 + BM25 评分</td></tr>
+      <tr><td><strong>键值存储</strong></td><td>未原生支持</td><td><strong>✔</strong> Redis 协议兼容，分布式 KV</td></tr>
+      <tr><td><strong>流计算</strong></td><td>Flow Engine（持续聚合与告警）</td><td><strong>✔</strong> SQL 流处理 + 多数据源接入</td></tr>
+      <tr><td><strong>联邦查询</strong></td><td>未原生支持</td><td><strong>✔</strong> MySQL/PostgreSQL 跨库 JOIN</td></tr>
+      <tr><td><strong>查询语言</strong></td><td>SQL + PromQL + LP + OTLP</td><td>SQL（兼容 MySQL 方言）+ PromQL + LP + Redis</td></tr>
+      <tr><td><strong>存储架构</strong></td><td>对象存储优先 (Parquet + S3)</td><td>存算分离 + 读写分离 (S3 兼容)</td></tr>
+      <tr><td><strong>开源协议</strong></td><td>Apache 2.0</td><td>未公开（商业产品）</td></tr>
+      <tr><td><strong>实现语言</strong></td><td>Rust</td><td>未公开</td></tr>
+      <tr><td><strong>边缘部署</strong></td><td>✔ 单二进制，ARM/树莓派</td><td><strong>✔</strong> 深度优化，OBU/盒子/边缘网关</td></tr>
+      <tr><td><strong>边云协同</strong></td><td>统一 API，边缘↔云同步</td><td><strong>✔</strong> 边云同步，边缘自治+云端汇聚</td></tr>
+      <tr><td><strong>MQTT 集成</strong></td><td>通过 EMQX Tables 深度原生集成</td><td>通过流计算的 MQTT Source 自行集成</td></tr>
+      <tr><td><strong>托管服务</strong></td><td>✔ EMQX Tables + GreptimeCloud</td><td>需自建或联系厂商</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="source-note"><strong>来源：</strong>GreptimeDB 特性来自 [8][9][10]；Datalayers 特性来自 [11][12][13]</div>
+</div>
+
+<div class="card">
+  <div class="section-title">选型建议</div>
+  <div class="table-wrap">
+  <table class="styled-table">
+    <thead><tr><th style="width:30%">场景</th><th style="width:20%">推荐方案</th><th style="width:50%">原因</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>IoT 遥测 + 可观测性</strong></td>
+        <td><strong>GreptimeDB / EMQX Tables</strong></td>
+        <td>存算分离低成本，原生 PromQL，MQTT 无缝集成；在可观测性场景下写入与存储效率显著优于传统方案</td>
+      </tr>
+      <tr>
+        <td><strong>工业 IoT / 车联网</strong></td>
+        <td><strong>Datalayers</strong></td>
+        <td>边缘受限设备深度优化，边云协同，CAN 总线等工业协议支持</td>
+      </tr>
+      <tr>
+        <td><strong>AI 检索增强 (RAG)</strong></td>
+        <td><strong>Datalayers</strong></td>
+        <td>原生向量+全文检索，GreptimeDB 暂不支持这两种能力</td>
+      </tr>
+      <tr>
+        <td><strong>日志分析</strong></td>
+        <td><strong>GreptimeDB</strong></td>
+        <td>相比 Loki 查询快 40-500 倍，存储仅为 ES 的 12.7% [9]</td>
+      </tr>
+      <tr>
+        <td><strong>Redis 替代 + 联邦查询</strong></td>
+        <td><strong>Datalayers</strong></td>
+        <td>Redis 协议兼容+联邦查询能力，可减少引入的数据库种类</td>
+      </tr>
+      <tr>
+        <td><strong>已在 EMQX 生态中</strong></td>
+        <td><strong>EMQX Tables</strong></td>
+        <td>一站式闭环，零集成成本，单一供应商，同区域免费内网</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="source-note"><strong>来源：</strong>基于 [8][9][10][11][12][13] 的综合分析，选型建议为本文作者判断</div>
+</div>
+
+<div class="card">
+  <div class="section-title">综合评估</div>
+  <div class="info-box blue">
+    <strong>互补而非替代：</strong>GreptimeDB 聚焦云原生可观测性与低成本存储；Datalayers 聚焦多模态融合与工业垂直领域。两者在市场定位上重叠较少——GreptimeDB 更适合 IoT 遥测与报警监控场景，Datalayers 更适合需要同时处理时序、文本、向量和 KV 缓存的复杂工业场景。
+  </div>
+  <div class="info-box green">
+    <strong>已在 EMQX 生态中：</strong>EMQX Tables 是最自然的选择。若需要向量检索或全文检索，可考虑 GreptimeDB + 外部专用数据库的组合方案。
+  </div>
+  <div class="info-box purple">
+    <strong>面向 AI + 工业 IoT 复合场景：</strong>Datalayers 的多模态融合架构在减少数据库种类、降低系统复杂度方面有明显优势。尤其在具身智能、车联网等需要同时处理传感器时序数据、文本日志和向量检索的场景中，统一数据底座的价值突出。
+  </div>
+</div>
+
+</div><!-- /tab-datalayers -->
+
+<!-- ============================================================================================================ -->
+<!-- TAB 9: 替换可行性分析 — 如果用 Datalayers 替换 GreptimeDB -->
+<!-- ============================================================================================================ -->
+<div class="tab-panel" id="tab-replace" role="tabpanel">
+
+<div class="info-box orange">
+  <strong>问题设定：</strong>如果 EMQX Tables 想将底层引擎从 GreptimeDB 替换为 Datalayers，同时保持用户使用体验不变，需要弥合哪些差异、做哪些工程改造？以下从协议层、功能层、集成层、运维层四个维度展开分析。
+</div>
+
+<div class="card">
+  <div class="section-title">一、协议兼容性 Gap — 最关键的一层</div>
+  <p style="margin-bottom:12px">EMQX Tables 当前对外暴露的协议接口均来自 GreptimeDB。Datalayers 必须逐一支持这些协议，否则现有用户的 Grafana、DBeaver、Metabase、自定义应用等全部断裂。</p>
+  <div class="table-wrap">
+  <table class="styled-table">
+    <thead><tr><th style="width:16%">协议/接口</th><th style="width:11%">GreptimeDB</th><th style="width:11%">Datalayers</th><th style="width:22%">Gap 严重程度</th><th style="width:40%">说明</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>InfluxDB Line Protocol</strong></td>
+        <td style="color:#00b173">✔</td>
+        <td style="color:#00b173">✔</td>
+        <td style="color:#00b173">无 Gap</td>
+        <td>EMQX Broker 通过 LP 写入 Tables 的核心通道，Datalayers 已原生支持，这条路径无需改造。<br><em style="font-size:.72rem">来源: [4] Broker 集成文档; [12] Datalayers v2.3</em></td>
+      </tr>
+      <tr>
+        <td><strong>PromQL</strong></td>
+        <td style="color:#00b173">✔</td>
+        <td style="color:#00b173">✔</td>
+        <td style="color:#00b173">无 Gap</td>
+        <td>Prometheus Remote Write + 查询协议，两者均支持。Grafana 中基于 PromQL 的仪表板和告警规则可保持兼容。<br><em style="font-size:.72rem">来源: [8] 博客; [12] v2.3 文档</em></td>
+      </tr>
+      <tr>
+        <td><strong>标准 SQL</strong></td>
+        <td style="color:#00b173">✔ (PG/MySQL 方言)</td>
+        <td style="color:#00b173">✔ (MySQL 方言)</td>
+        <td style="color:#f29900">小 Gap</td>
+        <td>两者都支持标准 SQL，但方言不同：GreptimeDB 兼容 PostgreSQL 和 MySQL 两种方言，Datalayers 以 MySQL 方言为主。若现有用户大量使用 PostgreSQL 特有语法（如 <code>::type</code> 类型转换、<code>INTERVAL</code> 语法差异），需适配。<br><em style="font-size:.72rem">来源: [2] 概述; [12] v2.3</em></td>
+      </tr>
+      <tr>
+        <td><strong>PostgreSQL Wire Protocol</strong></td>
+        <td style="color:#00b173">✔ 已支持</td>
+        <td style="color:#ea4335">⚠ 即将支持</td>
+        <td style="color:#ea4335"><strong>大 Gap</strong></td>
+        <td><strong>这是最关键的 Gap。</strong>EMQX Tables 的 Grafana、DBeaver、Metabase、Streamlit 连接均依赖 PostgreSQL 协议。Datalayers v2.3 文档标注为「即将支持」但尚未实现。缺少此协议，所有第三方可视化工具将无法直连。<br><em style="font-size:.72rem">来源: [1] Integrations 章节; [12] v2.3 — "即将支持 PostgreSQL 网络连接协议"</em></td>
+      </tr>
+      <tr>
+        <td><strong>MySQL Wire Protocol</strong></td>
+        <td style="color:#00b173">✔</td>
+        <td style="color:#00b173">✔</td>
+        <td style="color:#00b173">无 Gap</td>
+        <td>MySQL 协议两者都支持。但需注意：若现有用户依赖 PostgreSQL 数据源配置连接到 EMQX Tables（这是文档推荐的默认方式），需要改为 MySQL 配置。<br><em style="font-size:.72rem">来源: [2]; [12]</em></td>
+      </tr>
+      <tr>
+        <td><strong>Arrow Flight SQL</strong></td>
+        <td style="color:#f29900">未原生支持</td>
+        <td style="color:#00b173">✔</td>
+        <td style="color:var(--c-blue)">Datalayers 优势</td>
+        <td>Datalayers 在此有独有优势——Arrow Flight SQL 可实现高性能批量数据传输，适合大数据分析场景。<br><em style="font-size:.72rem">来源: [12] v2.3 — "完整实现 Arrow Flight SQL 协议"</em></td>
+      </tr>
+      <tr>
+        <td><strong>OpenTelemetry (OTLP)</strong></td>
+        <td style="color:#00b173">✔</td>
+        <td style="color:#f29900">未明确支持</td>
+        <td style="color:#f29900">中等 Gap</td>
+        <td>GreptimeDB 原生支持 OTLP 协议用于日志和链路追踪的摄入。Datalayers 虽有日志检索能力，但文档未提及 OTLP 协议兼容。若 EMQX Tables 的用户依赖 OTLP 进行可观测性数据接入，这是一个功能回退。<br><em style="font-size:.72rem">来源: [8] — GreptimeDB 对 OTLP 的原生支持；[12] — 未列出 OTLP</em></td>
+      </tr>
+      <tr>
+        <td><strong>HTTP REST API</strong></td>
+        <td style="color:#00b173">✔</td>
+        <td style="color:#00b173">✔</td>
+        <td style="color:#00b173">无 Gap</td>
+        <td>两者均支持 HTTP 协议进行数据操作。<br><em style="font-size:.72rem">来源: [2]; [12]</em></td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="info-box red" style="margin-top:14px">
+    <strong>协议层结论：</strong>最大的阻塞点是 <strong>PostgreSQL Wire Protocol</strong> 的缺失。Datalayers 必须在替换前完成该协议的实现，否则 Grafana 等核心可视化工具的连接将全部断裂。这是硬依赖，没有替代方案。
+  </div>
+</div>
+
+<div class="card">
+  <div class="section-title">二、功能层 Gap</div>
+  <div class="table-wrap">
+  <table class="styled-table">
+    <thead><tr><th style="width:16%">功能</th><th style="width:11%">GreptimeDB</th><th style="width:11%">Datalayers</th><th style="width:22%">Gap 评估</th><th style="width:40%">需要做什么</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>Schema 自动推断</strong><br><span style="font-size:.76rem;color:var(--c-text-muted)">(Schema-on-the-fly)</span></td>
+        <td style="color:#00b173">✔</td>
+        <td style="color:#f29900">待验证</td>
+        <td style="color:#f29900">需确认</td>
+        <td>GreptimeDB 写入时自动建表、自动推断列类型。Datalayers 的文档未明确说明是否支持相同的 schemaless 写入模式。若 Datalayers 要求先手动建表，则破坏了 EMQX Tables「零配置写入」的核心体验。需验证 Datalayers 在 Line Protocol 写入时能否自动推断 schema。</td>
+      </tr>
+      <tr>
+        <td><strong>存算分离</strong></td>
+        <td style="color:#00b173">✔ 对象存储优先</td>
+        <td style="color:#00b173">✔ S3 兼容</td>
+        <td style="color:#00b173">无 Gap</td>
+        <td>两者架构理念一致：存储与计算独立扩展，支持 S3 兼容对象存储。Datalayers 额外支持读写分离部署，在特定场景可能有优势。</td>
+      </tr>
+      <tr>
+        <td><strong>高基数优化</strong></td>
+        <td style="color:#00b173">✔ Flat Format</td>
+        <td style="color:#f29900">待验证</td>
+        <td style="color:#f29900">需验证</td>
+        <td>GreptimeDB 1.0 的 Flat Format 在 200 万 Series 下实现 4× 写入提升。Datalayers 宣称支持「海量时间线管理」，但缺少具体的高基数优化策略和基准数据。在百万级设备场景中，性能差距可能显著。<br><em style="font-size:.72rem">来源: [9] — Flat Format 基准</em></td>
+      </tr>
+      <tr>
+        <td><strong>LSM Tree + Parquet</strong></td>
+        <td style="color:#00b173">✔</td>
+        <td style="color:#f29900">不透明</td>
+        <td style="color:#f29900">不透明</td>
+        <td>GreptimeDB 公开了完整的存储引擎架构（LSM Tree + Parquet + 多级缓存）。Datalayers 的底层存储细节未公开，无法评估压缩比、IO 效率等关键性能指标。</td>
+      </tr>
+      <tr>
+        <td><strong>Flow Engine</strong><br><span style="font-size:.76rem;color:var(--c-text-muted)">持续聚合 + 触发告警</span></td>
+        <td style="color:#00b173">✔</td>
+        <td style="color:#00b173">✔</td>
+        <td style="color:#00b173">无 Gap</td>
+        <td>GreptimeDB 的 Flow Engine 对应 Datalayers 的流计算（SOURCE→PIPELINE→SINK TABLE）。功能等价，但实现方式不同：前者偏 SQL 持续聚合，后者偏完整流处理管道。</td>
+      </tr>
+      <tr>
+        <td><strong>细粒度 RBAC</strong></td>
+        <td style="color:#00b173">✔ 12 种权限</td>
+        <td style="color:#f29900">待验证</td>
+        <td style="color:#f29900">需确认</td>
+        <td>EMQX Tables 支持 12 种细粒度权限 + 数据库/表/正则模式级 ACL。Datalayers 的权限体系细节未在公开文档中充分描述，需确认是否能达到同等粒度。<br><em style="font-size:.72rem">来源: [6] 用户管理文档</em></td>
+      </tr>
+      <tr>
+        <td><strong>备份与恢复</strong></td>
+        <td style="color:#00b173">✔ 自动备份</td>
+        <td style="color:#f29900">待确认</td>
+        <td style="color:#f29900">需补齐</td>
+        <td>EMQX Tables 提供自动备份且不占存储配额。如 Datalayers 自建部署，需自行搭建备份方案。</td>
+      </tr>
+      <tr>
+        <td><strong>多模态能力</strong></td>
+        <td>时序 + 日志 + 链路</td>
+        <td style="color:#00b173">时序 + 全文 + 向量 + KV</td>
+        <td style="color:var(--c-blue)">Datalayers 优势</td>
+        <td>Datalayers 的向量检索 + 全文检索是 GreptimeDB 不具备的能力。如果 EMQX Tables 的用户需要 AI 检索增强或文本搜索，换到 Datalayers 反而是升级。但 GreptimeDB 的 OTLP 日志/链路能力 Datalayers 不一定等价覆盖。</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+</div>
+
+<div class="card">
+  <div class="section-title">三、集成层改造 — EMQX 需要做的事情</div>
+  <div class="table-wrap">
+  <table class="styled-table">
+    <thead><tr><th style="width:5%">#</th><th style="width:30%">改造项</th><th style="width:15%">预估工作量</th><th style="width:50%">详细说明</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>1</td>
+        <td><strong>新增 Datalayers Connector</strong></td>
+        <td style="color:#f29900">中等</td>
+        <td>EMQX Broker 中需新增 Datalayers 数据集成连接器（类似现有 EMQX Tables Connector）。因 Datalayers 支持 InfluxDB Line Protocol，可复用现有的 LP 写入逻辑，但连接参数（host/port/auth/database）需适配 Datalayers 的端点格式。</td>
+      </tr>
+      <tr>
+        <td>2</td>
+        <td><strong>控制台 — 部署管理</strong></td>
+        <td style="color:#ea4335">大</td>
+        <td>EMQX Cloud 控制台需要新增 Datalayers 部署的创建、配置、监控页面。包括：规格选择（Datalayers 的规格体系不同于 GreptimeDB）、云区域选择、网络关联、部署状态查看等。当前 EMQX Tables 的所有部署管理 UI 都是围绕 GreptimeDB 构建的。</td>
+      </tr>
+      <tr>
+        <td>3</td>
+        <td><strong>控制台 — 用户管理</strong></td>
+        <td style="color:#f29900">中等</td>
+        <td>需将 Datalayers 的权限模型映射到 EMQX Tables 的 12 种细粒度权限 + 5 种预置角色组。如果 Datalayers 的权限粒度不够，可能导致部分安全控制降级。</td>
+      </tr>
+      <tr>
+        <td>4</td>
+        <td><strong>控制台 — SQL 编辑器</strong></td>
+        <td style="color:#f29900">中等</td>
+        <td>内置 SQL 编辑器需适配 Datalayers 的 SQL 方言（MySQL 风格），并确保自动补全、语法高亮、错误提示等交互与原有体验一致。</td>
+      </tr>
+      <tr>
+        <td>5</td>
+        <td><strong>控制台 — 连接信息</strong></td>
+        <td style="color:#f29900">中等</td>
+        <td>连接信息页面（公网/内网 Host、端口、默认数据库名）需改为 Datalayers 的端点格式。所有「一键复制连接串」等功能需重新生成。</td>
+      </tr>
+      <tr>
+        <td>6</td>
+        <td><strong>可视化集成指引</strong></td>
+        <td style="color:#f29900">中等</td>
+        <td>Grafana/Metabase/DBeaver 的连接指引文档和「一键配置」模板需更新：若 Datalayers 尚不支持 PostgreSQL 协议（当前状态），则所有指引需改为 MySQL 协议。若后续支持了 PostgreSQL，可沿用现有指引。</td>
+      </tr>
+      <tr>
+        <td>7</td>
+        <td><strong>监控与告警</strong></td>
+        <td style="color:#ea4335">大</td>
+        <td>EMQX Tables 内置了 CPU、内存、存储、出站流量的监控面板。替换为 Datalayers 后需重新对接监控指标采集管道（Prometheus Exporter / 内置 metrics API），并重建监控面板。</td>
+      </tr>
+      <tr>
+        <td>8</td>
+        <td><strong>计费系统</strong></td>
+        <td style="color:#ea4335">大</td>
+        <td>EMQX Tables 按 vCPU、存储配额、出站流量计费，与 GreptimeDB 的资源计量方式绑定。Datalayers 的资源消耗模型可能不同（如额外计算向量索引的 CPU/内存开销），需重新设计计费逻辑。</td>
+      </tr>
+      <tr>
+        <td>9</td>
+        <td><strong>自动化运维</strong></td>
+        <td style="color:#ea4335">大</td>
+        <td>扩缩容、备份恢复、版本升级、健康检查等全托管运维能力需针对 Datalayers 重新实现。当前与 GreptimeDB 深度绑定的运维脚本和基础设施代码全部需要重写。</td>
+      </tr>
+      <tr>
+        <td>10</td>
+        <td><strong>数据迁移工具</strong></td>
+        <td style="color:#ea4335">大</td>
+        <td>需开发 GreptimeDB → Datalayers 的数据迁移工具，支持存量数据迁移 + 增量实时同步，且需保证迁移期间查询服务不中断。GreptimeDB 的 Parquet 文件格式与 Datalayers 内部格式不同，需要全量数据转储。</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="info-box red" style="margin-top:14px">
+    <strong>集成层结论：</strong>替换底层引擎不是「换个数据库」这么简单。EMQX Tables 的部署管理、用户管理、监控、计费、运维等全部平台能力都与 GreptimeDB 深度耦合。替换需对 EMQX Cloud 控制台做几乎全面的改造，<strong>预估工程量为大型项目级别</strong>。
+  </div>
+</div>
+
+<div class="card">
+  <div class="section-title">四、用户体验影响矩阵</div>
+  <div class="table-wrap">
+  <table class="styled-table">
+    <thead><tr><th style="width:22%">用户路径</th><th style="width:28%">当前体验 (GreptimeDB)</th><th style="width:28%">替换后 (Datalayers)</th><th style="width:22%">影响评级</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>创建 Tables 部署</strong></td>
+        <td>选规格→选区域→关联网络→点击部署，几分钟就绪</td>
+        <td>流程可保持不变（需 EMQX 改造），但底层规格选项不同</td>
+        <td style="color:#f29900">中</td>
+      </tr>
+      <tr>
+        <td><strong>MQTT 数据写入</strong></td>
+        <td>Rule Engine → Line Protocol → 自动建表</td>
+        <td>Line Protocol 兼容，写路径不变。Schemaless 需验证</td>
+        <td style="color:#00b173">低</td>
+      </tr>
+      <tr>
+        <td><strong>SQL 查询</strong></td>
+        <td>SQL 编辑器查询，PostgreSQL 语法</td>
+        <td>改为 MySQL 语法（若 PG 协议未就绪），部分语法需调整</td>
+        <td style="color:#f29900">中</td>
+      </tr>
+      <tr>
+        <td><strong>Grafana 看板</strong></td>
+        <td>PostgreSQL 数据源直连</td>
+        <td>若 PG 协议缺失，需改为 MySQL 数据源，所有看板数据源配置需重做</td>
+        <td style="color:#ea4335"><strong>高</strong></td>
+      </tr>
+      <tr>
+        <td><strong>PromQL 查询</strong></td>
+        <td>PromQL 协议兼容</td>
+        <td>PromQL 兼容，体验不变</td>
+        <td style="color:#00b173">低</td>
+      </tr>
+      <tr>
+        <td><strong>用户与权限管理</strong></td>
+        <td>12 种细粒度权限，控制台操作</td>
+        <td>权限体系可能简化，取决于 Datalayers 的能力</td>
+        <td style="color:#f29900">中</td>
+      </tr>
+      <tr>
+        <td><strong>监控面板</strong></td>
+        <td>CPU/内存/存储/出站 实时监控</td>
+        <td>需重建监控面板，数据和指标可能不同</td>
+        <td style="color:#ea4335"><strong>高</strong></td>
+      </tr>
+      <tr>
+        <td><strong>DBeaver / 客户端连接</strong></td>
+        <td>PostgreSQL 驱动，开箱即用</td>
+        <td>改 MySQL 驱动（若 PG 协议缺失），所有连接配置需重建</td>
+        <td style="color:#ea4335"><strong>高</strong></td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+</div>
+
+<div class="card">
+  <div class="section-title">五、Gap 优先级排序与路线图建议</div>
+
+  <div class="info-box red">
+    <strong>P0 — 阻塞项（必须先解决，否则不可替换）：</strong>
+    <ol style="font-size:.82rem;line-height:2;padding-left:20px;margin-top:6px">
+      <li><strong>Datalayers 实现 PostgreSQL Wire Protocol</strong> — 这是替换的硬前提。Grafana、DBeaver、Metabase、Streamlit 等所有核心可视化工具均依赖此协议。在 Datalayers 完成此项之前，替换无从谈起。</li>
+      <li><strong>Datalayers 确认 Schemaless 写入支持</strong> — EMQX Tables「零配置写入」是核心卖点。如果 Datalayers 要求预建表，将严重破坏用户体验。</li>
+    </ol>
+  </div>
+
+  <div class="info-box orange">
+    <strong>P1 — 高优先级（替换前必须完成的工程改造）：</strong>
+    <ol style="font-size:.82rem;line-height:2;padding-left:20px;margin-top:6px">
+      <li><strong>新增 Datalayers Connector</strong> — Broker 侧集成</li>
+      <li><strong>部署管理 + 用户管理</strong> — 控制台核心功能改造</li>
+      <li><strong>监控与告警系统</strong> — 重建监控面板和告警规则</li>
+      <li><strong>计费系统适配</strong> — 按 Datalayers 资源模型设计新计费方案</li>
+      <li><strong>数据迁移工具</strong> — 存量 + 增量迁移方案</li>
+    </ol>
+  </div>
+
+  <div class="info-box blue">
+    <strong>P2 — 优化项（替换后逐步完善）：</strong>
+    <ol style="font-size:.82rem;line-height:2;padding-left:20px;margin-top:6px">
+      <li><strong>OTLP 协议支持</strong> — 若 Datalayers 能补充 OTLP，可覆盖可观测性场景</li>
+      <li><strong>性能基准测试</strong> — 在同等条件下对比写入吞吐、查询延迟、压缩比</li>
+      <li><strong>SQL 方言适配文档</strong> — 编写 PostgreSQL→MySQL SQL 迁移指南</li>
+      <li><strong>高基数场景验证</strong> — 在百万级 Series 场景下验证性能</li>
+      <li><strong>备份恢复自动化</strong> — 补齐 Datalayers 自建部署的备份能力</li>
+    </ol>
+  </div>
+
+  <div class="source-note"><strong>来源：</strong>本分析基于 [1]–[13] 所有参考来源的综合交叉比对，工程改造评估基于 EMQX Tables 当前公开架构的合理推断</div>
+</div>
+
+<div class="card">
+  <div class="section-title">六、潜在收益 — Datalayers 能带来什么</div>
+  <p style="margin-bottom:12px">如果克服了上述 Gap 完成替换，Datalayers 为 EMQX Tables 带来的新能力包括：</p>
+  <div class="grid-2">
+    <div class="feature-card" style="border-top-color:var(--c-purple)">
+      <h3>向量检索</h3>
+      <p style="font-size:.8rem;color:var(--c-text-muted)">原生 1-16383 维向量支持 + IVF/HNSW 索引，EMQX Tables 可直接服务于 AI 检索增强 (RAG) 场景。</p>
+    </div>
+    <div class="feature-card" style="border-top-color:var(--c-purple)">
+      <h3>全文检索</h3>
+      <p style="font-size:.8rem;color:var(--c-text-muted)">BM25 全文检索能力，日志和事件数据无需单独部署 Elasticsearch。</p>
+    </div>
+    <div class="feature-card" style="border-top-color:var(--c-purple)">
+      <h3>Redis 兼容 KV</h3>
+      <p style="font-size:.8rem;color:var(--c-text-muted)">可直接替代 Redis 缓存层，减少 IoT 架构中的数据库种类。</p>
+    </div>
+    <div class="feature-card" style="border-top-color:var(--c-purple)">
+      <h3>联邦查询</h3>
+      <p style="font-size:.8rem;color:var(--c-text-muted)">跨 MySQL/PostgreSQL 的联邦 JOIN，打破数据孤岛。</p>
+    </div>
+    <div class="feature-card" style="border-top-color:var(--c-purple)">
+      <h3>Arrow Flight SQL</h3>
+      <p style="font-size:.8rem;color:var(--c-text-muted)">高性能批量数据传输，适合大数据分析场景。</p>
+    </div>
+    <div class="feature-card" style="border-top-color:var(--c-purple)">
+      <h3>工业场景深耕</h3>
+      <p style="font-size:.8rem;color:var(--c-text-muted)">车联网 CAN 总线、边缘盒子等工业场景的深度优化。</p>
+    </div>
+  </div>
+  <div class="source-note"><strong>来源：</strong>Datalayers v2.3 文档 [12]、产品首页 [11]</div>
+</div>
+
+<div class="card">
+  <div class="section-title">综合结论</div>
+  <div class="table-wrap">
+  <table class="styled-table">
+    <thead><tr><th style="width:25%">维度</th><th style="width:25%">Gap 严重程度</th><th style="width:25%">可解决性</th><th style="width:25%">用户感知</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>PostgreSQL 协议缺失</td>
+        <td style="color:#ea4335"><strong>致命</strong></td>
+        <td>需 Datalayers 团队实现</td>
+        <td style="color:#ea4335"><strong>高 — Grafana 等全部断裂</strong></td>
+      </tr>
+      <tr>
+        <td>控制台全栈改造</td>
+        <td style="color:#ea4335"><strong>重大</strong></td>
+        <td>纯工程投入，可解决</td>
+        <td style="color:#ea4335"><strong>高 — 短期体验可能降级</strong></td>
+      </tr>
+      <tr>
+        <td>监控计费重建</td>
+        <td style="color:#ea4335"><strong>重大</strong></td>
+        <td>纯工程投入，可解决</td>
+        <td style="color:#ea4335"><strong>高</strong></td>
+      </tr>
+      <tr>
+        <td>数据迁移</td>
+        <td style="color:#ea4335"><strong>重大</strong></td>
+        <td>可解决但风险高</td>
+        <td style="color:#ea4335"><strong>高 — 迁移期间可能中断</strong></td>
+      </tr>
+      <tr>
+        <td>SQL 方言适配</td>
+        <td style="color:#f29900">中等</td>
+        <td>文档 + 工具可缓解</td>
+        <td style="color:#f29900">中 — 需更新查询语句</td>
+      </tr>
+      <tr>
+        <td>Schemaless 写入</td>
+        <td style="color:#ea4335"><strong>关键</strong></td>
+        <td>需 Datalayers 确认/实现</td>
+        <td style="color:#ea4335"><strong>高 — 零配置体验核心</strong></td>
+      </tr>
+      <tr>
+        <td>多模态能力增益</td>
+        <td style="color:var(--c-blue)">正向</td>
+        <td>天然具备</td>
+        <td style="color:var(--c-blue)">正向 — 新增向量/全文/KV</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="info-box orange" style="margin-top:16px">
+    <strong>总体评估：</strong>在 Datalayers 尚不支持 PostgreSQL Wire Protocol 的当前状态下，<strong>替换不具备可行性</strong>。即使 Datalayers 补齐了 PG 协议，EMQX Cloud 团队仍需投入一个大型工程项目的开发量来完成控制台、监控、计费、运维、数据迁移的全栈改造。但如果从战略层面看——Datalayers 的向量检索 + 全文检索能为 EMQX Tables 打开 AI + 工业 IoT 的新市场空间——那么这一投入在中长期可能具有商业合理性。关键在于 <strong>Datalayers 能否在 PG 协议和 Schemaless 写入这两项硬性要求上达到 GreptimeDB 的成熟度</strong>。
+  </div>
+</div>
+
+</div><!-- /tab-replace -->
+
+<!-- ============================================================================================================ -->
+<!-- 参考来源汇总 -->
+<!-- ============================================================================================================ -->
+<div class="card" style="margin-top:24px">
+  <div class="section-title">参考来源</div>
+  <div class="table-wrap">
+  <table class="styled-table">
+    <thead><tr><th style="width:6%">编号</th><th style="width:35%">标题</th><th style="width:59%">URL</th></tr></thead>
+    <tbody>
+      <tr><td>[1]</td><td>EMQX Tables 产品页（EMQX Cloud）</td><td><a href="https://www.emqx.com/en/cloud/emqx-tables" target="_blank" rel="noopener">emqx.com/en/cloud/emqx-tables</a></td></tr>
+      <tr><td>[2]</td><td>EMQX Tables 概述（官方文档）</td><td><a href="https://docs.emqx.com/en/cloud/latest/emqx_tables/emqx_tables_overview.html" target="_blank" rel="noopener">docs.emqx.com/en/cloud/latest/emqx_tables/emqx_tables_overview.html</a></td></tr>
+      <tr><td>[3]</td><td>EMQX Tables 定价文档</td><td><a href="https://docs.emqx.com/en/cloud/latest/emqx_tables/emqx_tables_pricing.html" target="_blank" rel="noopener">docs.emqx.com/en/cloud/latest/emqx_tables/emqx_tables_pricing.html</a></td></tr>
+      <tr><td>[4]</td><td>集成 EMQX Broker 与 EMQX Tables</td><td><a href="https://docs.emqx.com/en/cloud/latest/emqx_tables/integration/emqx_tables_with_broker.html" target="_blank" rel="noopener">docs.emqx.com/en/cloud/latest/emqx_tables/integration/emqx_tables_with_broker.html</a></td></tr>
+      <tr><td>[5]</td><td>创建 EMQX Tables 部署</td><td><a href="https://docs.emqx.com/en/cloud/latest/emqx_tables/emqx_tables_create_deployment.html" target="_blank" rel="noopener">docs.emqx.com/en/cloud/latest/emqx_tables/emqx_tables_create_deployment.html</a></td></tr>
+      <tr><td>[6]</td><td>用户管理文档</td><td><a href="https://docs.emqx.com/en/cloud/latest/emqx_tables/emqx_tables_user_management.html" target="_blank" rel="noopener">docs.emqx.com/en/cloud/latest/emqx_tables/emqx_tables_user_management.html</a></td></tr>
+      <tr><td>[7]</td><td>产品方案文档</td><td><a href="https://docs.emqx.com/en/cloud/latest/emqx_tables/emqx_tables_plans.html" target="_blank" rel="noopener">docs.emqx.com/en/cloud/latest/emqx_tables/emqx_tables_plans.html</a></td></tr>
+      <tr><td>[8]</td><td>EMQX 技术博客：为什么选择 GreptimeDB</td><td><a href="https://www.emqx.com/en/blog/why-emqx-tables-chose-greptimedb" target="_blank" rel="noopener">emqx.com/en/blog/why-emqx-tables-chose-greptimedb</a> (2025-12-23)</td></tr>
+      <tr><td>[9]</td><td>EMQX 技术博客：云原生存储引擎深度解析</td><td><a href="https://www.emqx.com/en/blog/cloud-native-storage-engine-how-greptimedb-cuts-iot-storage-costs-by-10x" target="_blank" rel="noopener">emqx.com/en/blog/cloud-native-storage-engine-how-greptimedb-cuts-iot-storage-costs-by-10x</a> (2026-02-17)</td></tr>
+      <tr><td>[10]</td><td>TSBS 基准：GreptimeDB vs TimescaleDB</td><td><a href="https://greptime.com/tech-content/2026-04-26-timescaledb-alternative-greptimedb" target="_blank" rel="noopener">greptime.com/tech-content/2026-04-26-timescaledb-alternative-greptimedb</a> (2026-04-26)</td></tr>
+      <tr><td>[11]</td><td>Datalayers 产品首页</td><td><a href="https://www.datalayers.cn" target="_blank" rel="noopener">datalayers.cn</a></td></tr>
+      <tr><td>[12]</td><td>Datalayers v2.3 文档</td><td><a href="https://docs.datalayers.cn/datalayers/v2.3" target="_blank" rel="noopener">docs.datalayers.cn/datalayers/v2.3</a></td></tr>
+      <tr><td>[13]</td><td>Datalayers 文档首页 (latest)</td><td><a href="https://docs.datalayers.cn/datalayers/latest/" target="_blank" rel="noopener">docs.datalayers.cn/datalayers/latest/</a></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p style="font-size:.76rem;color:var(--c-text-muted);margin-top:8px">所有引用数据均来自以上原始来源，检索日期为 2026-07-17。报告中每个信息块的出处已在各卡片底部标注对应编号。</p>
+</div>
+
+</div><!-- /tabs -->
+
+<div class="footer">
+  EMQX Tables 深度调研报告 &nbsp;·&nbsp; 2026-07-17
+</div>
+
+</div><!-- /wrapper -->
+
+<script>
+/* Tab switching */
+document.querySelectorAll('.tab-btn').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    var tabId = this.dataset.tab;
+    document.querySelectorAll('.tab-btn').forEach(function(b) {
+      b.classList.remove('active'); b.setAttribute('aria-selected', 'false');
+    });
+    document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
+    this.classList.add('active'); this.setAttribute('aria-selected', 'true');
+    document.getElementById(tabId).classList.add('active');
+    window.scrollTo({top: 0, behavior: 'smooth'});
+  });
+});
+/* Copy buttons */
+document.querySelectorAll('pre.code').forEach(function(block) {
+  var btn = document.createElement('button');
+  btn.className = 'copy-btn'; btn.textContent = '📋'; btn.setAttribute('aria-label', '复制代码');
+  btn.onclick = function() {
+    var code = block.querySelector('code') || block;
+    navigator.clipboard.writeText(code.textContent).then(function() {
+      btn.textContent = '✅'; setTimeout(function() { btn.textContent = '📋'; }, 1500);
+    });
+  };
+  block.style.position = 'relative'; block.appendChild(btn);
+});
+/* Syntax highlight */
+document.addEventListener('DOMContentLoaded', function() { hljs.highlightAll(); });
+</script>
+</body>
+</html>
