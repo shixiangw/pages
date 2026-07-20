@@ -650,7 +650,7 @@ pre.code code {
     </tbody>
   </table>
   </div>
-  <div class="source-note"><strong>来源：</strong>产品方案文档 [7] — "Tier Selection Guide" 性能估算表；实际性能因查询复杂度和数据分布而异</div>
+  <div class="source-note"><strong>来源：</strong>产品方案文档 [7] — "Tier Selection Guide" 性能估算表；实际性能因查询复杂度和数据分布而异<br><strong>⚠️ 注意：</strong>EMQX 公开定价文档仅列出 Starter Plan 规格，上述 IOPS/写入/查询/序列数等性能指标在公开文档中无法交叉验证，数据来自 [7] 产品方案文档。</div>
 </div>
 
 </div><!-- /tab-features -->
@@ -805,7 +805,7 @@ ORDER BY time_window DESC;</code></pre>
     </tbody>
   </table>
   </div>
-  <div class="source-note"><strong>来源：</strong>产品方案文档 [7] — "Plan Overview" 对比表</div>
+  <div class="source-note"><strong>来源：</strong>产品方案文档 [7] — "Plan Overview" 对比表<br><strong>⚠️ 注意：</strong>EMQX Tables 公开定价文档仅描述 Starter Plan（<em>"More plans will be introduced soon"</em>），Pro Plan 的具体规格（多 AZ、VPC Peering、64 vCPU、99.99% SLA 等）无法从公开文档验证，属于推测性内容。</div>
 </div>
 
 <div class="card">
@@ -948,7 +948,7 @@ ORDER BY time_window DESC;</code></pre>
       <tr><td><strong>PostgreSQL 协议</strong></td><td><strong>✔</strong> 完整 PG Wire Protocol</td><td><strong>✔</strong> v2.3.15+ 支持（当前最新 v2.4.1，持续增强；暂不支持 TLS）</td></tr>
       <tr><td><strong>存储架构</strong></td><td>对象存储优先 (Parquet + S3)</td><td>存算分离 + 读写分离 (S3 兼容)</td></tr>
       <tr><td><strong>开源协议</strong></td><td>Apache 2.0</td><td>未公开（商业产品）</td></tr>
-      <tr><td><strong>实现语言</strong></td><td>Rust</td><td>未公开</td></tr>
+      <tr><td><strong>实现语言</strong></td><td>Rust</td><td>Rust（团队公开信息；官方文档未明确声明）</td></tr>
       <tr><td><strong>边缘部署</strong></td><td>✔ 单二进制，ARM/树莓派</td><td><strong>✔</strong> 深度优化，OBU/盒子/边缘网关</td></tr>
       <tr><td><strong>边云协同</strong></td><td>统一 API，边缘↔云同步</td><td><strong>✔</strong> 边云同步，边缘自治+云端汇聚</td></tr>
       <tr><td><strong>MQTT 集成</strong></td><td>通过 EMQX Tables 深度原生集成</td><td>通过流计算的 MQTT Source 自行集成</td></tr>
@@ -1163,10 +1163,10 @@ ORDER BY time_window DESC;</code></pre>
       </tr>
       <tr>
         <td>8</td>
-        <td style="color:#ea4335"><code>ALTER TABLE fleets_telemetry RENAME COLUMN thing_id TO thing_name</code></td>
-        <td style="color:#ea4335">❌ 不支持</td>
-        <td style="color:#ea4335"><strong>阻塞项</strong></td>
-        <td>Datalayers 的 ALTER TABLE RENAME 仅支持表级重命名，不支持列重命名。Fleets 用此语句做旧版本迁移（thing_id → thing_name）。<br><strong>可绕过：</strong>此语句仅用于升级旧数据库实例。新建部署时 Fleets 直接使用 thing_name 创建表；迁移场景可通过「建新表 → INSERT SELECT → 删旧表」变通。</td>
+        <td style="color:#f29900"><code>ALTER TABLE fleets_telemetry RENAME COLUMN thing_id TO thing_name</code></td>
+        <td style="color:#f29900">⚠ 均不支持</td>
+        <td style="color:#f29900"><strong>非 Datalayers 独有</strong></td>
+        <td><strong>批判性修正：</strong>GreptimeDB 的 ALTER TABLE 也仅支持表级 RENAME（<code>ALTER TABLE x RENAME y</code>），不提供列重命名。Fleets 源码中的 <code>isIgnorableRenameColumnError()</code> 专门捕获 GreptimeDB 返回的 <em>"not supported" + "thing_id"</em> 错误——证明两个数据库在此能力上等价。此语句仅用于旧版本迁移，Fleets 已对两种数据库都有容错处理。<br><em>来源: GreptimeDB ALTER 文档（仅含表级 RENAME）；Fleets 源码 tsdb_schema.go 第 104-118 行</em></td>
       </tr>
       <tr>
         <td>9</td>
@@ -1277,14 +1277,14 @@ ORDER BY time_window DESC;</code></pre>
         <td>EMQX Broker → InfluxDB LP 写入</td>
         <td style="color:#f29900">⚠ 待验证</td>
         <td style="color:#f29900">Schemaless 写入</td>
-        <td>EMQX 规则通过 InfluxDB Line Protocol 写入 Datalayers（LP 协议仅支持写入）。关键问题：Datalayers 是否在 LP 写入时自动建表并推断列类型（即 Schemaless）？若需预建表，则破坏了 EMQX Tables「零配置写入」体验。Fleets 的 <code>EnsureGreptimeSchema()</code> 已预建表，可缓解但不能完全消除此问题。</td>
+        <td>EMQX 规则通过 InfluxDB Line Protocol 写入 Datalayers（LP 协议仅支持写入）。关键问题：Datalayers 是否在 LP 写入时自动建表并推断列类型（即 Schemaless）？<br><strong>风险降级说明：</strong>GreptimeDB 文档明确声明 <em>"Both solutions are schemaless"</em>，而 Datalayers 文档对 LP 仅描述为"专为时序数据写入优化的行协议"，未像 GreptimeDB 那样明确声明 Schemaless。但 Fleets 通过 <code>EnsureGreptimeSchema()</code> 已预建全部三张表，不依赖 LP 的 Schemaless 自动建表能力。此风险对 Fleets 场景的实际影响 <strong>低于报告最初评估</strong>。</td>
       </tr>
     </tbody>
   </table>
   </div>
 
   <div class="info-box green" style="margin-top:14px">
-    <strong>SQL 兼容性总结（20 项全覆盖）：</strong>✅ <strong>9 项完全兼容</strong> | ⚠ <strong>6 项需验证</strong>（含 PG 特有语法如 <code>::text</code> 类型转换、<code>ANY()</code> 数组操作、<code>SELECT 1</code>、Schemaless LP 写入） | ❌ <strong>3 项不兼容</strong>（MODIFY COLUMN、RENAME COLUMN、TLS） | ⚠ <strong>2 项语法差异需适配</strong>（TIME INDEX→TIMESTAMP KEY、PRIMARY KEY 约束）。三个不兼容项均有变通方案，但需额外工程投入。最大风险点在于 <strong>ALTER TABLE MODIFY COLUMN</strong>——若 Datalayers 的 InfluxDB LP 写入默认将 JSON 字段存储为 STRING，则可自然规避。
+    <strong>SQL 兼容性总结（20 项全覆盖）：</strong>✅ <strong>9 项完全兼容</strong> | ⚠ <strong>7 项需验证/均缺失</strong>（含 PG 特有语法如 <code>::text</code> 类型转换、<code>ANY()</code> 数组操作、<code>SELECT 1</code>、Schemaless LP 写入、RENAME COLUMN 两者均不支持） | ❌ <strong>2 项仅 Datalayers 不兼容</strong>（MODIFY COLUMN、TLS） | ⚠ <strong>2 项语法差异需适配</strong>（TIME INDEX→TIMESTAMP KEY、PRIMARY KEY 约束）。<br><strong>关键修正：</strong>RENAME COLUMN 从"阻塞项"降级——GreptimeDB 同样不支持列重命名（仅表级 RENAME），Fleets 已通过 <code>isIgnorableRenameColumnError()</code> 对两者做容错处理。真正仅 Datalayers 缺失的是 MODIFY COLUMN 和 PG 协议 TLS。
   </div>
   <div class="source-note"><strong>来源：</strong>Datalayers latest 文档 — CREATE TABLE [16]、INSERT [17]、SELECT [18]、ALTER TABLE [19]、数据类型 [20]、发布日志 [14]、PG 协议概述 [15]</div>
 </div>
@@ -1303,7 +1303,7 @@ ORDER BY time_window DESC;</code></pre>
         <td style="color:#00b173">✔</td>
         <td style="color:#f29900">待验证</td>
         <td style="color:#f29900">需确认</td>
-        <td>GreptimeDB 写入时自动建表、自动推断列类型。Datalayers 的文档未明确说明是否支持相同的 schemaless 写入模式。若 Datalayers 要求先手动建表，则破坏了 EMQX Tables「零配置写入」的核心体验。需验证 Datalayers 在 Line Protocol 写入时能否自动推断 schema。</td>
+        <td>GreptimeDB 写入时自动建表、自动推断列类型（文档明确声明 <em>"Both solutions are schemaless"</em>）。Datalayers 文档对 LP 仅描述为"专为时序数据写入优化的行协议"，未明确声明 Schemaless。但 Fleets 已通过 <code>EnsureGreptimeSchema()</code> 预建全部三张表，不依赖 LP 自动建表。此风险对 Fleets 场景的实际影响低于最初评估。</td>
       </tr>
       <tr>
         <td><strong>存算分离</strong></td>
@@ -1501,7 +1501,7 @@ ORDER BY time_window DESC;</code></pre>
     <ol style="font-size:.82rem;line-height:2;padding-left:20px;margin-top:6px">
       <li><strong>ALTER TABLE MODIFY COLUMN 不支持</strong> — Fleets <code>EnsureGreptimeSchema()</code> 依赖此语句对齐列类型。若 Datalayers 在 InfluxDB LP 写入时默认以 STRING 存储 JSON 字段，可绕过此问题。否则需 Datalayers 团队实现此语法。</li>
       <li><strong>PG 协议 TLS 不支持</strong> — 生产环境安全硬要求。Datalayers 需补齐 TLS 支持，或在网络层通过 stunnel/VPC 私有网络变通。</li>
-      <li><strong>Schemaless LP 写入验证</strong> — EMQX Tables「零配置写入」的核心体验依赖 InfluxDB LP 写入时的自动建表能力。需确认 Datalayers LP 写入是否支持 Schemaless auto-create。</li>
+      <li><strong>Schemaless LP 写入验证</strong> — GreptimeDB 文档明确声明 Schemaless（<em>"Both solutions are schemaless"</em>），Datalayers 文档未明确。但 Fleets 已通过 <code>EnsureGreptimeSchema()</code> 预建表，实际影响有限。仍需确认 Datalayers LP 写入时列类型推断行为（是否默认将 JSON 字段存为 STRING）。</li>
     </ol>
   </div>
 
@@ -1518,7 +1518,7 @@ ORDER BY time_window DESC;</code></pre>
   <div class="info-box blue">
     <strong>P2 — 优化项（替换后逐步完善）：</strong>
     <ol style="font-size:.82rem;line-height:2;padding-left:20px;margin-top:6px">
-      <li><strong>ALTER TABLE RENAME COLUMN 变通</strong> — 仅影响旧版本升级，可通过「建新表 → 迁移数据 → 删旧表」变通</li>
+      <li><strong>ALTER TABLE RENAME COLUMN 变通</strong> — GreptimeDB 同样不支持列重命名（仅表级 RENAME）。Fleets 已通过 <code>isIgnorableRenameColumnError()</code> 对两种数据库做容错处理。仅影响旧版本升级，可通过「建新表 → 迁移数据 → 删旧表」变通。</li>
       <li><strong>健康检查适配</strong> — 验证 pgx <code>Ping()</code> 和 <code>SELECT 1</code> 在 Datalayers 下的行为</li>
       <li><strong>LIMIT/OFFSET 参数化</strong> — GreptimeDB 因 OID 705 限制内联 LIMIT/OFFSET，Datalayers 可能支持参数化</li>
       <li><strong>EMQX Broker 集成层改造</strong> — 新增 Datalayers Connector、控制台部署管理、监控计费、数据迁移等（详见原「三、集成层改造」）</li>
@@ -1594,8 +1594,8 @@ ORDER BY time_window DESC;</code></pre>
       <tr>
         <td>Schemaless LP 写入</td>
         <td style="color:#f29900"><strong>待验证</strong></td>
-        <td>需 Datalayers 团队确认</td>
-        <td style="color:#ea4335"><strong>高 — 影响零配置体验</strong></td>
+        <td>需 Datalayers 团队确认；Fleets 预建表降低实际风险</td>
+        <td style="color:#f29900">中 — Fleets 不依赖自动建表</td>
       </tr>
       <tr>
         <td>PG 特有 SQL 语法适配</td>
@@ -1614,7 +1614,9 @@ ORDER BY time_window DESC;</code></pre>
   </div>
 
   <div class="info-box green" style="margin-top:16px">
-    <strong>总体评估（更新）：</strong>相比之前报告，<strong>态势已大幅改善</strong>——PostgreSQL 协议这一最大的阻塞点已被 Datalayers v2.3.15 解决。当前剩余的核心风险从「协议不通」转变为「SQL 语法适配 + 边缘特性不支持」。在 Fleets 的 20 项 SQL 操作中，9 项完全兼容，3 项不兼容（均有变通方案），6 项需实际验证。如果 Datalayers 团队补齐 TLS 和 MODIFY COLUMN 两个关键缺失，并在 InfluxDB LP 写入层面确认 Schemaless 支持，则 Fleets 对接 Datalayers 的<strong>数据库层可行性将接近 GreptimeDB</strong>。但 EMQX Cloud 平台层的控制台、部署管理、监控、计费、运维改造仍是大型工程投入，需从商业和战略层面综合评估。
+    <strong>总体评估（更新于 2026-07-20，基于三份源文档交叉验证）：</strong>相比最初报告，<strong>态势已大幅改善</strong>——PostgreSQL 协议这一最大的阻塞点已被 Datalayers v2.3.15 解决。在 Fleets 的 20 项 SQL 操作中，9 项完全兼容，<strong>真正仅 Datalayers 缺失的是 2 项</strong>（MODIFY COLUMN + PG 协议 TLS），其余差异均有变通方案或两个数据库能力等价。<br><br>
+    <strong>本次验证的关键修正：</strong>RENAME COLUMN 此前被列为 Datalayers 独有的阻塞项，但验证发现 GreptimeDB 同样不支持列重命名（仅表级 RENAME），Fleets 已通过 <code>isIgnorableRenameColumnError()</code> 对两者做容错处理。Schemaless LP 写入风险也因 Fleets 预建表面降低。Datalayers 实现语言更正为 Rust。<br><br>
+    如果 Datalayers 团队补齐 MODIFY COLUMN 和 TLS 两个关键缺失，Fleets 对接 Datalayers 的<strong>数据库层可行性将接近 GreptimeDB</strong>。但 EMQX Cloud 平台层的控制台、部署管理、监控、计费、运维改造仍是大型工程投入。
   </div>
 </div>
 
