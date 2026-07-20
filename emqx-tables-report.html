@@ -187,7 +187,7 @@ pre.code code {
 <div class="header">
   <h1>EMQX Tables 深度调研报告</h1>
   <div class="subtitle">全托管 MQTT 时序数据库服务 — 功能、架构、原理与竞品分析</div>
-  <div class="meta">调研日期：2026-07-17 &nbsp;|&nbsp; 基于 EMQX 官方产品页、技术文档、技术博客及 Datalayers 官方文档</div>
+  <div class="meta">调研日期：2026-07-17 &nbsp;|&nbsp; 更新日期：2026-07-20（新增 Datalayers PG 协议 + Fleets SQL 逐项验证） &nbsp;|&nbsp; 基于 EMQX 官方产品页、技术文档、技术博客及 Datalayers 最新文档</div>
   <div class="tags">
     <span class="tag">IoT</span><span class="tag">MQTT</span><span class="tag">时序数据库</span>
     <span class="tag">GreptimeDB</span><span class="tag">Datalayers</span><span class="tag">可观测性</span>
@@ -944,7 +944,8 @@ ORDER BY time_window DESC;</code></pre>
       <tr><td><strong>键值存储</strong></td><td>未原生支持</td><td><strong>✔</strong> Redis 协议兼容，分布式 KV</td></tr>
       <tr><td><strong>流计算</strong></td><td>Flow Engine（持续聚合与告警）</td><td><strong>✔</strong> SQL 流处理 + 多数据源接入</td></tr>
       <tr><td><strong>联邦查询</strong></td><td>未原生支持</td><td><strong>✔</strong> MySQL/PostgreSQL 跨库 JOIN</td></tr>
-      <tr><td><strong>查询语言</strong></td><td>SQL + PromQL + LP + OTLP</td><td>SQL（兼容 MySQL 方言）+ PromQL + LP + Redis</td></tr>
+      <tr><td><strong>查询语言</strong></td><td>SQL（PG/MySQL 方言）+ PromQL + LP + OTLP</td><td>SQL（PG 方言 v2.3.15+ / MySQL 方言）+ PromQL + LP + Redis</td></tr>
+      <tr><td><strong>PostgreSQL 协议</strong></td><td><strong>✔</strong> 完整 PG Wire Protocol</td><td><strong>✔</strong> v2.3.15+ 支持（当前最新 v2.4.1，持续增强；暂不支持 TLS）</td></tr>
       <tr><td><strong>存储架构</strong></td><td>对象存储优先 (Parquet + S3)</td><td>存算分离 + 读写分离 (S3 兼容)</td></tr>
       <tr><td><strong>开源协议</strong></td><td>Apache 2.0</td><td>未公开（商业产品）</td></tr>
       <tr><td><strong>实现语言</strong></td><td>Rust</td><td>未公开</td></tr>
@@ -1048,16 +1049,17 @@ ORDER BY time_window DESC;</code></pre>
       <tr>
         <td><strong>标准 SQL</strong></td>
         <td style="color:#00b173">✔ (PG/MySQL 方言)</td>
-        <td style="color:#00b173">✔ (MySQL 方言)</td>
-        <td style="color:#f29900">小 Gap</td>
-        <td>两者都支持标准 SQL，但方言不同：GreptimeDB 兼容 PostgreSQL 和 MySQL 两种方言，Datalayers 以 MySQL 方言为主。若现有用户大量使用 PostgreSQL 特有语法（如 <code>::type</code> 类型转换、<code>INTERVAL</code> 语法差异），需适配。<br><em style="font-size:.72rem">来源: [2] 概述; [12] v2.3</em></td>
+        <td style="color:#00b173">✔ (PG/MySQL 方言)</td>
+        <td style="color:#00b173">无 Gap</td>
+        <td>两者都支持标准 SQL 与 PostgreSQL 方言。Datalayers v2.3.15 起支持 PG 协议，v2.4.0 增强 Prepared Statement 兼容性，v2.4.1 优化 PG 客户端适配。函数需使用 Datalayers 内置函数。<br><em style="font-size:.72rem">来源: Datalayers v2.3.15/v2.4.0/v2.4.1 发布日志; [2] 概述</em></td>
       </tr>
       <tr>
         <td><strong>PostgreSQL Wire Protocol</strong></td>
         <td style="color:#00b173">✔ 已支持</td>
-        <td style="color:#ea4335">⚠ 即将支持</td>
-        <td style="color:#ea4335"><strong>大 Gap</strong></td>
-        <td><strong>这是最关键的 Gap。</strong>EMQX Tables 的 Grafana、DBeaver、Metabase、Streamlit 连接均依赖 PostgreSQL 协议。Datalayers v2.3 文档标注为「即将支持」但尚未实现。缺少此协议，所有第三方可视化工具将无法直连。<br><em style="font-size:.72rem">来源: [1] Integrations 章节; [12] v2.3 — "即将支持 PostgreSQL 网络连接协议"</em></td>
+        <td style="color:#00b173">✔ 已支持 (v2.3.15+)</td>
+        <td style="color:#f29900">小 Gap</td>
+        <td><strong>此阻塞项已消除！</strong>Datalayers v2.3.15（2025-12-18）正式支持 PostgreSQL 连接协议，v2.4.0 增强 <code>SELECT current_catalog</code> 等 PG 兼容语法，v2.4.1 大幅提升客户端适配兼容性。Grafana、DBeaver、Metabase 可通过 PG 驱动连接。<br>
+        <strong>剩余限制：</strong>① PG 协议暂不支持 TLS 连接（生产环境需注意）；② 函数需使用 Datalayers 内置函数，非 PG 原生函数。<br><em style="font-size:.72rem">来源: Datalayers v2.3.15/v2.4.0/v2.4.1 发布日志 [14]; PG 协议概述 [15]</em></td>
       </tr>
       <tr>
         <td><strong>MySQL Wire Protocol</strong></td>
@@ -1091,13 +1093,207 @@ ORDER BY time_window DESC;</code></pre>
   </table>
   </div>
 
-  <div class="info-box red" style="margin-top:14px">
-    <strong>协议层结论：</strong>最大的阻塞点是 <strong>PostgreSQL Wire Protocol</strong> 的缺失。Datalayers 必须在替换前完成该协议的实现，否则 Grafana 等核心可视化工具的连接将全部断裂。这是硬依赖，没有替代方案。
+  <div class="info-box green" style="margin-top:14px">
+    <strong>协议层结论（更新）：</strong>此前最大的阻塞点——<strong>PostgreSQL Wire Protocol</strong> 已被 Datalayers v2.3.15 解决。Grafana、DBeaver 等核心工具可通过 PG 驱动连接。但以下关键差异仍然存在：<strong>① PG 协议暂不支持 TLS</strong>（生产环境需评估）；<strong>② Fleets 依赖的特定 DDL 语法（ALTER TABLE MODIFY COLUMN / RENAME COLUMN）Datalayers 不支持</strong>（见下文 SQL 兼容性验证）；<strong>③ PARTITION BY HASH 强制要求</strong>（GreptimeDB 无此约束）。
   </div>
 </div>
 
+<!-- ============================================================ -->
+<!-- 新增：Fleets 实际 SQL 逐项兼容性验证 -->
+<!-- ============================================================ -->
 <div class="card">
-  <div class="section-title">二、功能层 Gap</div>
+  <div class="section-title">1.5 — Fleets 实际 SQL 逐项兼容性验证 <span class="badge green" style="margin-left:8px;font-size:.7rem;vertical-align:middle;padding:2px 8px;border-radius:12px;background:#e6f4ea;color:#1e7e34;font-weight:600">基于 Datalayers latest 文档</span></div>
+  <p style="margin-bottom:14px;font-size:.84rem;color:var(--c-text-muted)">
+    以下逐项验证 Fleets 代码中对 EMQX Tables（GreptimeDB）执行的每一条 SQL 语句，对照 Datalayers 最新文档确认兼容性。验证范围覆盖 <code>internal/repository/tsdb_schema.go</code>（DDL）、<code>tsdb_repo.go</code>（DML）、<code>tsdb_shadow_window.go</code>（查询）中的所有 SQL。
+  </p>
+
+  <h3>DDL — 建表与 Schema 迁移</h3>
+  <div class="table-wrap">
+  <table class="styled-table">
+    <thead><tr><th style="width:5%">#</th><th style="width:28%">Fleets SQL（GreptimeDB）</th><th style="width:10%">Datalayers</th><th style="width:18%">差异</th><th style="width:39%">改造方案</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>1</td>
+        <td><code>CREATE TABLE IF NOT EXISTS fleets_events (...)</code></td>
+        <td style="color:#00b173">✅ 支持</td>
+        <td style="color:#f29900">语法差异</td>
+        <td>Datalayers 支持 <code>IF NOT EXISTS</code>，但必须追加 <code>ENGINE=TimeSeries</code> 和 <code>PARTITION BY HASH(col) PARTITIONS n</code>。Fleets 需为每张表选择合适的 HASH 分区键（如 thing_name）及分区数。</td>
+      </tr>
+      <tr>
+        <td>2</td>
+        <td><code>TIME INDEX (ts)</code></td>
+        <td style="color:#f29900">⚠ 语法不同</td>
+        <td style="color:#f29900"><code>TIMESTAMP KEY(ts)</code></td>
+        <td>GreptimeDB 用 <code>TIME INDEX (ts)</code>，Datalayers 用 <code>TIMESTAMP KEY(ts)</code>。功能等价，但 <code>EnsureGreptimeSchema()</code> 中的 CREATE TABLE 语句需全局替换此关键字。</td>
+      </tr>
+      <tr>
+        <td>3</td>
+        <td><code>PRIMARY KEY (thing_name, field_name)</code></td>
+        <td style="color:#f29900">⚠ 约束不同</td>
+        <td style="color:#f29900">分区键 + 时间键必须在 PK 中</td>
+        <td>Datalayers 要求：① 分区键必须是主键的一部分；② TIMESTAMP KEY 列必须是主键的一部分。对于 <code>fleets_events</code>（PK: thing_name + event_type + severity），需将时间列 ts 也加入 PK，或调整分区策略。</td>
+      </tr>
+      <tr>
+        <td>4</td>
+        <td><code>STRING</code> 数据类型</td>
+        <td style="color:#00b173">✅ 支持</td>
+        <td style="color:#00b173">无差异</td>
+        <td>UTF-8 字符串，完全兼容。</td>
+      </tr>
+      <tr>
+        <td>5</td>
+        <td><code>TIMESTAMP</code> 数据类型</td>
+        <td style="color:#00b173">✅ 支持</td>
+        <td style="color:#00b173">精度语义略异</td>
+        <td>Datalayers 默认精度为毫秒（TIMESTAMP(3)），支持 0/3/6/9 级精度。Fleets 使用 RFC3339Nano 格式字符串写入，不依赖精度默认值。</td>
+      </tr>
+      <tr>
+        <td>6</td>
+        <td><code>DOUBLE</code> 数据类型</td>
+        <td style="color:#00b173">✅ 支持</td>
+        <td style="color:#00b173">别名 FLOAT64</td>
+        <td><code>DOUBLE</code> 在 Datalayers 中为 <code>FLOAT64</code> 的别名，完全兼容。</td>
+      </tr>
+      <tr>
+        <td>7</td>
+        <td style="color:#ea4335"><code>ALTER TABLE fleets_events MODIFY COLUMN data_json STRING</code></td>
+        <td style="color:#ea4335">❌ 不支持</td>
+        <td style="color:#ea4335"><strong>阻塞项</strong></td>
+        <td>Datalayers ALTER TABLE 不支持 MODIFY COLUMN（仅支持 ADD COLUMN、DROP COLUMN、MODIFY OPTIONS、RENAME 表名）。Fleets 用此语句确保 EMQX 原生 InfluxDB LP 写入的 STRING 类型一致性。<br><strong>可绕过：</strong>若 Datalayers 在 InfluxDB LP 写入时默认将 JSON 字段存储为 STRING，则可跳过此 ALTER。</td>
+      </tr>
+      <tr>
+        <td>8</td>
+        <td style="color:#ea4335"><code>ALTER TABLE fleets_telemetry RENAME COLUMN thing_id TO thing_name</code></td>
+        <td style="color:#ea4335">❌ 不支持</td>
+        <td style="color:#ea4335"><strong>阻塞项</strong></td>
+        <td>Datalayers 的 ALTER TABLE RENAME 仅支持表级重命名，不支持列重命名。Fleets 用此语句做旧版本迁移（thing_id → thing_name）。<br><strong>可绕过：</strong>此语句仅用于升级旧数据库实例。新建部署时 Fleets 直接使用 thing_name 创建表；迁移场景可通过「建新表 → INSERT SELECT → 删旧表」变通。</td>
+      </tr>
+      <tr>
+        <td>9</td>
+        <td><code>ALTER TABLE ... ADD COLUMN</code></td>
+        <td style="color:#00b173">✅ 支持</td>
+        <td style="color:#00b173">无差异</td>
+        <td>标准 ADD COLUMN 语法，完全兼容。</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>DML — 数据写入</h3>
+  <div class="table-wrap">
+  <table class="styled-table">
+    <thead><tr><th style="width:5%">#</th><th style="width:28%">Fleets SQL（GreptimeDB）</th><th style="width:10%">Datalayers</th><th style="width:18%">差异</th><th style="width:39%">改造方案</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>10</td>
+        <td><code>INSERT INTO fleets_events (...) VALUES ($1, $2, $3, $4, $5::text)</code></td>
+        <td style="color:#00b173">✅ 支持</td>
+        <td style="color:#f29900">类型转换待验证</td>
+        <td>PG 协议下的参数化查询 + Prepared Statement（v2.4.0 增强）。<code>$N</code> 占位符兼容。<br><code>$5::text</code> 是 PG 风格类型转换——Datalayers 的 PG 方言需验证是否支持此语法。若不支持，可在 Go 端将数据转为 string 后以纯 STRING 参数传入。</td>
+      </tr>
+      <tr>
+        <td>11</td>
+        <td><code>INSERT INTO fleets_shadow_reported (...) VALUES ($1, $2, $3::text)</code></td>
+        <td style="color:#00b173">✅ 支持</td>
+        <td style="color:#f29900">同上</td>
+        <td>同上。<code>$3::text</code> 类型转换需验证。</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>DQL — 数据查询</h3>
+  <div class="table-wrap">
+  <table class="styled-table">
+    <thead><tr><th style="width:5%">#</th><th style="width:28%">Fleets SQL（GreptimeDB）</th><th style="width:10%">Datalayers</th><th style="width:18%">差异</th><th style="width:39%">改造方案</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>12</td>
+        <td><code>SELECT thing_name, ts::text AS ts, event_type, severity, data_json FROM fleets_events WHERE ... ORDER BY ts DESC LIMIT 20 OFFSET 0</code></td>
+        <td style="color:#f29900">⚠ 部分需验证</td>
+        <td style="color:#f29900">类型转换 + OFFSET</td>
+        <td><code>LIMIT/OFFSET</code> 在 Datalayers v2.2+ 已支持。<code>ORDER BY</code> 完全兼容。但 <code>ts::text</code>（PG 风格类型转换）和 LIMIT/OFFSET 的内联数值绑定需验证——GreptimeDB 因 OID 705 限制必须内联 LIMIT/OFFSET，Datalayers 可能无此限制。</td>
+      </tr>
+      <tr>
+        <td>13</td>
+        <td><code>SELECT count(*) FROM fleets_events WHERE ...</code></td>
+        <td style="color:#00b173">✅ 支持</td>
+        <td style="color:#00b173">已优化</td>
+        <td>Datalayers v2.3.14 专门优化了带时间过滤的 <code>count(*)</code> 查询性能。</td>
+      </tr>
+      <tr>
+        <td>14</td>
+        <td><code>thing_name = ANY($1::text[])</code></td>
+        <td style="color:#f29900">⚠ 待验证</td>
+        <td style="color:#f29900">PG ANY 数组操作</td>
+        <td><code>ANY(array)</code> 是 PG 特有语法。Datalayers PG 方言需验证是否支持此操作符及 <code>::text[]</code> 数组类型转换。若不支持，可改为 <code>thing_name IN ($1, $2, ...)</code>（动态构建）或使用 Datalayers 的 ARRAY 类型。</td>
+      </tr>
+      <tr>
+        <td>15</td>
+        <td><code>SELECT DISTINCT thing_name FROM fleets_shadow_reported WHERE ts >= $1 AND ts <= $2 ORDER BY thing_name LIMIT 1000</code></td>
+        <td style="color:#00b173">✅ 支持</td>
+        <td style="color:#00b173">完全兼容</td>
+        <td>DISTINCT、时间范围过滤、ORDER BY、LIMIT 均为标准 SQL。</td>
+      </tr>
+      <tr>
+        <td>16</td>
+        <td><code>SELECT thing_name, reported FROM fleets_shadow_reported WHERE ts >= $1 AND ts <= $2 ORDER BY thing_name, ts LIMIT 100000</code></td>
+        <td style="color:#00b173">✅ 支持</td>
+        <td style="color:#00b173">完全兼容</td>
+        <td>标准 SELECT 多列 + 多字段排序 + LIMIT。</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>健康检查 & 连接管理</h3>
+  <div class="table-wrap">
+  <table class="styled-table">
+    <thead><tr><th style="width:5%">#</th><th style="width:28%">Fleets 操作</th><th style="width:10%">Datalayers</th><th style="width:18%">差异</th><th style="width:39%">改造方案</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>17</td>
+        <td><code>SELECT 1</code>（健康检查 Ping，pgx）</td>
+        <td style="color:#f29900">⚠ 待验证</td>
+        <td style="color:#f29900">基础表达式</td>
+        <td>GreptimeDB 的 pgx <code>Ping()</code> 返回 "empty statements"，因此 Fleets 改用 <code>SELECT 1</code>。Datalayers PG 协议需验证：① <code>pgx.Ping()</code> 是否正常；② <code>SELECT 1</code> 是否可执行。</td>
+      </tr>
+      <tr>
+        <td>18</td>
+        <td>pgx 连接池热重载</td>
+        <td style="color:#00b173">✅ 支持</td>
+        <td style="color:#00b173">驱动层兼容</td>
+        <td>pgx v5 通过标准 PG 协议连接，热重载逻辑在 Fleets 应用层（<code>TSDBConnectionManager.Reload()</code>），与数据库无关。</td>
+      </tr>
+      <tr>
+        <td>19</td>
+        <td>TLS 加密连接</td>
+        <td style="color:#ea4335">❌ 不支持</td>
+        <td style="color:#ea4335"><strong>限制</strong></td>
+        <td>Datalayers PG 协议明确标注「暂不支持 TLS 连接」。对于内网部署影响较小，但公网或跨云部署需额外方案（如 stunnel、云 VPC 私有网络）。</td>
+      </tr>
+      <tr>
+        <td>20</td>
+        <td>EMQX Broker → InfluxDB LP 写入</td>
+        <td style="color:#f29900">⚠ 待验证</td>
+        <td style="color:#f29900">Schemaless 写入</td>
+        <td>EMQX 规则通过 InfluxDB Line Protocol 写入 Datalayers（LP 协议仅支持写入）。关键问题：Datalayers 是否在 LP 写入时自动建表并推断列类型（即 Schemaless）？若需预建表，则破坏了 EMQX Tables「零配置写入」体验。Fleets 的 <code>EnsureGreptimeSchema()</code> 已预建表，可缓解但不能完全消除此问题。</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="info-box green" style="margin-top:14px">
+    <strong>SQL 兼容性总结（20 项全覆盖）：</strong>✅ <strong>9 项完全兼容</strong> | ⚠ <strong>6 项需验证</strong>（含 PG 特有语法如 <code>::text</code> 类型转换、<code>ANY()</code> 数组操作、<code>SELECT 1</code>、Schemaless LP 写入） | ❌ <strong>3 项不兼容</strong>（MODIFY COLUMN、RENAME COLUMN、TLS） | ⚠ <strong>2 项语法差异需适配</strong>（TIME INDEX→TIMESTAMP KEY、PRIMARY KEY 约束）。三个不兼容项均有变通方案，但需额外工程投入。最大风险点在于 <strong>ALTER TABLE MODIFY COLUMN</strong>——若 Datalayers 的 InfluxDB LP 写入默认将 JSON 字段存储为 STRING，则可自然规避。
+  </div>
+  <div class="source-note"><strong>来源：</strong>Datalayers latest 文档 — CREATE TABLE [16]、INSERT [17]、SELECT [18]、ALTER TABLE [19]、数据类型 [20]、发布日志 [14]、PG 协议概述 [15]</div>
+</div>
+
+<!-- ============================================================ -->
+<!-- 二、功能层 Gap — 原内容 -->
+<!-- ============================================================ -->
+<div class="card">
+  <div class="section-title">二、Datalayers 替换 Fleets 功能层 Gap</div>
   <div class="table-wrap">
   <table class="styled-table">
     <thead><tr><th style="width:16%">功能</th><th style="width:11%">GreptimeDB</th><th style="width:11%">Datalayers</th><th style="width:22%">Gap 评估</th><th style="width:40%">需要做什么</th></tr></thead>
@@ -1298,39 +1494,39 @@ ORDER BY time_window DESC;</code></pre>
 </div>
 
 <div class="card">
-  <div class="section-title">五、Gap 优先级排序与路线图建议</div>
+  <div class="section-title">五、Gap 优先级排序与路线图建议 <span style="font-size:.75rem;color:var(--c-text-muted);font-weight:normal">（基于 Datalayers v2.4.1 最新状态）</span></div>
 
   <div class="info-box red">
-    <strong>P0 — 阻塞项（必须先解决，否则不可替换）：</strong>
+    <strong>P0 — 阻塞项（必须先解决，否则 Fleets 无法对接 Datalayers）：</strong>
     <ol style="font-size:.82rem;line-height:2;padding-left:20px;margin-top:6px">
-      <li><strong>Datalayers 实现 PostgreSQL Wire Protocol</strong> — 这是替换的硬前提。Grafana、DBeaver、Metabase、Streamlit 等所有核心可视化工具均依赖此协议。在 Datalayers 完成此项之前，替换无从谈起。</li>
-      <li><strong>Datalayers 确认 Schemaless 写入支持</strong> — EMQX Tables「零配置写入」是核心卖点。如果 Datalayers 要求预建表，将严重破坏用户体验。</li>
+      <li><strong>ALTER TABLE MODIFY COLUMN 不支持</strong> — Fleets <code>EnsureGreptimeSchema()</code> 依赖此语句对齐列类型。若 Datalayers 在 InfluxDB LP 写入时默认以 STRING 存储 JSON 字段，可绕过此问题。否则需 Datalayers 团队实现此语法。</li>
+      <li><strong>PG 协议 TLS 不支持</strong> — 生产环境安全硬要求。Datalayers 需补齐 TLS 支持，或在网络层通过 stunnel/VPC 私有网络变通。</li>
+      <li><strong>Schemaless LP 写入验证</strong> — EMQX Tables「零配置写入」的核心体验依赖 InfluxDB LP 写入时的自动建表能力。需确认 Datalayers LP 写入是否支持 Schemaless auto-create。</li>
     </ol>
   </div>
 
   <div class="info-box orange">
-    <strong>P1 — 高优先级（替换前必须完成的工程改造）：</strong>
+    <strong>P1 — 高优先级（Fleets 代码层必须适配的语法差异）：</strong>
     <ol style="font-size:.82rem;line-height:2;padding-left:20px;margin-top:6px">
-      <li><strong>新增 Datalayers Connector</strong> — Broker 侧集成</li>
-      <li><strong>部署管理 + 用户管理</strong> — 控制台核心功能改造</li>
-      <li><strong>监控与告警系统</strong> — 重建监控面板和告警规则</li>
-      <li><strong>计费系统适配</strong> — 按 Datalayers 资源模型设计新计费方案</li>
-      <li><strong>数据迁移工具</strong> — 存量 + 增量迁移方案</li>
+      <li><strong>TIME INDEX → TIMESTAMP KEY 语法替换</strong> — <code>EnsureGreptimeSchema()</code> 中所有 CREATE TABLE 语句需全局替换</li>
+      <li><strong>PRIMARY KEY 约束调整</strong> — timestamp 列和分区键必须包含在 PK 中</li>
+      <li><strong>追加 PARTITION BY HASH + ENGINE=TimeSeries</strong> — 每张时序表都必须显式声明</li>
+      <li><strong>SQL 方言适配</strong> — 验证并适配 <code>::text</code> 类型转换、<code>ANY($1::text[])</code> 数组操作、<code>ts::text</code> 等 PG 特定语法</li>
     </ol>
   </div>
 
   <div class="info-box blue">
     <strong>P2 — 优化项（替换后逐步完善）：</strong>
     <ol style="font-size:.82rem;line-height:2;padding-left:20px;margin-top:6px">
-      <li><strong>OTLP 协议支持</strong> — 若 Datalayers 能补充 OTLP，可覆盖可观测性场景</li>
+      <li><strong>ALTER TABLE RENAME COLUMN 变通</strong> — 仅影响旧版本升级，可通过「建新表 → 迁移数据 → 删旧表」变通</li>
+      <li><strong>健康检查适配</strong> — 验证 pgx <code>Ping()</code> 和 <code>SELECT 1</code> 在 Datalayers 下的行为</li>
+      <li><strong>LIMIT/OFFSET 参数化</strong> — GreptimeDB 因 OID 705 限制内联 LIMIT/OFFSET，Datalayers 可能支持参数化</li>
+      <li><strong>EMQX Broker 集成层改造</strong> — 新增 Datalayers Connector、控制台部署管理、监控计费、数据迁移等（详见原「三、集成层改造」）</li>
       <li><strong>性能基准测试</strong> — 在同等条件下对比写入吞吐、查询延迟、压缩比</li>
-      <li><strong>SQL 方言适配文档</strong> — 编写 PostgreSQL→MySQL SQL 迁移指南</li>
-      <li><strong>高基数场景验证</strong> — 在百万级 Series 场景下验证性能</li>
-      <li><strong>备份恢复自动化</strong> — 补齐 Datalayers 自建部署的备份能力</li>
     </ol>
   </div>
 
-  <div class="source-note"><strong>来源：</strong>本分析基于 [1]–[13] 所有参考来源的综合交叉比对，工程改造评估基于 EMQX Tables 当前公开架构的合理推断</div>
+  <div class="source-note"><strong>来源：</strong>Datalayers latest 文档 [14][15][16][17][18][19][20]；Fleets 源码 <code>internal/repository/tsdb_schema.go</code>、<code>tsdb_repo.go</code>、<code>tsdb_shadow_window.go</code></div>
 </div>
 
 <div class="card">
@@ -1366,59 +1562,59 @@ ORDER BY time_window DESC;</code></pre>
 </div>
 
 <div class="card">
-  <div class="section-title">综合结论</div>
+  <div class="section-title">综合结论 <span style="font-size:.75rem;color:var(--c-text-muted);font-weight:normal">（基于 Datalayers v2.4.1 + Fleets 源码逐项验证）</span></div>
   <div class="table-wrap">
   <table class="styled-table">
     <thead><tr><th style="width:25%">维度</th><th style="width:25%">Gap 严重程度</th><th style="width:25%">可解决性</th><th style="width:25%">用户感知</th></tr></thead>
     <tbody>
       <tr>
-        <td>PostgreSQL 协议缺失</td>
-        <td style="color:#ea4335"><strong>致命</strong></td>
-        <td>需 Datalayers 团队实现</td>
-        <td style="color:#ea4335"><strong>高 — Grafana 等全部断裂</strong></td>
+        <td>PostgreSQL 协议</td>
+        <td style="color:#00b173"><strong>已解决 ✅</strong></td>
+        <td>Datalayers v2.3.15+ 已实现</td>
+        <td style="color:#00b173">低 — Grafana/DBeaver 可用 PG 驱动连接</td>
       </tr>
       <tr>
-        <td>控制台全栈改造</td>
+        <td>ALTER TABLE MODIFY COLUMN 缺失</td>
+        <td style="color:#f29900"><strong>中等</strong></td>
+        <td>可绕过（若 LP 写入默认 STRING）</td>
+        <td style="color:#00b173">低 — 对用户透明</td>
+      </tr>
+      <tr>
+        <td>PG 协议 TLS 不支持</td>
+        <td style="color:#ea4335"><strong>高</strong></td>
+        <td>网络层变通（VPC/stunnel）或等 Datalayers 实现</td>
+        <td style="color:#f29900">中 — 公网部署受影响</td>
+      </tr>
+      <tr>
+        <td>Fleets DDL 语法适配</td>
+        <td style="color:#f29900"><strong>中等</strong></td>
+        <td>纯代码改造（TIME INDEX→TIMESTAMP KEY、PK 约束、PARTITION BY HASH）</td>
+        <td style="color:#00b173">低 — 对用户透明</td>
+      </tr>
+      <tr>
+        <td>Schemaless LP 写入</td>
+        <td style="color:#f29900"><strong>待验证</strong></td>
+        <td>需 Datalayers 团队确认</td>
+        <td style="color:#ea4335"><strong>高 — 影响零配置体验</strong></td>
+      </tr>
+      <tr>
+        <td>PG 特有 SQL 语法适配</td>
+        <td style="color:#f29900"><strong>小</strong></td>
+        <td>代码层变通（::text / ANY / ts::text）</td>
+        <td style="color:#00b173">低 — 对用户透明</td>
+      </tr>
+      <tr>
+        <td>控制台 + 运维全栈改造</td>
         <td style="color:#ea4335"><strong>重大</strong></td>
         <td>纯工程投入，可解决</td>
         <td style="color:#ea4335"><strong>高 — 短期体验可能降级</strong></td>
-      </tr>
-      <tr>
-        <td>监控计费重建</td>
-        <td style="color:#ea4335"><strong>重大</strong></td>
-        <td>纯工程投入，可解决</td>
-        <td style="color:#ea4335"><strong>高</strong></td>
-      </tr>
-      <tr>
-        <td>数据迁移</td>
-        <td style="color:#ea4335"><strong>重大</strong></td>
-        <td>可解决但风险高</td>
-        <td style="color:#ea4335"><strong>高 — 迁移期间可能中断</strong></td>
-      </tr>
-      <tr>
-        <td>SQL 方言适配</td>
-        <td style="color:#f29900">中等</td>
-        <td>文档 + 工具可缓解</td>
-        <td style="color:#f29900">中 — 需更新查询语句</td>
-      </tr>
-      <tr>
-        <td>Schemaless 写入</td>
-        <td style="color:#ea4335"><strong>关键</strong></td>
-        <td>需 Datalayers 确认/实现</td>
-        <td style="color:#ea4335"><strong>高 — 零配置体验核心</strong></td>
-      </tr>
-      <tr>
-        <td>多模态能力增益</td>
-        <td style="color:var(--c-blue)">正向</td>
-        <td>天然具备</td>
-        <td style="color:var(--c-blue)">正向 — 新增向量/全文/KV</td>
       </tr>
     </tbody>
   </table>
   </div>
 
-  <div class="info-box orange" style="margin-top:16px">
-    <strong>总体评估：</strong>在 Datalayers 尚不支持 PostgreSQL Wire Protocol 的当前状态下，<strong>替换不具备可行性</strong>。即使 Datalayers 补齐了 PG 协议，EMQX Cloud 团队仍需投入一个大型工程项目的开发量来完成控制台、监控、计费、运维、数据迁移的全栈改造。但如果从战略层面看——Datalayers 的向量检索 + 全文检索能为 EMQX Tables 打开 AI + 工业 IoT 的新市场空间——那么这一投入在中长期可能具有商业合理性。关键在于 <strong>Datalayers 能否在 PG 协议和 Schemaless 写入这两项硬性要求上达到 GreptimeDB 的成熟度</strong>。
+  <div class="info-box green" style="margin-top:16px">
+    <strong>总体评估（更新）：</strong>相比之前报告，<strong>态势已大幅改善</strong>——PostgreSQL 协议这一最大的阻塞点已被 Datalayers v2.3.15 解决。当前剩余的核心风险从「协议不通」转变为「SQL 语法适配 + 边缘特性不支持」。在 Fleets 的 20 项 SQL 操作中，9 项完全兼容，3 项不兼容（均有变通方案），6 项需实际验证。如果 Datalayers 团队补齐 TLS 和 MODIFY COLUMN 两个关键缺失，并在 InfluxDB LP 写入层面确认 Schemaless 支持，则 Fleets 对接 Datalayers 的<strong>数据库层可行性将接近 GreptimeDB</strong>。但 EMQX Cloud 平台层的控制台、部署管理、监控、计费、运维改造仍是大型工程投入，需从商业和战略层面综合评估。
   </div>
 </div>
 
@@ -1446,6 +1642,13 @@ ORDER BY time_window DESC;</code></pre>
       <tr><td>[11]</td><td>Datalayers 产品首页</td><td><a href="https://www.datalayers.cn" target="_blank" rel="noopener">datalayers.cn</a></td></tr>
       <tr><td>[12]</td><td>Datalayers v2.3 文档</td><td><a href="https://docs.datalayers.cn/datalayers/v2.3" target="_blank" rel="noopener">docs.datalayers.cn/datalayers/v2.3</a></td></tr>
       <tr><td>[13]</td><td>Datalayers 文档首页 (latest)</td><td><a href="https://docs.datalayers.cn/datalayers/latest/" target="_blank" rel="noopener">docs.datalayers.cn/datalayers/latest/</a></td></tr>
+      <tr><td>[14]</td><td>Datalayers 版本更新日志</td><td><a href="https://docs.datalayers.cn/datalayers/latest/releases/changes.html" target="_blank" rel="noopener">docs.datalayers.cn/datalayers/latest/releases/changes.html</a></td></tr>
+      <tr><td>[15]</td><td>Datalayers PostgreSQL 协议概述</td><td><a href="https://docs.datalayers.cn/datalayers/latest/development-guide/postgresql/overview.html" target="_blank" rel="noopener">docs.datalayers.cn/datalayers/latest/development-guide/postgresql/overview.html</a></td></tr>
+      <tr><td>[16]</td><td>Datalayers CREATE TABLE 语法</td><td><a href="https://docs.datalayers.cn/datalayers/latest/sql-reference/statements/create.html" target="_blank" rel="noopener">docs.datalayers.cn/datalayers/latest/sql-reference/statements/create.html</a></td></tr>
+      <tr><td>[17]</td><td>Datalayers INSERT 语法</td><td><a href="https://docs.datalayers.cn/datalayers/latest/sql-reference/statements/insert.html" target="_blank" rel="noopener">docs.datalayers.cn/datalayers/latest/sql-reference/statements/insert.html</a></td></tr>
+      <tr><td>[18]</td><td>Datalayers SELECT 语法</td><td><a href="https://docs.datalayers.cn/datalayers/latest/sql-reference/statements/select.html" target="_blank" rel="noopener">docs.datalayers.cn/datalayers/latest/sql-reference/statements/select.html</a></td></tr>
+      <tr><td>[19]</td><td>Datalayers ALTER TABLE 语法</td><td><a href="https://docs.datalayers.cn/datalayers/latest/sql-reference/statements/alter.html" target="_blank" rel="noopener">docs.datalayers.cn/datalayers/latest/sql-reference/statements/alter.html</a></td></tr>
+      <tr><td>[20]</td><td>Datalayers 数据类型参考</td><td><a href="https://docs.datalayers.cn/datalayers/latest/sql-reference/data-type.html" target="_blank" rel="noopener">docs.datalayers.cn/datalayers/latest/sql-reference/data-type.html</a></td></tr>
     </tbody>
   </table>
   </div>
