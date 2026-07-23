@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ECP 代理访问 Neuron / eKuiper 功能架构图</title>
+<style>
+  :root{
+    --ink:#3b3b4f;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background-color:#ffffff;
+    background-image:
+      linear-gradient(#ececec 1px, transparent 1px),
+      linear-gradient(90deg, #ececec 1px, transparent 1px);
+    background-size:24px 24px;
+    font-family:'Chalkboard SE','Comic Sans MS','Kaiti SC','KaiTi','楷体','PingFang SC',cursive,sans-serif;
+    color:var(--ink);
+    padding:18px 10px 40px;
+  }
+  .wrap{max-width:1520px;margin:0 auto}
+  svg{width:100%;height:auto;display:block}
+  text{user-select:none}
+
+  /* 手绘文字描边光晕，避免文字压线看不清 */
+  .lb{paint-order:stroke;stroke:#ffffff;stroke-width:5px;stroke-linejoin:round}
+
+  /* 节点与连线 hover 高亮/淡出 */
+  .node, .edge{transition:opacity .22s ease}
+  svg.dim .node{opacity:.13}
+  svg.dim .edge{opacity:.08}
+  svg.dim .node.hl{opacity:1}
+  svg.dim .edge.hl{opacity:1}
+  .edge.hl path{stroke-width:3.2px !important}
+  .node{cursor:pointer}
+  .node.hl rect.box{stroke-width:3.4px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<svg id="arch" viewBox="0 0 1460 1360" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- 手绘粗糙质感滤镜 -->
+    <filter id="rough" x="-5%" y="-5%" width="110%" height="110%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="4" seed="11" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="3.6"/>
+    </filter>
+    <filter id="roughSoft" x="-5%" y="-5%" width="110%" height="110%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="3" seed="4" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="5"/>
+    </filter>
+    <marker id="ah" viewBox="0 0 12 12" refX="9" refY="6" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M1.5 1.5 L10 6 L1.5 10.5" fill="none" stroke="#4a4a68" stroke-width="1.8" stroke-linecap="round"/>
+    </marker>
+    <marker id="ahv" viewBox="0 0 12 12" refX="9" refY="6" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M1.5 1.5 L10 6 L1.5 10.5" fill="none" stroke="#ae3ec9" stroke-width="1.8" stroke-linecap="round"/>
+    </marker>
+  </defs>
+
+  <!-- ======= 图例（顶部，避让左侧标题） ======= -->
+  <g filter="url(#rough)">
+    <rect x="600" y="16" width="822" height="88" rx="10" fill="#ffffff" stroke="#b9b9c9" stroke-width="1.6"/>
+  </g>
+  <g font-size="13.5">
+    <rect x="622" y="36" width="24" height="15" rx="4" fill="#d0ebff" stroke="#1971c2" stroke-width="1.8" filter="url(#rough)"/>
+    <text x="654" y="49" fill="#4a4a68">客户端 / 入口层</text>
+    <rect x="892" y="36" width="24" height="15" rx="4" fill="#e5dbff" stroke="#6741d9" stroke-width="1.8" filter="url(#rough)"/>
+    <text x="924" y="49" fill="#4a4a68">ECP 云平台层</text>
+    <rect x="1162" y="36" width="24" height="15" rx="4" fill="#ffe8cc" stroke="#e8590c" stroke-width="1.8" filter="url(#rough)"/>
+    <text x="1194" y="49" fill="#4a4a68">MQTT 消息通道层</text>
+    <rect x="622" y="70" width="24" height="15" rx="4" fill="#d3f9d8" stroke="#2f9e44" stroke-width="1.8" filter="url(#rough)"/>
+    <text x="654" y="83" fill="#4a4a68">边缘节点层</text>
+    <path d="M892 78 L946 78" stroke="#4a4a68" stroke-width="2.2" marker-end="url(#ah)" filter="url(#rough)"/>
+    <text x="958" y="83" fill="#4a4a68">请求 / 数据链路</text>
+    <path d="M1162 78 L1216 78" stroke="#ae3ec9" stroke-width="2.2" stroke-dasharray="7 5" marker-end="url(#ahv)" filter="url(#rough)"/>
+    <text x="1228" y="83" fill="#4a4a68">直连模式链路</text>
+  </g>
+
+  <!-- 标题与副标题左移，为图例让位 -->
+  <text x="60" y="44" font-size="22" font-weight="bold" fill="#343446">ECP 代理访问 Neuron / eKuiper 功能架构图</text>
+  <text x="60" y="68" font-size="12.5" fill="#8a8aa0">边缘服务统一接入 · direct 直连 与 proxy MQTT 隧道双模式 · 悬停组件查看其全部连接</text>
+
+  <!-- ======= 分层背景带 ======= -->
+  <g filter="url(#roughSoft)">
+    <rect x="60"  y="120" width="1340" height="130" rx="14" fill="#e7f5ff" fill-opacity=".55" stroke="#74c0fc" stroke-width="1.6" stroke-dasharray="10 7"/>
+    <rect x="60"  y="290" width="1340" height="425" rx="14" fill="#f3f0ff" fill-opacity=".55" stroke="#b197fc" stroke-width="1.6" stroke-dasharray="10 7"/>
+    <rect x="60"  y="755" width="1340" height="130" rx="14" fill="#fff4e6" fill-opacity=".6"  stroke="#ffa94d" stroke-width="1.6" stroke-dasharray="10 7"/>
+    <rect x="60"  y="920" width="1340" height="370" rx="14" fill="#ebfbee" fill-opacity=".55" stroke="#8ce99a" stroke-width="1.6" stroke-dasharray="10 7"/>
+  </g>
+  <text x="82" y="146" font-size="15" font-weight="bold" fill="#1971c2">客户端 / 入口层</text>
+  <text x="82" y="316" font-size="15" font-weight="bold" fill="#6741d9">ECP 云平台层（本项目 Go 服务）</text>
+  <text x="82" y="781" font-size="15" font-weight="bold" fill="#e8590c">MQTT 消息通道层</text>
+  <text x="82" y="946" font-size="15" font-weight="bold" fill="#2f9e44">边缘节点层（客户现场 / NAT 内网）</text>
+
+  <!-- ======= 连线（先画线，后画节点，避免遮挡节点） ======= -->
+
+  <!-- e1 浏览器 -> Gin -->
+  <g class="edge" data-nodes="browser gin">
+    <path d="M280 225 L280 318" fill="none" stroke="#4a4a68" stroke-width="2.2" marker-end="url(#ah)" filter="url(#rough)"/>
+    <text class="lb" x="292" y="262" font-size="13" fill="#444">HTTPS</text>
+    <text class="lb" x="292" y="280" font-size="12" fill="#666" font-family="monospace">/api/edgeservice/proxy/:id/*path</text>
+  </g>
+
+  <!-- e2 Prometheus -> Gin -->
+  <g class="edge" data-nodes="prom gin">
+    <path d="M680 225 L508 316" fill="none" stroke="#4a4a68" stroke-width="2.2" marker-end="url(#ah)" filter="url(#rough)"/>
+    <text class="lb" x="660" y="256" font-size="13" fill="#444">抓取边缘指标（仅 Basic Auth，不走用户鉴权/License）</text>
+    <text class="lb" x="660" y="274" font-size="12" fill="#666" font-family="monospace">…/proxy/metrics/:id/*path</text>
+  </g>
+
+  <!-- e3 Gin -> Tunnel -->
+  <g class="edge" data-nodes="gin tunnel">
+    <path d="M360 400 L360 468" fill="none" stroke="#4a4a68" stroke-width="2.2" marker-end="url(#ah)" filter="url(#rough)"/>
+    <text class="lb" x="374" y="440" font-size="13" fill="#444">鉴权 / 许可校验通过</text>
+  </g>
+
+  <!-- e4 Tunnel -> Cache -->
+  <g class="edge" data-nodes="tunnel cache">
+    <path d="M520 482 L630 414" fill="none" stroke="#4a4a68" stroke-width="2.2" marker-end="url(#ah)" filter="url(#rough)"/>
+    <text class="lb" x="548" y="464" font-size="13" fill="#444">① 查服务元数据</text>
+  </g>
+
+  <!-- e5 Cache -> DB -->
+  <g class="edge" data-nodes="cache db">
+    <path d="M870 370 L986 370" fill="none" stroke="#4a4a68" stroke-width="2.2" marker-end="url(#ah)" filter="url(#rough)"/>
+    <text class="lb" x="880" y="360" font-size="13" fill="#444">未命中回源</text>
+  </g>
+
+  <!-- e6 Tunnel -> JWT -->
+  <g class="edge" data-nodes="tunnel jwt">
+    <path d="M520 522 L616 522" fill="none" stroke="#4a4a68" stroke-width="2.2" marker-end="url(#ah)" filter="url(#rough)"/>
+    <text class="lb" x="534" y="513" font-size="13" fill="#444">② 取 JWT</text>
+  </g>
+
+  <!-- e7 Tunnel -> MQTT Client -->
+  <g class="edge" data-nodes="tunnel mqttc">
+    <path d="M355 570 L355 622" fill="none" stroke="#4a4a68" stroke-width="2.2" marker-end="url(#ah)" filter="url(#rough)"/>
+    <text class="lb" x="368" y="602" font-size="13" fill="#444">③ proxy 模式：封装 TunnelReqMsg</text>
+  </g>
+
+  <!-- e8 MQTT Client -> Broker -->
+  <g class="edge" data-nodes="mqttc broker">
+    <path d="M360 695 L360 777" fill="none" stroke="#4a4a68" stroke-width="2.2" marker-end="url(#ah)" filter="url(#rough)"/>
+    <text class="lb" x="374" y="728" font-size="12" fill="#666" font-family="monospace">pub ecp/{agentId}/tunnel/request</text>
+    <text class="lb" x="374" y="746" font-size="12" fill="#666" font-family="monospace">sub agent/{agentId}/tunnel/response/session/{sid}</text>
+  </g>
+
+  <!-- e9 Broker <-> Agent -->
+  <g class="edge" data-nodes="broker agent">
+    <path d="M380 860 L380 956" fill="none" stroke="#4a4a68" stroke-width="2.2" marker-start="url(#ah)" marker-end="url(#ah)" filter="url(#rough)"/>
+    <text class="lb" x="396" y="900" font-size="13" fill="#444">④ MQTT 长连接（Agent 出站连接，穿透 NAT）</text>
+    <text class="lb" x="396" y="918" font-size="12" fill="#666" font-family="monospace">健康上报 agent/health/upload · 版本 agent/edge/version</text>
+  </g>
+
+  <!-- e10 AgentMgr <-> MQTT Client -->
+  <g class="edge" data-nodes="agentmgr mqttc">
+    <path d="M616 656 L494 656" fill="none" stroke="#4a4a68" stroke-width="2.2" marker-start="url(#ah)" marker-end="url(#ah)" filter="url(#rough)"/>
+    <text class="lb" x="500" y="641" font-size="12.5" fill="#444">健康/版本订阅</text>
+    <text class="lb" x="500" y="681" font-size="12.5" fill="#444">下发Token+服务</text>
+  </g>
+
+  <!-- e11 AgentMgr -> JWT -->
+  <g class="edge" data-nodes="agentmgr jwt">
+    <path d="M750 615 L750 574" fill="none" stroke="#4a4a68" stroke-width="2.2" marker-end="url(#ah)" filter="url(#rough)"/>
+    <text class="lb" x="762" y="600" font-size="12.5" fill="#444">取 Token 随健康回执下发给 Agent</text>
+  </g>
+
+  <!-- e12 Agent -> Neuron -->
+  <g class="edge" data-nodes="agent neuron">
+    <path d="M520 1030 L654 1074" fill="none" stroke="#4a4a68" stroke-width="2.2" marker-end="url(#ah)" filter="url(#rough)"/>
+    <text class="lb" x="530" y="1014" font-size="12.5" fill="#444">⑤ 本地 HTTP · Bearer JWT</text>
+  </g>
+
+  <!-- e13 Agent -> eKuiper -->
+  <g class="edge" data-nodes="agent ekuiper">
+    <path d="M520 990 L972 1036" fill="none" stroke="#4a4a68" stroke-width="2.2" marker-end="url(#ah)" filter="url(#rough)"/>
+    <text class="lb" x="700" y="1028" font-size="12.5" fill="#444">本地 HTTP（开源版默认无认证）</text>
+  </g>
+
+  <!-- e14 Agent -> NanoMQ -->
+  <g class="edge" data-nodes="agent nanomq">
+    <path d="M520 972 L1226 1034" fill="none" stroke="#4a4a68" stroke-width="2.2" marker-end="url(#ah)" filter="url(#rough)"/>
+    <text class="lb" x="1046" y="1012" font-size="12.5" fill="#444">本地 HTTP · Basic/JWT</text>
+  </g>
+
+  <!-- e15 直连模式（虚线，3 条独立边，避免 hover 时兄弟节点误高亮） -->
+  <g class="edge" data-nodes="tunnel neuron">
+    <path d="M198 532 L120 532 L120 1170 L730 1170 L730 1130" fill="none" stroke="#ae3ec9" stroke-width="2.4" stroke-dasharray="9 6" marker-end="url(#ahv)" filter="url(#rough)"/>
+  </g>
+  <g class="edge" data-nodes="tunnel ekuiper">
+    <path d="M198 556 L108 556 L108 1192 L975 1192 L975 1130" fill="none" stroke="#ae3ec9" stroke-width="2.4" stroke-dasharray="9 6" marker-end="url(#ahv)" filter="url(#rough)"/>
+  </g>
+  <g class="edge" data-nodes="tunnel nanomq">
+    <path d="M198 580 L96 580 L96 1214 L1222 1214 L1222 1130" fill="none" stroke="#ae3ec9" stroke-width="2.4" stroke-dasharray="9 6" marker-end="url(#ahv)" filter="url(#rough)"/>
+  </g>
+  <text class="lb" x="244" y="1250" font-size="13.5" fill="#9c36b5" font-weight="bold">直连模式（NodeType=direct）：ECP 云端直接 HTTP(S) 请求边缘服务 API，不经 Agent</text>
+
+  <!-- ======= 便签：隧道会话原理（放在 L2 ECP 层右侧空白处） ======= -->
+  <g filter="url(#rough)">
+    <rect x="960" y="500" width="420" height="170" rx="8" fill="#fff9db" stroke="#f08c00" stroke-width="1.8"/>
+  </g>
+  <text x="978" y="524" font-size="13.5" font-weight="bold" fill="#e8590c">📌 proxy 隧道会话原理（edge_tunnel.go）</text>
+  <text x="978" y="548" font-size="12" fill="#5f5f46">· sessionId 关联一次请求/响应：</text>
+  <text x="998" y="566" font-size="12" fill="#5f5f46">  先订阅 response 主题，</text>
+  <text x="998" y="584" font-size="12" fill="#5f5f46">  再发布 request，收到即取消订阅</text>
+  <text x="978" y="606" font-size="12" fill="#5f5f46">· 默认超时 60s；X-ECP-Timeout 头可调（上限 300s）</text>
+  <text x="978" y="626" font-size="12" fill="#5f5f46">· Agent 在边缘本地发起真实 HTTP 调用，</text>
+  <text x="998" y="644" font-size="12" fill="#5f5f46">  将 statusCode / headers / body 原样封装回传</text>
+  <text x="978" y="664" font-size="12" fill="#5f5f46">· 直连模式跳过 ③④⑤，由 ECP 复用连接池</text>
+
+  <!-- ======= 节点 ======= -->
+
+  <!-- 客户端层 -->
+  <g class="node" data-id="browser">
+    <rect class="box" x="140" y="150" width="280" height="76" rx="12" fill="#d0ebff" stroke="#1971c2" stroke-width="2.4" filter="url(#rough)"/>
+    <text class="lb" x="280" y="182" font-size="16" font-weight="bold" fill="#1864ab" text-anchor="middle">浏览器 · ECP 控制台</text>
+    <text class="lb" x="280" y="206" font-size="11.5" fill="#4b6f92" text-anchor="middle">Neuron / eKuiper 管理界面（前端）</text>
+  </g>
+  <g class="node" data-id="prom">
+    <rect class="box" x="620" y="150" width="250" height="76" rx="12" fill="#d0ebff" stroke="#1971c2" stroke-width="2.4" filter="url(#rough)"/>
+    <text class="lb" x="745" y="182" font-size="16" font-weight="bold" fill="#1864ab" text-anchor="middle">Prometheus / 监控</text>
+    <text class="lb" x="745" y="206" font-size="11.5" fill="#4b6f92" text-anchor="middle">Basic Auth（GetMonitorAuth）</text>
+  </g>
+
+  <!-- ECP 平台层 -->
+  <g class="node" data-id="gin">
+    <rect class="box" x="180" y="320" width="360" height="80" rx="12" fill="#e5dbff" stroke="#6741d9" stroke-width="2.4" filter="url(#rough)"/>
+    <text class="lb" x="360" y="352" font-size="16" font-weight="bold" fill="#5f3dc4" text-anchor="middle">Gin API 路由 + 中间件</text>
+    <text class="lb" x="360" y="376" font-size="11" fill="#6f5f9e" text-anchor="middle">AuthRequired · EdgeServiceManagementSupported（License）</text>
+  </g>
+  <g class="node" data-id="tunnel">
+    <rect class="box" x="200" y="470" width="320" height="100" rx="12" fill="#e5dbff" stroke="#6741d9" stroke-width="2.4" filter="url(#rough)"/>
+    <text class="lb" x="360" y="504" font-size="16" font-weight="bold" fill="#5f3dc4" text-anchor="middle">Tunnel 代理处理器</text>
+    <text class="lb" x="360" y="528" font-size="11.5" fill="#6f5f9e" text-anchor="middle" font-family="monospace">server/proxy/edge_tunnel.go</text>
+    <text class="lb" x="360" y="550" font-size="11.5" fill="#6f5f9e" text-anchor="middle">direct 直连 ↔ proxy 隧道 · 注入 Authorization</text>
+  </g>
+  <g class="node" data-id="cache">
+    <rect class="box" x="620" y="330" width="250" height="80" rx="12" fill="#e5dbff" stroke="#6741d9" stroke-width="2.4" filter="url(#rough)"/>
+    <text class="lb" x="745" y="362" font-size="15" font-weight="bold" fill="#5f3dc4" text-anchor="middle">EdgeService 缓存</text>
+    <text class="lb" x="745" y="386" font-size="11" fill="#6f5f9e" text-anchor="middle" font-family="monospace">server/proxy/edge_cache.go</text>
+  </g>
+  <g class="node" data-id="db">
+    <rect class="box" x="990" y="330" width="230" height="80" rx="12" fill="#e5dbff" stroke="#6741d9" stroke-width="2.4" filter="url(#rough)"/>
+    <text class="lb" x="1105" y="362" font-size="15" font-weight="bold" fill="#5f3dc4" text-anchor="middle">数据库</text>
+    <text class="lb" x="1105" y="386" font-size="11" fill="#6f5f9e" text-anchor="middle" font-family="monospace">edge_service 表（GORM）</text>
+  </g>
+  <g class="node" data-id="jwt">
+    <rect class="box" x="620" y="475" width="260" height="95" rx="12" fill="#e5dbff" stroke="#6741d9" stroke-width="2.4" filter="url(#rough)"/>
+    <text class="lb" x="750" y="505" font-size="15" font-weight="bold" fill="#5f3dc4" text-anchor="middle">JWT 令牌管理器</text>
+    <text class="lb" x="750" y="528" font-size="11" fill="#6f5f9e" text-anchor="middle" font-family="monospace">internal/pkg/jwt · RS256 私钥签发</text>
+    <text class="lb" x="750" y="550" font-size="11" fill="#6f5f9e" text-anchor="middle">iss={ECP名}.pub · 24h 缓存 · 提前1h刷新</text>
+  </g>
+  <g class="node" data-id="agentmgr">
+    <rect class="box" x="620" y="615" width="280" height="85" rx="12" fill="#e5dbff" stroke="#6741d9" stroke-width="2.4" filter="url(#rough)"/>
+    <text class="lb" x="760" y="648" font-size="15" font-weight="bold" fill="#5f3dc4" text-anchor="middle">EdgeAgent 管理</text>
+    <text class="lb" x="760" y="672" font-size="11" fill="#6f5f9e" text-anchor="middle" font-family="monospace">logic/edgeagent · 健康/版本订阅</text>
+  </g>
+  <g class="node" data-id="mqttc">
+    <rect class="box" x="230" y="625" width="260" height="70" rx="12" fill="#e5dbff" stroke="#6741d9" stroke-width="2.4" filter="url(#rough)"/>
+    <text class="lb" x="360" y="654" font-size="15" font-weight="bold" fill="#5f3dc4" text-anchor="middle">MQTT 客户端</text>
+    <text class="lb" x="360" y="676" font-size="11" fill="#6f5f9e" text-anchor="middle" font-family="monospace">logic/mqtt · pub/sub + 响应通道</text>
+  </g>
+
+  <!-- 消息通道层 -->
+  <g class="node" data-id="broker">
+    <rect class="box" x="230" y="780" width="300" height="80" rx="12" fill="#ffe8cc" stroke="#e8590c" stroke-width="2.4" filter="url(#rough)"/>
+    <text class="lb" x="380" y="812" font-size="16" font-weight="bold" fill="#d9480f" text-anchor="middle">EMQX Broker</text>
+    <text class="lb" x="380" y="836" font-size="11" fill="#a3663d" text-anchor="middle" font-family="monospace">内部 MQTT 通道（conf: mqtt.addr）</text>
+  </g>
+
+  <!-- 边缘层 -->
+  <g class="node" data-id="agent">
+    <rect class="box" x="210" y="960" width="310" height="90" rx="12" fill="#d3f9d8" stroke="#2f9e44" stroke-width="2.4" filter="url(#rough)"/>
+    <text class="lb" x="365" y="992" font-size="16" font-weight="bold" fill="#2b8a3e" text-anchor="middle">Edge Agent</text>
+    <text class="lb" x="365" y="1014" font-size="11.5" fill="#4b7a55" text-anchor="middle">边缘站点常驻进程 · 出站 MQTT 连接</text>
+    <text class="lb" x="365" y="1034" font-size="11.5" fill="#4b7a55" text-anchor="middle">收到隧道请求 → 本地发起 HTTP 转发</text>
+  </g>
+
+  <!-- 边缘服务组 -->
+  <g filter="url(#roughSoft)">
+    <rect x="620" y="950" width="770" height="210" rx="12" fill="#ffffff" fill-opacity=".5" stroke="#2f9e44" stroke-width="1.8" stroke-dasharray="8 6"/>
+  </g>
+  <text x="644" y="980" font-size="13.5" font-weight="bold" fill="#2b8a3e">边缘服务（本地部署 · localhost / 内网）</text>
+
+  <g class="node" data-id="neuron">
+    <rect class="box" x="660" y="1040" width="205" height="85" rx="12" fill="#d3f9d8" stroke="#2f9e44" stroke-width="2.4" filter="url(#rough)"/>
+    <text class="lb" x="762" y="1074" font-size="16" font-weight="bold" fill="#2b8a3e" text-anchor="middle">Neuron</text>
+    <text class="lb" x="762" y="1100" font-size="11.5" fill="#4b7a55" text-anchor="middle">工业协议接入网关</text>
+  </g>
+  <g class="node" data-id="ekuiper">
+    <rect class="box" x="905" y="1040" width="205" height="85" rx="12" fill="#d3f9d8" stroke="#2f9e44" stroke-width="2.4" filter="url(#rough)"/>
+    <text class="lb" x="1007" y="1074" font-size="16" font-weight="bold" fill="#2b8a3e" text-anchor="middle">eKuiper</text>
+    <text class="lb" x="1007" y="1100" font-size="11.5" fill="#4b7a55" text-anchor="middle">边缘流式计算引擎</text>
+  </g>
+  <g class="node" data-id="nanomq">
+    <rect class="box" x="1150" y="1040" width="210" height="85" rx="12" fill="#d3f9d8" stroke="#2f9e44" stroke-width="2.4" filter="url(#rough)"/>
+    <text class="lb" x="1255" y="1074" font-size="16" font-weight="bold" fill="#2b8a3e" text-anchor="middle">NanoMQ</text>
+    <text class="lb" x="1255" y="1100" font-size="11.5" fill="#4b7a55" text-anchor="middle">边缘 MQTT Broker</text>
+  </g>
+
+  <!-- 页脚 -->
+  <text x="70" y="1348" font-size="12" fill="#9a9ab0">基于代码分析绘制：server/proxy · logic/mqtt · logic/edgeagent · internal/pkg/jwt · model/entity/edge_agent.go（主题模板）</text>
+</svg>
+</div>
+
+<script>
+(function(){
+  var svg = document.getElementById('arch');
+  var nodes = Array.prototype.slice.call(svg.querySelectorAll('.node'));
+  var edges = Array.prototype.slice.call(svg.querySelectorAll('.edge'));
+
+  // 显式邻接表（避免共享虚线导致兄弟节点误高亮）
+  var ADJ = {
+    browser:  ['gin'],
+    prom:     ['gin'],
+    gin:      ['browser','prom','tunnel'],
+    tunnel:   ['gin','cache','jwt','mqttc','neuron','ekuiper','nanomq'],
+    cache:    ['tunnel','db'],
+    db:       ['cache'],
+    jwt:      ['tunnel','agentmgr'],
+    agentmgr: ['jwt','mqttc'],
+    mqttc:    ['tunnel','agentmgr','broker'],
+    broker:   ['mqttc','agent'],
+    agent:    ['broker','neuron','ekuiper','nanomq'],
+    neuron:   ['agent','tunnel'],
+    ekuiper:  ['agent','tunnel'],
+    nanomq:   ['agent','tunnel']
+  };
+
+  function clear(){
+    svg.classList.remove('dim');
+    nodes.forEach(function(n){ n.classList.remove('hl'); });
+    edges.forEach(function(e){ e.classList.remove('hl'); });
+  }
+
+  nodes.forEach(function(n){
+    var id = n.getAttribute('data-id');
+    n.addEventListener('mouseenter', function(){
+      clear();
+      svg.classList.add('dim');
+      n.classList.add('hl');
+      (ADJ[id]||[]).forEach(function(nb){
+        var el = svg.querySelector('.node[data-id="'+nb+'"]');
+        if(el) el.classList.add('hl');
+      });
+      edges.forEach(function(e){
+        var ids = (e.getAttribute('data-nodes')||'').split(/\s+/);
+        if(ids.indexOf(id) !== -1) e.classList.add('hl');
+      });
+    });
+    n.addEventListener('mouseleave', clear);
+  });
+})();
+</script>
+</body>
+</html>
